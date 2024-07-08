@@ -1,4 +1,4 @@
-# SEARCH-ID-MODEL
+# SEARCH-ID MODEL
 
 This repository cointains the code to reproduce the main results of the manuscript [SIMLR: Machine Learning inside the SIR model for COVID-19 Forecasting](https://arxiv.org/abs/2106.01590). 
 There are six jupyter notebooks on that folder. 
