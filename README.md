@@ -1,8 +1,6 @@
 # SEARCH-ID MODEL
 
-This repository cointains the code to reproduce the main results of the manuscript [SIMLR: Machine Learning inside the SIR model for COVID-19 Forecasting](https://arxiv.org/abs/2106.01590). 
-There are six jupyter notebooks on that folder. 
-All the experiments were run using an e2-standard-4 (4 vCPUs, 16 GB memory) computer in the Google Cloud Platform.
+This repository contains the code to reproduce the main results of the manuscript [Dynamic Response to Omicron Spread Under Structured Alert Levels: A Compartmental Analysis of Newfoundland and Labrador's Public Health Strategy](https://). All the experiments were run in the R programming language using the [pomp](https://kingaa.github.io/pomp/install.html) and [macpan2](https://github.com/canmod/macpan2) packages (1.6 GHz Dual-Core Intel Core i5, 8 GB memory) MacBook Air computer.
 
 
 - **CDC_models.ipynb**: It contains the code used to compile the predictions of the models submitted to the CDC. The dataset required to run this script was not included due to the size, but it is publicly available.
