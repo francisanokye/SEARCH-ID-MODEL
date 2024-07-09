@@ -18,5 +18,5 @@ The seroprevalence estimates used in this repository are publicly available and 
 
 For the number of Newfoundland & Labrador COVID-19 (Omicron) daily reported cases, hospital occupancy and deaths, we obtained data from [Newfoundland and Labrador Health Services - Digital Health]() under the Health Research Ethics Board reference number 2021.013.
 
-For the parameterization of the vaccination rate across cohorts, we used the Government of Canada's publicly available data: [COVID-19 vaccination: Vaccination coverage]([https://github.com/OxCGRT/covid-policy-tracker](https://health-infobase.canada.ca/covid-19/vaccination-coverage/)).
+For the parameterization of the vaccination rate across cohorts, we used the Government of Canada's publicly available data: [COVID-19 vaccination: Vaccination coverage](https://health-infobase.canada.ca/covid-19/vaccination-coverage/).
 
