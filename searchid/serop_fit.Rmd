@@ -1,0 +1,1809 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r warning=FALSE, message=FALSE}
+#rm(list = ls(all.names = TRUE))
+set.seed(132628335)
+suppressPackageStartupMessages({
+pacman::p_load(tidyverse, reshape2, ggplot2, coda, gtools, gridExtra,
+                foreach, doParallel, doRNG, tidyr,plyr, pomp, doMC, zoo, 
+                devtools, readxl, viridis, tibbletime, tidyquant, lubridate,
+                grid, ggthemes, ggh4x, ggsci, ggnewscale, repr, magrittr, 
+               coda, xtable, gghighcontrast, superdiag,ggpubr,cowplot)})
+
+base_colors <- scales::hue_pal()(18)
+dark_colors <- colorspace::darken(base_colors, 0.3)
+lite_colors <- colorspace::lighten(base_colors, 0.3)
+
+library(doParallel)
+registerDoParallel(cores = detectCores())
+options(scipen = 100, digits = 4)
+```
+
+```{r warning=FALSE, message=FALSE}
+set.seed(132628335)
+library(tidyverse)
+library(here)
+library(pomp)
+library(foreach)
+library(doFuture)
+library(parallel)
+library(doParallel)
+library(doRNG)
+library(coda)
+library(ggthemes)
+library(coda)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(ggthemes)
+library(cowplot)
+library(minpack.lm)
+library(coda)
+library(xtable)
+library(mgcv)
+library(tidyverse) # Elegant data handling and plotting
+library(lubridate) # Elegant date handling
+library(incidence) # Package for handling and plotting incidence data
+library(EpiEstim)  # Package for calculating pandemic metrics
+library(egg)
+library(gganimate)
+
+colors = c("#000000","#31E1F7","#F99417","#E11299","#002B5B","#379237","#D2001A","#6F38C5","#8D7B68","#BFDB38","#820000","#367E18","#2192FF","#C58940",
+           "black","orange","yellow","magenta","maroon")
+options(scipen = 100, digits = 8)
+```
+
+## Parameterizing Vaccination using data
+
+```{r}
+vacc <- read.csv("~/Documents/nl_ba1_two_peak_pmcmc_model/data/vaccination-coverage-map.csv")
+vacc <- vacc[vacc$prename == "Newfoundland and Labrador",]
+vacc$week_end <- as.Date(vacc$week_end, format = "%Y-%m-%d")
+vacc <- vacc[c("week_end", "numtotal_atleast1dose","numtotal_fully","numtotal_additional")]
+
+# Calculate weekly vaccination rate
+vacc$weekly_2doses <- c(vacc$numtotal_fully[1], diff(vacc$numtotal_fully))
+vacc$weekly_booster <- c(vacc$numtotal_additional[1], diff(vacc$numtotal_additional))
+vacc <- vacc[(vacc$week_end > "2021-12-01") & (vacc$week_end <= "2022-06-05"),]
+rownames(vacc) <- NULL
+sum(vacc$weekly_2doses) / 145695
+sum(vacc$weekly_booster, na.rm = TRUE) / 286414
+```
+
+```{r}
+# Sample data creation (replace this with actual data loading)
+covid_data <- data.frame(
+  Date = seq(as.Date("2020-02-23"), as.Date("2021-02-01"), by="month"),
+  Africa = runif(12, min = 0, max = 10),
+  Oceania = runif(12, min = 0, max = 5),
+  South_America = runif(12, min = 10, max = 20),
+  North_America = runif(12, min = 20, max = 40),
+  Europe = runif(12, min = 30, max = 60),
+  Asia_excl_China = runif(12, min = 40, max = 80),
+  China = runif(12, min = 5, max = 10)
+)
+
+# Ensure data is in the correct format
+covid_data$Date <- as.Date(covid_data$Date)
+
+# Melt the data frame for ggplot2
+covid_melt <- reshape2::melt(covid_data, id.vars = "Date", variable.name = "Region", value.name = "Cases")
+
+# Generate the plot
+ggplot(covid_melt, aes(x = Date, y = Cases, fill = Region)) +
+  geom_area() +
+  scale_fill_manual(values = c("Africa" = "orange", "Oceania" = "purple", "South_America" = "green",
+                               "North_America" = "blue", "Europe" = "darkblue", 
+                               "Asia_excl_China" = "red", "China" = "darkred")) +
+  labs(title = "Cumulative confirmed COVID-19 cases",
+       subtitle = "Confirmed cases is lower than the number of actual cases. The main reason for this is limited testing.",
+       x = NULL,
+       y = "Number of cases",
+       fill = "Region") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5))
+
+```
+
+```{r warning=FALSE,message=FALSE}
+# load data
+# serop_data <- read_csv("~/Documents/nl_ba1_two_peak_pmcmc_model/data/case_estimated_infections.csv")
+serop_data <- read_csv("~/Documents/nl_ba1_two_peak_pmcmc_model/data/omicron_estimated_serop.csv",show_col_types = FALSE)
+
+searchid_process_step <- Csnippet("
+   
+    double Beta;
+
+    double N = (S1_0 + E1_0 + A1_0 + I1_0 + R1_0 + H1_0 + C1_0 + D1_0) +
+                (V2_0 + E2_0 + A2_0 + I2_0 + R2_0 + H2_0 + C2_0 + D2_0) +
+                (V3_0 + E3_0 + A3_0 + I3_0 + R3_0 + H3_0 + C3_0 + D3_0);
+    
+    //double N1 = 78441;
+    //double N2 = 145695;
+    //double N3 = 286414;
+                 
+    double rate[33];
+    double dN[33];
+    
+    S = S1 + V2 + V3;  // all susceptibles
+    E = E1 + E2 + E3;  // all exposed
+    A = A1 + A2 + A3;  // all asymptomatic
+    I = I1 + I2 + I3;  // all infectives
+    R = R1 + R2 + R3;  // all recovered
+    H = H1 + H2 + H3;  // all hospitalized
+    C = C1 + C2 + C3;  // all hospitalized in ICU
+    D = D1 + D2 + D3;  // all fatalities encountered
+  
+    // ##########################################################################
+    // define changepoints for transmission due to changes in alert levels
+    // ##########################################################################
+  
+    if(t < 10){
+      Beta = Beta_2;
+    }
+    else if(10 >= t || t <= 21){
+      Beta = Beta_3;
+    }
+    else if(t > 21 && t <= 55){
+      Beta = Beta_4;
+    }
+    else if(t > 55 & t < 90){
+      Beta = Beta_3;
+    }
+    else{
+      Beta = Beta_0;
+    }
+  
+    // #####################################
+        // Compute the transition rates
+    // #####################################
+  
+    //-----------------------------------------------------------
+    // Transitions for 1-dose vaccinated / unvaccinated
+    //-----------------------------------------------------------
+  
+    rate[1] = (kappa1 * Beta * ((tau * I + zeta * A) / N));  //infection, movement from S1 to E1
+    rate[2] = v2;  // rate of second dose uptake to move from S1 to V2
+  
+    rate[3] = sigma * mu;  //from E1 to A1
+    rate[4] = sigma * (1 - mu);  //from E1 to I1
+  
+    rate[5] = gamma_a;  // from A1 to R1
+  
+    rate[6] = phi1 * xi1;  //from I1 to H1
+    rate[7] = phi1 * (1 - xi1);  //from I1 to R1
+  
+    rate[8] = omega1 * theta1;  //from H1 to C1
+    rate[9] = omega1 * (1 - theta1);  //from H1 to R1
+  
+    rate[10] = eta1 * lambda1;  //from C1 to D1
+    rate[11] = eta1 * (1 - lambda1);  //from C1 to R1
+  
+    //-----------------------------------------------------------
+    // Transitions for 2-dose vaccinated
+    //-----------------------------------------------------------
+  
+    rate[12] = kappa2 * (Beta * ((tau * I + zeta * A) / N));  //infection, movement from V2 to E2
+    rate[13] = v3;  // rate of third or booster dose uptake to move from V2 to V3
+  
+    rate[14] = sigma * mu;  //from E2 to A2
+    rate[15] = sigma * (1 - mu);  //from E2 to I2
+  
+    rate[16] = gamma_a;  // from A2 to R2
+  
+    rate[17] = phi2 * xi2;  //from I2 to H2
+    rate[18] = phi2 * (1 - xi2);  //from I2 to R2
+  
+    rate[19] = omega2 * theta2;  //from H2 to C2
+    rate[20] = omega2 * (1 - theta2);  //from H2 to R2
+  
+    rate[21] = eta2 * lambda2;  //from C2 to D2
+    rate[22] = eta2 * (1 - lambda2);  //from C2 to R2
+  
+    //-----------------------------------------------------------
+    // Transitions for 3-dose/ booster dose vaccinated
+    //-----------------------------------------------------------
+  
+    rate[23] = kappa3 * (Beta * ((tau * I + zeta * A) / N));  //infection, movement from V2 to E2
+  
+    rate[24] = sigma * mu;  //from E3 to A3
+    rate[25] = sigma * (1 - mu);  // from E3 to I3
+  
+    rate[26] = gamma_a;  // from A3 to R3
+  
+    rate[27] = phi3 * xi3;  //from I3 to H3
+    rate[28] = phi3 * (1 - xi3);  //from I3 to R3
+  
+    rate[29] = omega3 * theta3;  //from H3 to C3
+    rate[30] = omega3 * (1 - theta3);  //from H3 to R3
+  
+    rate[31] = eta3 * lambda3;  //from C3 to D3
+    rate[32] = eta3 * (1 - lambda3);  //from C3 to R3
+  
+    // #####################################
+        // Compute the state transitions
+    // #####################################
+  
+    dN[2] = rpois(rate[2] * dt); // double dose uptake is assumed to be Poisson distributed
+    dN[13] = rpois(rate[13] * dt); // booster dose uptake is assumed to be Poisson distributed
+  
+    reulermultinom(2, S1, &rate[1], dt, &dN[1]);
+    reulermultinom(2, E1, &rate[3], dt, &dN[3]);
+    reulermultinom(1, A1, &rate[5], dt, &dN[5]);
+    reulermultinom(2, I1, &rate[6], dt, &dN[6]);
+    reulermultinom(2, H1, &rate[8], dt, &dN[8]);
+    reulermultinom(2, C1, &rate[10], dt, &dN[10]);
+  
+    reulermultinom(2, V2, &rate[12], dt, &dN[12]);
+    reulermultinom(2, E2, &rate[14], dt, &dN[14]);
+    reulermultinom(1, A2, &rate[16], dt, &dN[16]);
+    reulermultinom(2, I2, &rate[17], dt, &dN[17]);
+    reulermultinom(2, H2, &rate[19], dt, &dN[19]);
+    reulermultinom(2, C2, &rate[21], dt, &dN[21]);
+  
+    reulermultinom(2, V3, &rate[23], dt, &dN[23]);
+    reulermultinom(2, E3, &rate[24], dt, &dN[24]);
+    reulermultinom(1, A3, &rate[26], dt, &dN[26]);
+    reulermultinom(2, I3, &rate[27], dt, &dN[27]);
+    reulermultinom(2, H3, &rate[29], dt, &dN[29]);
+    reulermultinom(2, C3, &rate[31], dt, &dN[31]);
+  
+    // #################################################################
+          // Apply transitions to state variables (balance equations)
+    // #################################################################
+  
+    S1 += -dN[1] - dN[2];
+    E1 += dN[1] - dN[3] - dN[4];
+    A1 += dN[3] - dN[5];
+    I1 += dN[4] - dN[6] - dN[7];
+    H1 += dN[6] - dN[8] - dN[9];
+    C1 += dN[8] - dN[10] - dN[11];
+    R1 += dN[5] + dN[7] + dN[9] + dN[11];
+    D1 += dN[10];
+    Recov1 = dN[5] + dN[7] + dN[9] + dN[11];
+  
+    V2 += -dN[12] - dN[13] + dN[2];
+    E2 += dN[12] - dN[14] - dN[15];
+    A2 += dN[14] - dN[16];
+    I2 += dN[15] - dN[17] - dN[18];
+    H2 += dN[17] - dN[19] - dN[20];
+    C2 += dN[19] - dN[21] - dN[22];
+    R2 += dN[16] + dN[18] + dN[20] + dN[22];
+    D2 += dN[21];
+    Recov2 = dN[16] + dN[18] + dN[20] + dN[22];
+  
+    V3 += dN[13] - dN[23];
+    E3 += dN[23] - dN[24] - dN[25];
+    A3 += dN[24] - dN[26];
+    I3 += dN[25] - dN[27] - dN[28];
+    H3 += dN[27] - dN[29] - dN[30];
+    C3 += dN[29] - dN[31] - dN[32];
+    R3 += dN[26] + dN[28] + dN[30] + dN[32];
+    D3 += dN[31];
+    Recov3 = dN[26] + dN[28] + dN[30] + dN[32];
+  
+    S = nearbyint(S1 + V2 + V3);  // all susceptibles
+    E = nearbyint(E1 + E2 + E3);  // all exposed
+    A = nearbyint(A1 + A2 + A3);  // all asymptomatic
+    I = nearbyint(I1 + I2 + I3);  // all infectives
+    R = nearbyint(R1 + R2 + R3) / N;  // all recovered
+    H = nearbyint(H1 + H2 + H3);  // all hospitalized
+    C = nearbyint(C1 + C2 + C3);  // all hospitalized in ICU
+    D = nearbyint(D1 + D2 + D3);  // all fatalities encountered
+    Recov = nearbyint(Recov1 + Recov2 + Recov3);
+    ;
+    ")
+  
+    ############## INITIAL CONDITION SPECIFICATION ############## 
+  
+searchid_init <- Csnippet("
+  
+  S1 = nearbyint(S1_0);
+  E1 = nearbyint(E1_0);
+  A1 = nearbyint(A1_0);
+  I1 = nearbyint(I1_0);
+  R1 = nearbyint(R1_0);
+  H1 = nearbyint(H1_0);
+  C1 = nearbyint(C1_0);
+  D1 = nearbyint(D1_0);
+
+  V2 = nearbyint(V2_0);
+  E2 = nearbyint(E2_0);
+  A2 = nearbyint(A2_0);
+  I2 = nearbyint(I2_0);
+  R2 = nearbyint(R2_0);
+  H2 = nearbyint(H2_0);
+  C2 = nearbyint(C2_0);
+  D2 = nearbyint(D2_0);
+
+  V3 = nearbyint(V3_0);
+  E3 = nearbyint(E3_0);
+  A3 = nearbyint(A3_0);
+  I3 = nearbyint(I3_0);
+  R3 = nearbyint(R3_0);
+  H3 = nearbyint(H3_0);
+  C3 = nearbyint(C3_0);
+  D3 = nearbyint(D3_0);
+
+  S = S1 + V2 + V3;  // all susceptibles
+  E = E1 + E2 + E3;  // all exposed
+  A = A1 + A2 + A3;  // all asymptomatic
+  I = I1 + I2 + I3;  // all infectives
+  R = R1 + R2 + R3;  // all recovered
+  H = H1 + H2 + H3;  // all hospitalized
+  C = C1 + C2 + C3;  // all hospitalized in ICU
+  D = D1 + D2 + D3;  // all fatalities encountered
+
+  Recov1 = 4090;
+  Recov2 = 4090;
+  Recov3 = 4090;
+  Recov =  Recov1 + Recov2 + Recov3;
+  ")
+
+############## DEFINE PROCESS MODEL ############## 
+  # Defines the likelihood function
+  
+  dmeas <- Csnippet("
+    if (Beta_0 < 0 || Beta_2 < 0 || Beta_3 < 0 || Beta_4 < 0) {
+      lik = (give_log) ? R_NegInf : 0.0;
+    } else {
+      // lik = dnbinom_mu(est_inci_serop, k,  Recov, give_log) + dnbinom_mu(death, 1, D * death_rate, give_log) + dpois(hosp, H * //hosp_rate , give_log);
+        lik = dpois(est_inci_serop, disp * Recov, give_log) + dnbinom_mu(death, 1, D * death_rate, give_log) + dpois(hosp, H * hosp_rate , give_log);
+      if (!give_log && lik <= 0) {
+        lik = R_NegInf;
+      } else if (!give_log) {
+        lik = log(lik);
+      }
+    }
+  ")
+
+  ############## DEFINE PROCESS SIMULATOR ##############
+  # Generates observations based on the specified distribution
+
+  rmeas <- Csnippet("
+    if (Beta_0 < 0 || Beta_2 < 0 || Beta_3 < 0 || Beta_4 < 0) {
+      Rf_error(\"Invalid state values\");
+      }
+    else{
+      //est_inci_serop = rnbinom_mu(k, Recov);
+      est_inci_serop = rpois(disp * Recov);
+      hosp = rpois(H * hosp_rate);
+      death = rnbinom_mu(1, D * death_rate);
+      
+      }
+    ")
+
+  ############## DEFINE MODEL PARAMETER ############## 
+  
+  state_var <- c(
+    "S", "E", "A", "I", "R","H", "C", "D",
+    "S1", "E1", "A1", "I1", "R1","H1", "C1", "D1",
+    "V2", "E2", "A2", "I2", "R2","H2", "C2", "D2",
+    "V3", "E3", "A3", "I3", "R3","H3", "C3", "D3",
+    "Recov1","Recov2","Recov3","Recov","R_eff","R_eff1")
+  
+fixed_params_names <- c(
+  "kappa1", "kappa2", "kappa3","phi1","phi2","phi3", 
+  "eta1","eta2","eta3","v2","v3","tau", "zeta", 
+  "lambda1", "lambda2","lambda3","theta1","theta2","theta3", 
+  "omega1", "omega2","omega3","xi1","xi2","xi3", "mu", "gamma_a", "sigma",
+  "S1_0", "E1_0", "A1_0", "I1_0", "R1_0", "H1_0", "C1_0", "D1_0",
+  "V2_0", "E2_0", "A2_0", "I2_0", "R2_0", "H2_0", "C2_0", "D2_0",
+  "V3_0", "E3_0", "A3_0", "I3_0", "R3_0", "H3_0", "C3_0", "D3_0") 
+
+parameters_to_estimate <- c("Beta_0","Beta_2","Beta_3","Beta_4","death_rate", "hosp_rate", "disp") 
+
+paramnames <- c(parameters_to_estimate, fixed_params_names)
+  
+  ############## INITIAL PARAMETERS ############## 
+# Beta_0 = 0.6620067, Beta_2 = 0.4400276, Beta_3 = 0.7550420, Beta_4 = 0.660000,	
+				
+initial_params = c(Beta_0 = 0.65007704, Beta_2 = 0.42752579, Beta_3 = 0.7390368, Beta_4 = 0.695509096,
+                 gamma_a = 1/14, sigma = 0.35, death_rate = 0.79812553, hosp_rate = 0.0059967661,
+                 mu = 0.6,  xi1 = 0.15, xi2 = 0.15, xi3 = 0.15, disp = 0.95,
+                 kappa1 = 1, kappa2 = 0.91, kappa3 = 0.3, eta1 = 1/5.5, eta2 = 1/5.5, eta3 = 1/5.5,
+                 phi1 = 1/5, phi2 = 1/5, phi3 = 1/5, theta1 = 0.007, theta2 = 0.005, theta3 = 0.0025,
+                 omega1 = 1/7, omega2 =  1/7, omega3 =  1/7, lambda1 = 0.25, lambda2 = 0.156, lambda3 = 0.150,
+                 tau = 0.799, zeta = 0.75, v2 = 0.2828, v3 = 0.1359,
+                 S1_0 = 73896, E1_0 = 438, A1_0 = 10, I1_0 = 10, R1_0 = 4918, H1_0 = 0, C1_0 = 0, D1_0 = 0,
+                 V2_0 = 139266, E2_0 = 438, A2_0 = 10, I2_0 = 10, R2_0 = 4918, H2_0 = 0, C2_0 = 0, D2_0 = 0,
+                 V3_0 = 281265, E3_0 = 438, A3_0 = 10, I3_0 = 5, R3_0 = 4918, H3_0 = 0, C3_0 = 0, D3_0 = 0)
+
+serop_data$day <- 1 :nrow(serop_data)
+
+serop_data |>
+  dplyr::select(day,est_inci_serop, hosp,death) |>
+  pomp(
+    times = "day",
+    t0 = -1,
+    rprocess = euler(searchid_process_step, delta.t = 1.0),
+    rinit = searchid_init,
+    params = initial_params,
+    rmeasure = rmeas,
+    dmeasure = dmeas,
+    accumvars = c("Recov1","Recov2","Recov3","Recov", "R_eff", "R_eff1"),
+    obsnames = c("est_inci_serop", "hosp","death"),
+    paramnames = paramnames,
+    statenames = state_var
+  ) -> Omicron_PMCMC
+```
+
+```{r message=FALSE, warning=FALSE, fig.height = 7, fig.width=10}
+Omicron_PMCMC |>
+  simulate(params = initial_params,nsim=1, format="data.frame", include.data=TRUE, seed = 132628330) |>
+    dplyr:::select.data.frame(c(".id","day","est_inci_serop","R")) -> M
+M1 <- M[(M$.id == "data"),]
+M2 <- M[(M$.id != "data"),]
+
+M1$date <- dates <- seq.Date(from = as.Date("2021-12-01"), by = "day", length.out = nrow(M1))
+M2$date <- dates <- seq.Date(from = as.Date("2021-12-01"), by = "day", length.out = nrow(M2))
+M <- rbind(M1,M2)
+M <- M[M$date > "2021-12-14",]
+rownames(M) <- NULL
+
+M |> 
+  ggplot(aes(x = date, y = est_inci_serop, color = ifelse(.id=="data","data","simulation"), group = .id)) +
+  geom_point(size = 1) +
+  geom_smooth(method = 'loess', span = 0.15, linetype = 6, se = FALSE, size = 1) +
+  scale_color_manual(labels = c("True Incidence", "Model Sim."),values = c("black","red")) +
+  labs(x = "Date", y = "Omicron Cases", title = "SEARCH-ID Model Fit Using Calibrated Parameters", color = "") +
+  annotate("text", x = as.Date("2021-12-18"), y = 1200, label = "Alert Level 2",size = 6,angle = 90, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2021-12-28"), y = 1200, label = "Alert Level 3",size = 6,angle = 90, hjust = 1,color = "black")+
+  annotate("text", x = as.Date("2022-02-02"), y = 1200, label = "Alert Level 4",size = 6,angle = 0, hjust = 1, color = "black")+
+  # annotate("text", x = as.Date("2022-02-05"), y = 3, label = "Alert Level 3",size = 5,angle = 10, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-03-04"), y = 1200, label = "Alert Level 3",size = 6,angle = 0, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-04-29"), y = 1200, label = "",size = 6, hjust = 1, color = "black")+
+  theme_clean() +
+  geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 1)  +
+    # geom_vline(xintercept = as.Date("2022-04-10"), colour = "purple", linetype = 6, size = 2)  +
+  geom_vline(xintercept = as.Date("2021-12-23"), colour = "black", linetype = 2, size = 1)  +
+  geom_vline(xintercept = as.Date("2022-01-03"), colour = "black", linetype = 2, size = 1)  +
+  geom_vline(xintercept = as.Date("2022-02-06"), colour = "black", linetype = 2, size = 1)  +
+  geom_vline(xintercept = as.Date("2022-03-14"), colour = "black", linetype = 2, size = 1)  +
+  annotate("text", x = as.Date("2022-03-05"), y = 2200, label = "Pre-Cancellation of Public \nHealth Emergency Declaration",size=5, hjust=1, color = "darkblue")+
+  annotate("text", x = as.Date("2022-05-14"), y = 2200, label = "Post Cancellation of Public \nHealth Emergency Declaration",size=5, hjust=1,color = "darkblue")+
+  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        plot.title = element_text(size = 18, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.75, 0.35),
+        legend.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.background = element_rect(color = NA),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+        theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+```{r warning=FALSE, message=FALSE,  fig.height=5, fig.width=7}
+set.seed(0)
+Omicron_PMCMC |>
+  simulate(params = initial_params, nsim = 1,as.data.frame = TRUE, include.data = TRUE) |>
+  data.frame()|>
+  dplyr::select(c("day","est_inci_serop","S","E","A","I","R","H","C","D", "Recov")) -> tg
+
+tg$Rpercap <- tg$R #/ total_population
+dates <- seq.Date(from = as.Date("2021-12-10"), by = "day", length.out = nrow(tg))
+tg$dates <- dates
+
+tg <- tg[(tg$dates > "2021-12-14") & (tg$dates < "2022-06-03"),]
+serop_data <- serop_data[serop_data$date > "2021-12-14",]
+rownames(tg) <- NULL
+
+ggplot() +
+  geom_point(data = tg, aes(x = dates, y = R, color = "Recovery Per Capita"), size = 1) +
+  geom_point(data = serop_data, aes(x = date, y = daily_serop, color = "CITF Seroprevalence"), size = 1) +
+  scale_color_manual(name = NULL,values = c("Recovery Per Capita" = "darkgreen","CITF Seroprevalence" = "brown")) +
+  labs(x = "Date", y = "Seroprevalence", title = "Recovery Per Capita and CITF Seroprevalence", color = "") +
+  theme_clean() +
+  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        plot.title = element_text(size = 20, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.25, 0.75),
+        legend.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.background = element_rect(color = NA),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+        theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+```{r, warning = FALSE, message = FALSE}
+library(doFuture)
+plan(multicore)
+cl = makeCluster(1L)
+registerDoParallel(cores = detectCores())
+registerDoRNG(625904618)
+
+foreach(i=1:10, .combine = c) %dopar% {
+  library(pomp)
+  Omicron_PMCMC |> pfilter(params= initial_params,  Np = 5000)
+} -> pf
+
+plot(pf)
+pf %>% logLik() %>% logmeanexp(se = TRUE, ess=TRUE)
+```
+
+```{r, fig.height = 5, fig.width = 8, echo = TRUE}
+# params_rw_sd = rw_sd(Beta_0 = 0.0001, Beta_2 = 0.0001, Beta_3 = 0.0001, Beta_4 = 0.0001, death_rate = 0.0001, hosp_rate = 0.0001)
+# 
+# registerDoRNG(482947940)
+# start_time = Sys.time()
+# paste0("MIF Parameter Search Started @: ",start_time)
+# 
+# bake(file = "MIF_WRITEUP_LOCMIFghfi1.rds", {
+#   foreach(i = 1:4, .combine = c) %dopar% {
+#     suppressPackageStartupMessages({
+#       library(tidyverse)
+#       library(pomp)
+#     })
+#     Omicron_PMCMC %>%
+#       mif2(
+#         params = initial_params,
+#         Np = 5000, Nmif = 200,
+#         cooling.fraction.50 = 0.5,
+#         rw.sd = params_rw_sd
+#       )
+#   } -> mifs_local
+#   attr(mifs_local,"ncpu") <- getDoParWorkers()
+#   mifs_local
+# }) -> mifs_local
+# 
+# bake(file = "MIF_WRITEUP_LOCEVALghfi1.rds", {
+#   foreach(mf = mifs_local, .combine = rbind) %dopar% {
+#     suppressPackageStartupMessages({
+#       library(tidyverse)
+#       library(pomp)
+#     })
+#     ll = replicate(10, logLik(pfilter(mf, Np = 20000))) %>%
+#          logmeanexp(se = TRUE)
+#     coef(mf) %>% bind_rows() %>% bind_cols(loglik = ll[1], loglik.se = ll[2])
+#   } -> mif_output
+#   attr(mif_output,"ncpu") <- getDoParWorkers()
+#   mif_output
+# }) -> mif_output
+# 
+# end_time = Sys.time()
+# paste0("MIF Search Took ", round(difftime(end_time, start_time, units="hours"),3),"hrs", " - " , round(difftime(end_time, start_time, units="min"),3), "mins", " - ", round(difftime(end_time, start_time, units="secs"),3),"sec", " To Run.")
+```
+
+```{r, eval = FALSE}
+# mif_output %>% arrange(-loglik) %>% head %>%
+#   knitr::kable(digits = 4, caption = "Local search results (in decreasing order of likelihood)")
+# write.csv(mif_output,"~/Documents/nl_ba1_two_peak_pmcmc_model/data/MIFPARAMETERSFINALLhgfi1.csv",row.names = FALSE)
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=7}
+# mifs_local %>%
+#   traces(c(parameters_to_estimate,"loglik")) %>%
+#   melt() %>%
+#   ggplot(aes(x = iteration, y = value, group = .L1, color = factor(.L1))) +
+#   theme_bw() +
+#   geom_line() +
+#   guides(color = FALSE) +
+#   facet_wrap(~name, scales = "free_y")
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.width=15, fig.height=15}
+# set.seed(132628335)
+# Omicron_PMCMC |>
+#   simulate(params = mif_output[1,],nsim=1, format="data.frame", include.data=TRUE) |>
+#     dplyr:::select.data.frame(c(".id","day","est_inci_serop", "hosp","death","R")) |>
+#     reshape2::melt(id = c(".id", "day")) |>
+#     ggplot(aes(x=day,y=value,color=ifelse(.id=="data","data","simulation"),group=.id))+
+#     scale_color_manual(labels = c("True Cases", "Model Simulation"),values = c("black","#00A087B2"))+
+#     labs(color="")+
+#     geom_point()+
+#     geom_smooth(span = 0.15) +
+#     theme_clean()+
+#     scale_color_manual(values = c("red","navy")) +
+#     theme(axis.text.x = element_text(size = 14), axis.title.x = element_text(size = 14,color = "black"),
+#           axis.text.y = element_text(size = 14), axis.title.y = element_text(size = 14,color = "black"),
+#           plot.title = element_text(size = 14, face = "bold", color = "black",hjust = 0.5))+
+#     ggtitle("Simulation With Initial Guess Parameters.") +
+#     theme(plot.title = element_text(hjust = 0.5)) +
+#     facet_wrap(~variable,ncol=1,scales="free_y")
+```
+
+```{r message=FALSE, warning=FALSE}
+############## parallelize on clusters ############## 
+set.seed(0)
+num_clusters <- parallel::makeCluster(parallel::detectCores())
+registerDoParallel(num_clusters)
+registerDoRNG(900242057)
+library(pomp)
+############## Run and calibrate model using PMCMC ##############
+
+num_chains <- 4
+num_mcmc <- 5000
+num_np <- 500
+
+# Set the perturbation intensities for parameter random walk for proposals
+perturbation_intensity <- rep(0.0001, length(parameters_to_estimate))
+names(perturbation_intensity) <- parameters_to_estimate
+
+start_time = Sys.time()
+paste0("Model Training started at: ",start_time)
+
+bake(file = "~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/Serop_PmcmcMM1Xkij.rds", {
+  foreach(i = 1:num_chains, .combine = c, .packages = c("pomp","tidyverse")) %dopar%{
+    Omicron_PMCMC |>
+      pmcmc(
+        params = initial_params,
+        Nmcmc = num_mcmc,
+        Np = num_np,
+        paramnames = c("Beta_0","Beta_2","Beta_3","Beta_4","death_rate","hosp_rate"),
+        mvn_diag_rw(perturbation_intensity))
+    } -> pmcmc_chains
+  attr(pmcmc_chains,"ncpu") <- getDoParWorkers()
+  pmcmc_chains
+}, seed = 0, kind = "L'Ecuyer") -> pmcmc_chains
+
+saveRDS(pmcmc_chains, "~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/serop_chainMM1Xkij.rds")
+  
+# likelihood estimate for search results
+bake(file = "~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/Serop_search_pmcmc_likMM1Xkij.rds", {
+  foreach(pmcmc_run = pmcmc_chains, .combine = rbind) %dopar% {
+    ll = replicate(10, logLik(pfilter(pmcmc_run, Np = 20000))) |>
+      logmeanexp(se = TRUE)
+    coef(pmcmc_run) |> bind_rows() |> bind_cols(loglik = ll[1], loglik.se = ll[2])
+  } -> pmcmc_results
+  attr(pmcmc_results,"ncpu") <- getDoParWorkers()
+  pmcmc_results
+}, seed = 0, kind = "L'Ecuyer") -> pmcmc_results
+
+stopCluster(num_clusters)
+
+end_time = Sys.time()
+paste0("SEARCH-ID Model took ", round(difftime(end_time, start_time, units="hours"),3),"hrs", " - " , round(difftime(end_time, start_time, units="min"),3), "mins", " - ", round(difftime(end_time, start_time, units="secs"),3),"sec", " to run and calibrate parameters.")
+write.csv(pmcmc_results,"~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/Serop_search_pmcmc_paramMM1Xkij.csv",row.names = FALSE)
+```
+
+```{r}
+# pmcmc_results <- read.csv("~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/Serop_search_pmcmc_paramMM12.csv")
+# pmcmc_chains <- readRDS("~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/serop_chainMM12.rds")
+```
+
+```{r}
+############## Save model and parameters and print results ############## 
+t(sapply(pmcmc_chains, coef)) |> 
+  as_tibble() |>
+  dplyr::bind_cols(tibble(logLik = pmcmc_results[,1],logLik_se = pmcmc_results[,2])) -> pmcmc_params_df
+
+pmcmc_params_opt <- pmcmc_params_df[pmcmc_params_df["logLik"] == max(pmcmc_params_df["logLik"]),]
+pmcmc_params_opt <- pmcmc_params_opt[paramnames]
+pmcmc_params_opt
+```
+
+```{r message=FALSE, warning=FALSE, fig.height = 7, fig.width = 7}
+pmcmc_chains |>
+  traces(c(parameters_to_estimate,"loglik")) -> pmcmc_chains_est 
+  
+plot(pmcmc_chains_est)
+```
+
+```{r warning=FALSE, message=FALSE, fig.height = 7, fig.width = 7}
+library(coda)
+
+pmcmc_chains |>
+  traces(c(parameters_to_estimate,"loglik")) -> pmcmc_chains_est 
+
+gelman_diag_result <- gelman.diag(pmcmc_chains_est, confidence = 0.95, transform = FALSE, multivariate = TRUE)
+print(gelman_diag_result)
+
+gelman.plot(pmcmc_chains_est, autoburnin = TRUE)
+```
+
+```{r warning=FALSE, message=FALSE}
+# set.seed(132628335)
+# library(coda)
+# library(xtable)
+# 
+# pmcmc_chains |>
+#   summary() -> output
+# 
+# stats_table = xtable(as.data.frame(output$statistics))
+# quant_table = xtable(as.data.frame(output$quantiles))
+# 
+# print(stats_table, file="~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/final_stats_tablev.tex")
+# print(quant_table, file="~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/final_quant_tablev.tex")
+# output
+```
+
+```{r message=FALSE, warning=FALSE, fig.width=12, fig.height=7}
+Omicron_PMCMC |>
+  simulate(params = pmcmc_params_opt, nsim=1, format="data.frame", include.data=TRUE, seed = 132628331) |>
+    dplyr:::select.data.frame(c(".id","day","est_inci_serop", "hosp","death","R")) -> yt
+
+yt1 <- yt[(yt$.id == "data"),]
+yt2 <- yt[(yt$.id != "data"),]
+yt1$date <- dates <- seq.Date(from = as.Date("2021-12-01"), by = "day", length.out = nrow(yt1))
+yt2$date <- dates <- seq.Date(from = as.Date("2021-12-01"), by = "day", length.out = nrow(yt2))
+yt <- rbind(yt1,yt2)
+yt <- yt[yt$date > "2021-12-14",]
+rownames(yt) <- NULL
+
+J <- ggplot(data = yt, aes(x = date, y = est_inci_serop, color = ifelse(.id=="data","data","simulation"), group = .id)) +
+  geom_point(size = 5) +
+  geom_smooth(span = 0.11, linetype = 6, se = FALSE, size = 5) +
+  scale_color_manual(labels = c("Est. New Cases", "SEARCH-ID Sim."),values = c("black","red")) +
+  labs(x = "Date", y = "Omicron Cases", title = "SEARCH-ID Model Fit Using Calibrated Parameters", color = "") +
+  theme_clean() +
+  annotate("text", x = as.Date("2021-12-18"), y = 1000, label = "Alert Level 2",size = 15,angle = 90, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-01-01"), y = 1000, label = "Alert Level 3",size = 15,angle = 90, hjust = 1,color = "black")+
+  annotate("text", x = as.Date("2022-02-02"), y = 1000, label = "Alert Level 4",size = 15,angle = 0, hjust = 1, color = "black")+
+  # annotate("text", x = as.Date("2022-02-05"), y = 3, label = "Alert Level 3",size = 5,angle = 10, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-03-04"), y = 1500, label = "Alert Level 3",size = 15,angle = 0, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-05-20"), y = 700, label = "",size = 15, hjust = 1, color = "black")+
+  theme_clean() +
+  geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 4) +
+  geom_vline(xintercept = as.Date("2021-12-23"), colour = "gold4", linetype = 2, size = 4)  +
+  geom_vline(xintercept = as.Date("2022-01-03"), colour = "gold4", linetype = 2, size = 4)  +
+  geom_vline(xintercept = as.Date("2022-02-06"), colour = "gold4", linetype = 2, size = 4)  +
+  geom_vline(xintercept = as.Date("2022-03-14"), colour = "gold4", linetype = 2, size = 4)  +
+  annotate("text", x = as.Date("2022-03-03"), y = 2200, label = "Pre-Cancellation of Public \nHealth Emergency Declaration",size=15, hjust=1, color = "navy")+
+  annotate("text", x = as.Date("2022-05-27"), y = 2200, label = "Post Cancellation of Public \nHealth Emergency Declaration",size=15, hjust=1,color = "navy")+
+  theme(axis.text.x = element_text(size = 40, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 40, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 40),
+        axis.title.y = element_text(size = 40, color = "black", face = "bold"),
+        plot.title = element_text(size = 40, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.75, 0.35),
+        legend.title = element_text(size = 40),
+        legend.text = element_text(40),
+        legend.background = element_rect(color = NA),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+        theme(plot.title = element_text(hjust = 0.5))
+
+K <- ggplot() +
+  geom_point(data = serop_data[serop_data$date > "2021-12-14",], aes(x = date, y = daily_serop)) +
+  geom_point(data = yt, aes(x = date, y = R, color = "SEARCHID Model Recovery Per Capita"), size = 4) +
+  geom_point(data = serop_data[serop_data$date > "2021-12-14",], aes(x = date, y = daily_serop, color = "CITF Seroprevalence Estimate"), size = 4) +
+  scale_color_manual(name = NULL,values = c("SEARCHID Model Recovery Per Capita" = "navy","CITF Seroprevalence Estimate" = "brown")) +
+  geom_smooth(span = 0.15, linetype = 6, se = FALSE) +
+  scale_color_manual(labels = c("CITF Seroprevalence Estimatee", "SEARCHID Model Recovery Per Capita"),values = c("navy","brown")) +
+  labs(x = "Date", y = "Seroprevalence", title = "CITF Seroprevalence Vrs SEARCHID Model Recovery Per Capita", color = "") +
+  theme_clean() +
+  theme(axis.text.x = element_text(size = 40, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 40, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 40),
+        axis.title.y = element_text(size = 40, color = "black", face = "bold"),
+        plot.title = element_text(size = 40, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.25, 0.75),
+        legend.title = element_text(size = 40),
+        legend.text = element_text(size = 40),
+        legend.background = element_rect(color = NA),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+        theme(plot.title = element_text(hjust = 0.5))
+
+S <- ggplot(data = yt, aes(x = date, y = hosp, color = ifelse(.id=="data","data","simulation"), group = .id)) +
+  geom_line(size = 3) +
+  scale_color_manual(labels = c("Hospitalized", "SEARCH-ID Sim."),values = c("red","darkgreen")) +
+  labs(x = "Date", y = "Hospitalized", title = "SEARCH-ID Model Fit Using Calibrated Parameters", color = "") +
+  theme_clean() +
+  annotate("text", x = as.Date("2021-12-18"), y = 6, label = "Alert Level 2",size = 15,angle = 90, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-01-01"), y = 9, label = "Alert Level 3",size = 15,angle = 90, hjust = 1,color = "black")+
+  annotate("text", x = as.Date("2022-02-02"), y = 8, label = "Alert Level 4",size = 15,angle = 0, hjust = 1, color = "black")+
+  # annotate("text", x = as.Date("2022-02-05"), y = 3, label = "Alert Level 3",size = 5,angle = 10, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-03-04"), y = 8, label = "Alert Level 3",size = 15,angle = 0, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-05-28"), y = 8, label = "",size = 15, hjust = 1, color = "black")+
+  theme_clean() +
+  geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 4) +
+  geom_vline(xintercept = as.Date("2021-12-23"), colour = "gold4", linetype = 2, size = 4)  +
+  geom_vline(xintercept = as.Date("2022-01-03"), colour = "gold4", linetype = 2, size = 4)  +
+  geom_vline(xintercept = as.Date("2022-02-06"), colour = "gold4", linetype = 2, size = 4)  +
+  geom_vline(xintercept = as.Date("2022-03-14"), colour = "gold4", linetype = 2, size = 4)  +
+  annotate("text", x = as.Date("2022-03-10"), y = 13, label = "Pre-Cancellation of Public \nHealth Emergency Declaration",size=15, hjust=1, color = "navy")+
+  annotate("text", x = as.Date("2022-05-19"), y = 13, label = "Post Cancellation of Public \nHealth Emergency Declaration",size=15, hjust=1,color = "navy")+
+  theme(axis.text.x = element_text(size = 40, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 40, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 40),
+        axis.title.y = element_text(size = 40, color = "black", face = "bold"),
+        plot.title = element_text(size = 40, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.75, 0.80),
+        legend.title = element_text(size = 40),
+        legend.text = element_text(size = 40),
+        legend.background = element_rect(color = NA),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+        theme(plot.title = element_text(hjust = 0.5))
+
+W <- ggplot(data = yt, aes(x = date, y = death, color = ifelse(.id=="data","data","simulation"), group = .id)) +
+  geom_line(size = 3) +
+  scale_color_manual(labels = c("Death", "SEARCH-ID Sim."),values = c("blue","maroon")) +
+  labs(x = "Date", y = "Deaths", title = "SEARCH-ID Model Fit Using Calibrated Parameters", color = "") +
+  theme_clean() +
+  annotate("text", x = as.Date("2021-12-18"), y = 6, label = "Alert Level 2",size = 15,angle = 90, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-01-01"), y = 9, label = "Alert Level 3",size = 15,angle = 90, hjust = 1,color = "black")+
+  annotate("text", x = as.Date("2022-02-02"), y = 8, label = "Alert Level 4",size = 15,angle = 0, hjust = 1, color = "black")+
+  # annotate("text", x = as.Date("2022-02-05"), y = 3, label = "Alert Level 3",size = 5,angle = 10, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-03-04"), y = 8, label = "Alert Level 3",size = 15,angle = 0, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-05-28"), y = 8, label = "",size = 15, hjust = 1, color = "black")+
+  theme_clean() +
+  geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 4) +
+  geom_vline(xintercept = as.Date("2021-12-23"), colour = "gold4", linetype = 2, size = 4)  +
+  geom_vline(xintercept = as.Date("2022-01-03"), colour = "gold4", linetype = 2, size = 4)  +
+  geom_vline(xintercept = as.Date("2022-02-06"), colour = "gold4", linetype = 2, size = 4)  +
+  geom_vline(xintercept = as.Date("2022-03-14"), colour = "gold4", linetype = 2, size = 4)  +
+  annotate("text", x = as.Date("2022-03-10"), y = 13, label = "Pre-Cancellation of Public \nHealth Emergency Declaration",size=15, hjust=1, color = "navy")+
+  annotate("text", x = as.Date("2022-05-19"), y = 13, label = "Post Cancellation of Public \nHealth Emergency Declaration",size=15, hjust=1,color = "navy")+
+  theme(axis.text.x = element_text(size = 40, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 40, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 40),
+        axis.title.y = element_text(size = 40, color = "black", face = "bold"),
+        plot.title = element_text(size = 40, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.75, 0.70),
+        legend.title = element_text(size = 40),
+        legend.text = element_text(size = 40),
+        legend.background = element_rect(color = NA),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+        theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r warning=FALSE, message=FALSE, fig.height= 38 ,fig.width=55}
+J_K <- plot_grid(J, K, ncol = 2, labels=c("J", "K"),align = "hv", label_size = 45)
+S_W <- plot_grid(S, W, ncol = 2, labels=c("S"
+                                          , "W"),align = "hv", label_size = 45)
+J_K_S_W <- plot_grid(J_K, S_W, nrow = 2, rel_heights = c(1, 1, 1))
+# J_K_S_W <- plot_grid(J_K, nrow = 1, rel_heights = c(1, 1, 1),labels=c("", "C"))
+
+J_K_S_W
+```
+
+```{r}
+# Simulate or load your data (replace this with actual data loading)
+Omicron_PMCMC |>
+  simulate(params = pmcmc_params_opt, nsim = 1, format = "data.frame", include.data = TRUE, seed = 132628331) |>
+  dplyr::select(c(".id", "day", "est_inci_serop", "hosp", "death", "R")) -> yt
+
+yt1 <- yt %>% filter(.id == "data")
+yt2 <- yt %>% filter(.id != "data")
+
+dates <- seq.Date(from = as.Date("2021-12-01"), by = "day", length.out = nrow(yt1))
+yt1$date <- dates
+yt2$date <- dates
+
+yt <- bind_rows(yt1, yt2)
+yt <- yt %>% filter(date > as.Date("2021-12-14"))
+rownames(yt) <- NULL
+
+# Create the plot with geom_smooth
+J <- ggplot(data = yt2, aes(x = date, y = est_inci_serop, color = ifelse(.id == "data", "data", "simulation"), group = .id)) +
+  geom_point(size = 5) +
+  geom_smooth(span = 0.11, linetype = 6, se = FALSE, size = 5)
+
+# Extract the smoothed data
+smoothed_data <- ggplot_build(J)$data[[1]]
+smoothed_data$date <- dates
+plot(smoothed_data$y)
+plot(yt1$est_inci_serop)
+```
+
+```{r}
+
+# Build incidence object
+# seropdata <- read_csv("~/Documents/nl_ba1_two_peak_pmcmc_model/data/omicron_estimated_serop.csv")
+
+yt2 <- yt2[yt2$date > "2021-12-14",]
+
+nl_case_inci <- as.incidence(yt2$est_inci_serop, dates = yt2$date)
+ 
+res_parametric_si <- EpiEstim::estimate_R(nl_case_inci, method="parametric_si",config = EpiEstim::make_config(list(mean_si = 6.75, std_si = 6.53)))
+
+# Table of dates used
+r_number_dates <- res_parametric_si$dates
+
+# Table of R_t estimates
+r_number_estim <- res_parametric_si$R %>% 
+  # Add date for end of the (weekly) estimation
+  mutate(date = r_number_dates[t_end]) %>% 
+  # Extract mean and SD of R estimate
+  select(date, `Mean(R)`, `Std(R)`)
+
+r_number_estim <- r_number_estim[r_number_estim$date > "2021-12-14",]
+
+colnames(r_number_estim) <- c("date", "R_eff", "std_R") 
+
+ggplot(data = r_number_estim,aes(x = date, y = R_eff, color = "Eff. Reproduction #")) +
+  geom_line(size = 2, linetype = 1) +
+  geom_hline(yintercept = 1, linetype = 6, color = "navy", size = 2) +
+  # geom_ribbon(aes(ymin = R_eff - 1.96 * 0.5, ymax = R_eff + 1.96 * 0.5), alpha = 0.2, fill = "blue") +
+  scale_color_manual(values = c("Eff. Reproduction #" = "red")) +
+  labs(title = "Effective Reproduction Number", x = "Date", y = expression(R[t]), color = "") +
+  # labs(x = "Date", y = "expression(R[t])", title = , color = "") +
+  theme_clean() + 
+  annotate("text", x = as.Date("2021-12-18"), y = 1.6, label = expression(beta[2] == 0.32),size = 12,angle = 90, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2021-12-28"), y = 1.8, label = expression(beta[3] == 0.74),size = 12,angle = 90, hjust = 1,color = "black")+
+  annotate("text", x = as.Date("2022-01-30"), y = 1.5, label = expression(beta[4] == 0.68),size = 12,angle = 0, hjust = 1, color = "black")+
+  # annotate("text", x = as.Date("2022-02-05"), y = 3, label = "Alert Level 3",size = 5,angle = 10, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-03-03"), y = 1.5, label = expression(beta[3] == 0.74),size = 12,angle = 0, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-05-01"), y = 1.3, label = expression(beta[0] == 0.67),size = 12, hjust = 1, color = "black")+
+  geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 2)  +
+  geom_vline(xintercept = as.Date("2021-12-23"), colour = "gold4", linetype = 2, size = 1.5)  +
+  geom_vline(xintercept = as.Date("2022-01-03"), colour = "gold4", linetype = 2, size = 1.5)  +
+  geom_vline(xintercept = as.Date("2022-02-06"), colour = "gold4", linetype = 2, size = 1.5)  +
+  geom_vline(xintercept = as.Date("2022-03-14"), colour = "black", linetype = 1, size = 2.5)  +
+  annotate("text", x = as.Date("2022-03-05"), y = 2.3, label = "Pre-Cancellation of Public \nHealth Emergency Declaration",size=10, hjust=1, color = "navy")+
+  annotate("text", x = as.Date("2022-05-25"), y = 2.3, label = "Post Cancellation of Public \nHealth Emergency Declaration",size=10, hjust=1,color = "navy")+
+  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        plot.title = element_text(size = 20, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.80, 0.65),
+        legend.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.background = element_rect(color = NA),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+        theme(plot.title = element_text(hjust = 0.5)) -> Y
+
+```
+
+```{r message=FALSE, warning=FALSE, fig.height = 12, fig.width=18}
+YY <- plot_grid(Y, ncol = 1, labels=c("Y"),align = "hv")
+YY
+```
+
+################################################################################################# 
+
+## SIMULATION WITH CALIBRATED PARAMETERS
+
+################################################################################################# 
+
+```{r}
+seednum <- 0
+# pmcmc_params_opt <- initial_params
+# Create an empty list to store the simulated data frames
+calibrated_sim_list <- list()
+# Simulate the data and store in the list
+Omicron_PMCMC |>
+  simulate(params = initial_params, nsim = 1, format = "data.frame", include.data = TRUE, seed = seednum) |> 
+  cbind(dates) -> extended_sim_1
+
+calibrated_sim_list[[length(calibrated_sim_list) + 1]] <- extended_sim_1
+
+# Combine all data frames into a single data frame
+combined_data_1 <- do.call(rbind, calibrated_sim_list)
+
+true_infections <- combined_data_1[combined_data_1$.id == 'data',]
+
+true_infections <- true_infections |>
+  replace(".id", "true_inf")
+
+true_infections <- true_infections[,c("day","dates",".id","est_inci_serop","Recov1","Recov2","Recov3","Recov",
+                       "S","E","A","R","C","H","I","D",
+                       "S1","E1","A1","R1","C1","H1","I1","D1",
+                       "V2","E2","A2","R2","C2","H2","I2","D2",
+                       "V3","E3","A3","R3","C3","H3","I3","D3")]
+
+# get the cumulative sum of true cases
+true_infections$cum_cases <- cumsum(true_infections$est_inci_serop)
+true_infections <- true_infections[true_infections$dates > "2021-12-14",]
+rownames(true_infections) <- NULL
+
+# select only model simulated cases to exclude true reported cases
+calibrated_sim <- combined_data_1[combined_data_1$.id != 'data',]
+
+calibrated_sim <- calibrated_sim |>
+  replace(".id", "calib_sim")
+
+calibrated_sim <- calibrated_sim[,c("day","dates",".id","est_inci_serop","Recov1","Recov2","Recov3","Recov",
+                       "S","E","A","R","C","H","I","D",
+                       "S1","E1","A1","R1","C1","H1","I1","D1",
+                       "V2","E2","A2","R2","C2","H2","I2","D2",
+                       "V3","E3","A3","R3","C3","H3","I3","D3")]
+
+# get the cumulative sum of simulated cases with calibrated parameters
+calibrated_sim$cum_cases <- cumsum(calibrated_sim$est_inci_serop)
+calibrated_sim <- calibrated_sim[calibrated_sim$dates > "2021-12-14",]
+rownames(calibrated_sim) <- NULL
+
+#########################################
+# COUNTERFACTUAL:: ALERT 4 <--> ALLERT 3
+#########################################
+#----------------------------------------------------------
+#  Replace Beta_4 with Beta_3 and update model parameters 
+#----------------------------------------------------------
+# params_onlyalert3 <- pmcmc_params_opt
+params_onlyalert3 <- initial_params
+
+params_onlyalert3["Beta_4"] <- initial_params['Beta_3']
+
+Omicron_PMCMC@params <- unlist(params_onlyalert3)
+# Create an empty list to store the simulated data frames
+alert3_data_list <- list()
+# Simulate the data and store in the list
+Omicron_PMCMC |>
+  simulate(params = params_onlyalert3, nsim = 1, format = "data.frame", include.data = TRUE, seed = seednum) |> 
+  cbind(dates) -> extended_sim_2
+
+alert3_data_list[[length(alert3_data_list) + 1]] <- extended_sim_2
+
+# Combine all data frames into a single data frame
+combined_data_2 <- do.call(rbind, alert3_data_list)
+# select only model simulated cases to exclude true reported cases
+alert3_data <- combined_data_2[combined_data_2$.id != 'data',]
+
+alert3_data <- alert3_data |>
+  replace(".id", "alert3sim")
+
+alert3_data <- alert3_data[,c("day","dates",".id","est_inci_serop","Recov1","Recov2","Recov3","Recov",
+                       "S","E","A","R","C","H","I","D",
+                       "S1","E1","A1","R1","C1","H1","I1","D1",
+                       "V2","E2","A2","R2","C2","H2","I2","D2",
+                       "V3","E3","A3","R3","C3","H3","I3","D3")]
+
+# get the cumulative sum of simulated cases with calibrated parameters
+alert3_data$cum_cases <- cumsum(alert3_data$est_inci_serop)
+alert3_data <- alert3_data[alert3_data$dates > "2021-12-14",]
+rownames(alert3_data) <- NULL
+
+################################################
+# COUNTERFACTUAL:: Paused Vaccination Campaign
+################################################
+#----------------------------------------------------------
+#  Scenario if there was no third dose at 
+#----------------------------------------------------------
+# V3_0 = 281265, E3_0 = 438, A3_0 = 10, I3_0 = 5, R3_0 = 4918,
+params_paused_vac <- initial_params
+params_paused_vac["v2"]   <- 0
+params_paused_vac["v3"]   <- 0
+
+Omicron_PMCMC@params <- unlist(params_paused_vac)
+# Create an empty list to store the simulated data frames
+pausedvac_data_list <- list()
+# Simulate the data and store in the list
+Omicron_PMCMC |>
+  simulate(params = params_paused_vac, nsim = 1, format = "data.frame", include.data = TRUE, seed = seednum) |> 
+  cbind(dates) -> extended_sim_3
+
+pausedvac_data_list[[length(pausedvac_data_list) + 1]] <- extended_sim_3
+
+# Combine all data frames into a single data frame
+combined_data_3 <- do.call(rbind, pausedvac_data_list)
+# select only model simulated cases to exclude true reported cases
+pausedvac_data <- combined_data_3[combined_data_3$.id != 'data',]
+
+pausedvac_data <- pausedvac_data |>
+  replace(".id", "pausedvac")
+
+pausedvac_data <- pausedvac_data[,c("day","dates",".id","est_inci_serop","Recov1","Recov2","Recov3","Recov",
+                       "S","E","A","R","C","H","I","D",
+                       "S1","E1","A1","R1","C1","H1","I1","D1",
+                       "V2","E2","A2","R2","C2","H2","I2","D2",
+                       "V3","E3","A3","R3","C3","H3","I3","D3")]
+
+# get the cumulative sum of simulated cases with calibrated parameters
+pausedvac_data$cum_cases <- cumsum(pausedvac_data$est_inci_serop)
+pausedvac_data <- pausedvac_data[pausedvac_data$dates > "2021-12-14",]
+rownames(pausedvac_data) <- NULL
+
+#####################################################
+# COUNTERFACTUAL:: Paused Vaccination & Alert level 3
+#####################################################
+#----------------------------------------------------------
+#  Scenario if there was no third dose at 
+#----------------------------------------------------------
+# V3_0 = 281265, E3_0 = 438, A3_0 = 10, I3_0 = 5, R3_0 = 4918,
+params_paused_vac_alert3 <- initial_params
+params_paused_vac_alert3["v2"]   <- 0
+params_paused_vac_alert3["v3"]   <- 0
+params_paused_vac_alert3["Beta_4"] <- initial_params['Beta_3']
+
+Omicron_PMCMC@params <- unlist(params_paused_vac_alert3)
+# Create an empty list to store the simulated data frames
+paused_vac_alert3_data_list <- list()
+# Simulate the data and store in the list
+Omicron_PMCMC |>
+  simulate(params = params_paused_vac_alert3, nsim = 1, format = "data.frame", include.data = TRUE, seed = seednum) |> 
+  cbind(dates) -> extended_sim_4
+
+paused_vac_alert3_data_list[[length(paused_vac_alert3_data_list) + 1]] <- extended_sim_4
+
+# Combine all data frames into a single data frame
+combined_data_4 <- do.call(rbind, paused_vac_alert3_data_list)
+# select only model simulated cases to exclude true reported cases
+paused_vac_alert3_data <- combined_data_4[combined_data_4$.id != 'data',]
+
+paused_vac_alert3_data <- paused_vac_alert3_data |>
+  replace(".id", "paused_vac_alert3")
+
+paused_vac_alert3_data <- paused_vac_alert3_data[,c("day","dates",".id","est_inci_serop","Recov1","Recov2","Recov3","Recov",
+                       "S","E","A","R","C","H","I","D",
+                       "S1","E1","A1","R1","C1","H1","I1","D1",
+                       "V2","E2","A2","R2","C2","H2","I2","D2",
+                       "V3","E3","A3","R3","C3","H3","I3","D3")]
+
+# get the cumulative sum of simulated cases with calibrated parameters
+paused_vac_alert3_data$cum_cases <- cumsum(paused_vac_alert3_data$est_inci_serop)
+paused_vac_alert3_data <- paused_vac_alert3_data[paused_vac_alert3_data$dates > "2021-12-14",]
+rownames(paused_vac_alert3_data) <- NULL
+
+#----------------------------------------------------------------------------
+# combine the real, calibrated and alert level scenario data
+#----------------------------------------------------------------------------
+sim_only_scenario_data <- calibrated_sim
+
+sim_alert3_scenario_data <- rbind(calibrated_sim,alert3_data)
+rownames(sim_alert3_scenario_data) <- NULL
+
+sim_alert3_pausedvac_scenario_data <- rbind(calibrated_sim,alert3_data, pausedvac_data)
+rownames(sim_alert3_pausedvac_scenario_data) <- NULL
+
+sim_alert3_pausedvacalert3_scenario_data <- rbind(calibrated_sim, alert3_data, pausedvac_data, paused_vac_alert3_data)
+rownames(sim_alert3_pausedvacalert3_scenario_data) <- NULL
+
+all_scenario_data <- rbind(true_infections, calibrated_sim, alert3_data, pausedvac_data, paused_vac_alert3_data)
+rownames(all_scenario_data) <- NULL
+
+#############################################
+# CUMULATIVE CASES OBTAINED FOR EACH SCENARIO
+#############################################
+# subset only cumulative cases
+cumu_sim_only_scenario_data <- sim_only_scenario_data[,c("dates",".id","cum_cases")]
+cumu_sim_alert3_scenario_data <- sim_alert3_scenario_data[,c("dates",".id","cum_cases")]
+cumu_sim_alert3_pausedvac_scenario_data <- sim_alert3_pausedvac_scenario_data[,c("dates",".id","cum_cases")]
+cumu_sim_alert3_pausedvacalert3_scenario_data <- sim_alert3_pausedvacalert3_scenario_data[,c("dates",".id","cum_cases")]
+cumu_all_scenarios <- all_scenario_data[,c("dates",".id","cum_cases")]
+
+# maximum cumulative values
+cumvalues <- tapply(cumu_all_scenarios$cum_cases, cumu_all_scenarios$.id, max)
+
+cum_alert3 <- cumvalues[1][[1]]
+cum_sim_cases <- cumvalues[2][[1]]
+cum_paused_vac_alert3 <- cumvalues[3][[1]]
+cum_paused_vac <- cumvalues[4][[1]]
+cum_true_inf <- cumvalues[5][[1]]
+
+# maximum cumulative values before cancellation of NPI
+cumu_all_scenarios |>
+  subset(dates < as.Date("2022-03-18")) -> before_cancellation
+b4_cumvalues <- tapply(before_cancellation$cum_cases, before_cancellation$.id, max)
+
+b4_cum_alert3 <- b4_cumvalues[1][[1]]
+b4_cum_sim_cases <- b4_cumvalues[2][[1]]
+b4_cum_paused_vac_alert3 <- b4_cumvalues[3][[1]]
+b4_cum_paused_vac <- b4_cumvalues[4][[1]]
+b4_cum_true_inf <- b4_cumvalues[5][[1]]
+```
+
+```{r}
+true <- all_scenario_data[all_scenario_data$.id == "true_inf",]
+true[which.max(true$est_inci_serop),]
+
+calib_sim <- all_scenario_data[all_scenario_data$.id == "calib_sim",]
+calib_sim[which.max(calib_sim$est_inci_serop),]
+
+alert3sim <- all_scenario_data[all_scenario_data$.id == "alert3sim",]
+alert3sim[which.max(alert3sim$est_inci_serop),]
+
+pausedvac <- all_scenario_data[all_scenario_data$.id == "pausedvac",]
+pausedvac[which.max(pausedvac$est_inci_serop),]
+
+paused_vac_alert3 <- all_scenario_data[all_scenario_data$.id == "paused_vac_alert3",]
+paused_vac_alert3[which.max(paused_vac_alert3$est_inci_serop),]
+
+```
+
+##### Simulation With Calibrated Parameters
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=7, fig.width=10}
+sim_only_scenario_data |>
+  ggplot(aes(x = dates,y = est_inci_serop, group = .id, color = .id))+
+  geom_point(fill = "black",shape = 19, show.legend = FALSE,  size = 8)+
+  geom_smooth(method = "loess", se = FALSE, size = 7, span = 0.15, linetype = 1, alpha = 0.55) + #
+  scale_y_continuous(limits = c(0,NA))+
+  annotate("text", x = as.Date("2021-12-18"), y = 3500, label = "Alert Level 2 - Low",size = 25,angle = 90, hjust = 1, color = "green3")+
+  annotate("text", x = as.Date("2021-12-28"), y = 4000, label = "Alert Level 3 - Medium",size = 25,angle = 90, hjust = 1,color = "purple")+
+  annotate("text", x = as.Date("2022-02-04"), y = 3500, label = "Alert Level 4 - High",size = 25,angle = 0, hjust = 1, color = "orange")+
+  #annotate("text", x = as.Date("2022-02-07"), y = 2000, label = "Alert Level 3 - Medium",size = 25,angle = 0, hjust = 1, color = "#298c8c")+
+  # annotate("text", x = as.Date("2022-01-25"), y = 4000, label = "Alert Level 3 ",size = 20,angle = 0, hjust = 1, color = "red3")+
+  annotate("text", x = as.Date("2022-03-12"), y = 4500, label = "Alert Level 3 - Medium",size = 25,angle = 0, hjust = 1, color = "purple")+
+  annotate("text", x = as.Date("2022-04-30"), y = 500, label = "",size = 15, hjust = 1, color = "black")+
+  scale_color_manual(name = NULL,values = c("#ea801c"), labels = c('SEARCH-ID Model')) +
+  geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 5)  +
+  ylab('Number of Cases') +
+  geom_vline(xintercept = as.Date("2021-12-23"), colour = "gold4", linetype = 2, size = 2)  +
+  geom_vline(xintercept = as.Date("2022-01-03"), colour = "gold4", linetype = 2, size = 2)  +
+  geom_vline(xintercept = as.Date("2022-02-06"), colour = "gold4", linetype = 2, size = 2)  +
+  geom_vline(xintercept = as.Date("2022-03-14"), colour = "black", linetype = 1, size = 5)  +
+  annotate("text", x = as.Date("2022-01-25"), y = 5000, label = "Pre-Cancellation of Public \nHealth Emergency Declaration",size=22, hjust=1, color = "maroon")+
+  annotate("text", x = as.Date("2022-05-15"), y = 5000, label = "Post Cancellation of Public \nHealth Emergency Declaration",size=22, hjust=1,color = "maroon")+
+  theme_clean() +
+    theme(axis.text.x = element_text(size = 50, angle = 0,hjust = 1), 
+          axis.title.x = element_text(size = 50,color = "black", face = "bold"),
+          axis.text.y = element_text(size = 50), axis.title.y = element_text(size = 50,color = "black",face = "bold" ),
+          plot.title = element_text(size = 50, face = "bold", color = "black",hjust = 0.5),
+          legend.position = c(0.8, 0.75),
+          legend.title = element_text(size = 0),
+          legend.background = element_rect(color = NA),
+          legend.text = element_text(size = 50),
+          legend.margin = margin(0,0,0,0),
+          plot.background = element_blank())+
+    ggtitle("Model Simulation and Scenario Analysis") +
+    theme(plot.title = element_text(hjust = 0.5)) -> sim_only_scenario_plots
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=7, fig.width=10}
+cumu_sim_only_scenario_data |>
+    reshape2:: melt(id = c(".id", "dates")) |>
+    ggplot(aes(x = dates, y = value, fill = .id, color = factor(.id))) +
+    geom_ribbon(aes(ymin = 0, ymax = value), alpha = 0.2, show.legend = FALSE) +
+    labs(x = "Dates", y = "Cumulative Cases")+
+    geom_line(size = 5)+
+    geom_point(size = 5, show.legend = FALSE)+
+    # geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 5)  + 
+    geom_vline(xintercept = as.Date("2022-03-14"), colour = "black", linetype = 1, size = 5)  +
+
+    scale_color_manual(name = NULL,values = c("#ea801c"), labels = c('SEARCH-ID Model')) +
+    annotate("text", x = as.Date("2022-03-24"), y = b4_cum_sim_cases - 5000, label = paste0(b4_cum_sim_cases),size = 22,angle = 0, hjust = 1,color = "#ea801c")+
+    annotate("text", x = as.Date("2022-06-02"), y = cum_sim_cases - 18000, label = paste0(cum_sim_cases),size = 22,angle = 0, hjust = 1,color = "#ea801c")+
+    theme_clean()+
+    theme(axis.text.x = element_text(size = 50, angle = 0,hjust = 1), 
+          axis.title.x = element_text(size = 50,color = "black", face = "bold"),
+          axis.text.y = element_text(size = 50), axis.title.y = element_text(size = 50,color = "black",face = "bold" ),
+          plot.title = element_text(size = 50, face = "bold", color = "black",hjust = 0.5),
+          legend.position = c(0.15, 0.80),
+          legend.title = element_text(size = 0),
+          legend.background = element_rect(color = NA),
+          legend.margin = margin(0,0,0,0),
+          legend.text = element_text(size = 50),
+          plot.background = element_blank())+
+    ggtitle("Cumulative Cases For Alert Level Scenarios") +
+    facet_wrap(~variable,ncol=1, scales="free_y") -> sim_only_cumulative_plot
+
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=45, fig.width=55}
+sim_only_scenario <- plot_grid(sim_only_scenario_plots, sim_only_cumulative_plot, nrow = 2, ncol=1, rel_widths = c(1,1, 1),labels= c("E", "F"),align = "hv", label_size = 45)
+sim_only_scenario
+```
+
+##### INCLUDE ALERT 3 SCENARIO
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=7, fig.width=10}
+sim_alert3_scenario_data |>
+  ggplot(aes(x = dates,y = est_inci_serop, group = .id, color = .id))+
+  geom_point(fill = "black",shape = 19, show.legend = FALSE,  size = 8)+
+  geom_smooth(method = "loess", se = FALSE, size = 7, span = 0.15, linetype = 1, alpha = 0.55) + #
+  scale_y_continuous(limits = c(0,NA))+
+  annotate("text", x = as.Date("2021-12-18"), y = 3500, label = "Alert Level 2 - Low",size = 25,angle = 90, hjust = 1, color = "green3")+
+  annotate("text", x = as.Date("2021-12-28"), y = 4000, label = "Alert Level 3 - Medium",size = 25,angle = 90, hjust = 1,color = "purple")+
+  annotate("text", x = as.Date("2022-02-04"), y = 3500, label = "Alert Level 4 - High",size = 25,angle = 0, hjust = 1, color = "orange")+
+  annotate("text", x = as.Date("2022-02-07"), y = 2000, label = "Alert Level 3 - Medium",size = 25,angle = 0, hjust = 1, color = "blue")+
+  # annotate("text", x = as.Date("2022-01-25"), y = 4000, label = "Alert Level 3 ",size = 20,angle = 0, hjust = 1, color = "red3")+
+  annotate("text", x = as.Date("2022-03-12"), y = 4500, label = "Alert Level 3 - Medium",size = 25,angle = 0, hjust = 1, color = "purple")+
+  annotate("text", x = as.Date("2022-04-30"), y = 500, label = "",size = 15, hjust = 1, color = "black")+
+  scale_color_manual(name = NULL,values = c("blue","#ea801c"), labels = c("Alert Level 3 Sim.",'SEARCH-ID Model')) +
+  geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 6)  +
+  ylab('Number of Cases') +
+  geom_vline(xintercept = as.Date("2021-12-23"), colour = "gold4", linetype = 2, size = 2)  +
+  geom_vline(xintercept = as.Date("2022-01-03"), colour = "gold4", linetype = 2, size = 2)  +
+  geom_vline(xintercept = as.Date("2022-02-06"), colour = "gold4", linetype = 2, size = 2)  +
+  geom_vline(xintercept = as.Date("2022-03-14"), colour = "black", linetype = 1, size = 5)  +
+  annotate("text", x = as.Date("2022-01-25"), y = 5000, label = "Pre-Cancellation of Public \nHealth Emergency Declaration",size=22, hjust=1, color = "maroon")+
+  annotate("text", x = as.Date("2022-05-15"), y = 5000, label = "Post Cancellation of Public \nHealth Emergency Declaration",size=22, hjust=1,color = "maroon")+
+  theme_clean() +
+    theme(axis.text.x = element_text(size = 50, angle = 0,hjust = 1), 
+          axis.title.x = element_text(size = 50,color = "black", face = "bold"),
+          axis.text.y = element_text(size = 50), axis.title.y = element_text(size = 50,color = "black",face = "bold" ),
+          plot.title = element_text(size = 50, face = "bold", color = "black",hjust = 0.5),
+          legend.position = c(0.8, 0.75),
+          legend.title = element_text(size = 0),
+          legend.background = element_rect(color = NA),
+          legend.text = element_text(size = 50),
+          legend.margin = margin(0,0,0,0),
+          plot.background = element_blank())+
+    ggtitle("Model Simulation and Scenario Analysis") +
+    theme(plot.title = element_text(hjust = 0.5)) -> sim_alert3_scenario_plots
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=7, fig.width=10}
+cumu_sim_alert3_scenario_data |> 
+    reshape2:: melt(id = c(".id", "dates")) |>
+    ggplot(aes(x = dates, y = value, fill = .id, color = factor(.id))) +
+    geom_ribbon(aes(ymin = 0, ymax = value), alpha = 0.2, show.legend = FALSE) +
+    labs(x = "Dates", y = "Cumulative Cases")+
+    geom_line(size = 5)+
+    geom_point(size = 5, show.legend = FALSE)+
+    # geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 5)  + 
+    geom_vline(xintercept = as.Date("2022-03-14"), colour = "black", linetype = 1, size = 5)  +
+
+    scale_color_manual(name = NULL,values = c("blue","#ea801c"), labels = c("Alert Level 3 Sim.",'SEARCH-ID Model')) +
+
+    annotate("text", x = as.Date("2022-03-24"), y = b4_cum_sim_cases - 5000, label = paste0(b4_cum_sim_cases),size = 22,angle = 0, hjust = 1,color = "#ea801c")+
+    annotate("text", x = as.Date("2022-06-02"), y = cum_sim_cases - 18000, label = paste0(cum_sim_cases),size = 22,angle = 0, hjust = 1,color = "#ea801c")+
+  annotate("text", x = as.Date("2022-03-18"), y = b4_cum_alert3 + 4000, label = paste0(b4_cum_alert3),size = 22,angle = 0, hjust = 1, color = "blue")+
+    annotate("text", x = as.Date("2022-06-01"), y = cum_alert3 + 4000, label = paste0(cum_alert3),size = 22,angle = 0, hjust = 1, color = "blue")+
+    theme_clean()+
+    theme(axis.text.x = element_text(size = 50, angle = 0,hjust = 1), 
+          axis.title.x = element_text(size = 50,color = "black", face = "bold"),
+          axis.text.y = element_text(size = 50), axis.title.y = element_text(size = 50,color = "black",face = "bold" ),
+          plot.title = element_text(size = 50, face = "bold", color = "black",hjust = 0.5),
+          legend.position = c(0.15, 0.80),
+          legend.title = element_text(size = 0),
+          legend.background = element_rect(color = NA),
+          legend.margin = margin(0,0,0,0),
+          legend.text = element_text(size = 50),
+          plot.background = element_blank())+
+    ggtitle("Cumulative Cases For Alert Level Scenarios") +
+    facet_wrap(~variable,ncol=1, scales="free_y") -> sim_alert3_cumulative_plot
+
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=45, fig.width=55}
+sim_alert3_scenario <- plot_grid(sim_alert3_scenario_plots, sim_alert3_cumulative_plot, nrow = 2, ncol=1, rel_widths = c(1,1, 1),labels= c("E", "F"),align = "hv", label_size = 45)
+sim_alert3_scenario
+```
+
+#### INCLUDE PAUSED VACCINATION
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=7, fig.width=10}
+sim_alert3_pausedvac_scenario_data |>
+  ggplot(aes(x = dates,y = est_inci_serop, group = .id, color = .id))+
+  geom_point(fill = "black",shape = 19, show.legend = FALSE,  size = 8)+
+  geom_smooth(method = "loess", se = FALSE, size = 7, span = 0.15, linetype = 1, alpha = 0.55) + #
+  scale_y_continuous(limits = c(0,NA))+
+  annotate("text", x = as.Date("2021-12-18"), y = 4000, label = "Alert Level 2",size = 23,angle = 90, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2021-12-28"), y = 4000, label = "Alert Level 3",size = 23,angle = 90, hjust = 1,color = "black")+
+  annotate("text", x = as.Date("2022-02-01"), y = 2500, label = "Alert Level 4",size = 23,angle = 0, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-01-27"), y = 2000, label = "Alert Level 3",size = 23,angle = 0, hjust = 1, color = "#298c8c")+
+  # annotate("text", x = as.Date("2022-01-25"), y = 4000, label = "Alert Level 3 ",size = 20,angle = 0, hjust = 1, color = "red3")+
+  annotate("text", x = as.Date("2022-03-09"), y = 7000, label = "Alert Level 3",size = 23,angle = 0, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-04-30"), y = 500, label = "",size = 15, hjust = 1, color = "black")+
+  scale_color_manual(name = NULL,values = c("#298c8c","#ea801c","blue"), labels = c("Alert Level 3 Sim.",'SEARCH-ID Model','Paused Vaccination')) +
+  geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 5)  +
+  ylab('Number of Cases') +
+  geom_vline(xintercept = as.Date("2021-12-23"), colour = "gold4", linetype = 2, size = 2)  +
+  geom_vline(xintercept = as.Date("2022-01-03"), colour = "gold4", linetype = 2, size = 2)  +
+  geom_vline(xintercept = as.Date("2022-02-06"), colour = "gold4", linetype = 2, size = 2)  +
+  geom_vline(xintercept = as.Date("2022-03-14"), colour = "black", linetype = 1, size = 5)  +
+  annotate("text", x = as.Date("2022-01-25"), y = 8500, label = "Pre-Cancellation of Public \nHealth Emergency Declaration",size=22, hjust=1, color = "purple")+
+  annotate("text", x = as.Date("2022-05-15"), y = 8500, label = "Post Cancellation of Public \nHealth Emergency Declaration",size=22, hjust=1,color = "purple")+
+  theme_clean() +
+    theme(axis.text.x = element_text(size = 50, angle = 0,hjust = 1), 
+          axis.title.x = element_text(size = 50,color = "black", face = "bold"),
+          axis.text.y = element_text(size = 50), axis.title.y = element_text(size = 50,color = "black",face = "bold" ),
+          plot.title = element_text(size = 50, face = "bold", color = "black",hjust = 0.5),
+          legend.position = c(0.8, 0.75),
+          legend.title = element_text(size = 0),
+          legend.background = element_rect(color = NA),
+          legend.text = element_text(size = 50),
+          legend.margin = margin(0,0,0,0),
+          plot.background = element_blank())+
+    ggtitle("Model Simulation and Scenario Analysis") +
+    theme(plot.title = element_text(hjust = 0.5)) -> sim_alert3_pausedvac_scenario_plots
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=7, fig.width=10}
+cumu_sim_alert3_pausedvac_scenario_data |> 
+    reshape2:: melt(id = c(".id", "dates")) |>
+    ggplot(aes(x = dates, y = value, fill = .id, color = factor(.id))) +
+    geom_ribbon(aes(ymin = 0, ymax = value), alpha = 0.2, show.legend = FALSE) +
+    labs(x = "Dates", y = "Cumulative Cases")+
+    geom_line(size = 5)+
+    geom_point(size = 5, show.legend = FALSE)+
+    # geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 5)  + 
+    geom_vline(xintercept = as.Date("2022-03-14"), colour = "black", linetype = 1, size = 5)  +
+
+    scale_color_manual(name = NULL,values = c("#298c8c","#ea801c","blue"), labels = c("Alert Level 3 Sim.",'SEARCH-ID Model','Paused Vaccination')) +
+
+    annotate("text", x = as.Date("2022-03-24"), y = b4_cum_sim_cases - 5000, label = paste0(b4_cum_sim_cases),size = 22,angle = 0, hjust = 1,color = "#ea801c")+
+    annotate("text", x = as.Date("2022-06-02"), y = cum_sim_cases - 18000, label = paste0(cum_sim_cases),size = 22,angle = 0, hjust = 1,color = "#ea801c")+
+  annotate("text", x = as.Date("2022-03-18"), y = b4_cum_alert3 + 4000, label = paste0(b4_cum_alert3),size = 22,angle = 0, hjust = 1, color = "#298c8c")+
+    annotate("text", x = as.Date("2022-06-01"), y = cum_alert3 + 4000, label = paste0(cum_alert3),size = 22,angle = 0, hjust = 1, color = "#298c8c")+
+   annotate("text", x = as.Date("2022-03-25"), y = b4_cum_paused_vac - 20000, label = paste0(b4_cum_paused_vac),size = 22,angle = 0, hjust = 1, color = "blue")+
+    annotate("text", x = as.Date("2022-06-01"), y = cum_paused_vac - 10000, label = paste0(cum_paused_vac),size = 22,angle = 0, hjust = 1, color = "blue")+
+    theme_clean()+
+    theme(axis.text.x = element_text(size = 50, angle = 0,hjust = 1), 
+          axis.title.x = element_text(size = 50,color = "black", face = "bold"),
+          axis.text.y = element_text(size = 50), axis.title.y = element_text(size = 50,color = "black",face = "bold" ),
+          plot.title = element_text(size = 50, face = "bold", color = "black",hjust = 0.5),
+          legend.position = c(0.15, 0.80),
+          legend.title = element_text(size = 0),
+          legend.background = element_rect(color = NA),
+          legend.margin = margin(0,0,0,0),
+          legend.text = element_text(size = 50),
+          plot.background = element_blank())+
+    ggtitle("Cumulative Cases For Alert Level Scenarios") +
+    facet_wrap(~variable,ncol=1, scales="free_y") -> cumu_sim_alert3_pausedvac_cumulative_plot
+
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=45, fig.width=55}
+cumu_sim_alert3_pausedvac_scenario <- plot_grid(sim_alert3_pausedvac_scenario_plots, cumu_sim_alert3_pausedvac_cumulative_plot, nrow = 2, ncol=1, rel_widths = c(1,1, 1),labels= c("E", "F"),align = "hv", label_size = 45)
+cumu_sim_alert3_pausedvac_scenario
+```
+
+#### INCLUDE PAUSED VACCINATION & ALERT LEVEL 3
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=7, fig.width=10}
+sim_alert3_pausedvacalert3_scenario_data |>
+  ggplot(aes(x = dates,y = est_inci_serop, group = .id, color = .id))+
+  geom_point(fill = "black",shape = 19, show.legend = FALSE,  size = 8)+
+  geom_smooth(method = "loess", se = FALSE, size = 7, span = 0.15, linetype = 1, alpha = 0.55) + #
+  scale_y_continuous(limits = c(0,NA))+
+  annotate("text", x = as.Date("2021-12-18"), y = 4000, label = "Alert Level 2",size = 23,angle = 90, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2021-12-28"), y = 4000, label = "Alert Level 3",size = 23,angle = 90, hjust = 1,color = "black")+
+  annotate("text", x = as.Date("2022-02-01"), y = 2500, label = "Alert Level 4",size = 23,angle = 0, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-01-27"), y = 2000, label = "Alert Level 3",size = 23,angle = 0, hjust = 1, color = "#298c8c")+
+  annotate("text", x = as.Date("2022-01-25"), y = 4000, label = "Alert Level 3 ",size = 20,angle = 0, hjust = 1, color = "red3")+
+  annotate("text", x = as.Date("2022-03-09"), y = 7000, label = "Alert Level 3",size = 23,angle = 0, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-04-30"), y = 500, label = "",size = 15, hjust = 1, color = "black")+
+  scale_color_manual(name = NULL,values = c("#298c8c","#ea801c","red3","blue"), labels = c("Alert Level 3 Sim.",'SEARCH-ID Model','Paused Vacc. @ Alert Level 3','Paused Vaccination')) +
+  geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 5)  +
+  ylab('Number of Cases') +
+  geom_vline(xintercept = as.Date("2021-12-23"), colour = "gold4", linetype = 2, size = 2)  +
+  geom_vline(xintercept = as.Date("2022-01-03"), colour = "gold4", linetype = 2, size = 2)  +
+  geom_vline(xintercept = as.Date("2022-02-06"), colour = "gold4", linetype = 2, size = 2)  +
+  geom_vline(xintercept = as.Date("2022-03-14"), colour = "black", linetype = 1, size = 5)  +
+  annotate("text", x = as.Date("2022-01-25"), y = 8500, label = "Pre-Cancellation of Public \nHealth Emergency Declaration",size=22, hjust=1, color = "purple")+
+  annotate("text", x = as.Date("2022-05-15"), y = 8500, label = "Post Cancellation of Public \nHealth Emergency Declaration",size=22, hjust=1,color = "purple")+
+  theme_clean() +
+    theme(axis.text.x = element_text(size = 55, angle = 0,hjust = 1), 
+          axis.title.x = element_text(size = 55,color = "black", face = "bold"),
+          axis.text.y = element_text(size = 55), axis.title.y = element_text(size = 55,color = "black",face = "bold" ),
+          plot.title = element_text(size = 55, face = "bold", color = "black",hjust = 0.5),
+          legend.position = c(0.8, 0.75),
+          legend.title = element_text(size = 0),
+          legend.background = element_rect(color = NA),
+          legend.text = element_text(size = 55),
+          legend.margin = margin(0,0,0,0),
+          plot.background = element_blank())+
+    ggtitle("Model Simulation and Scenario Analysis") +
+    theme(plot.title = element_text(hjust = 0.5)) -> sim_alert3_pausedvacalert3_scenario_plots
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=7, fig.width=10}
+cumu_sim_alert3_pausedvacalert3_scenario_data |> 
+    reshape2:: melt(id = c(".id", "dates")) |>
+    ggplot(aes(x = dates, y = value, fill = .id, color = factor(.id))) +
+    geom_ribbon(aes(ymin = 0, ymax = value), alpha = 0.2, show.legend = FALSE) +
+    labs(x = "Dates", y = "Cumulative Cases")+
+    geom_line(size = 5)+
+    geom_point(size = 5, show.legend = FALSE)+
+    # geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 5)  + 
+    geom_vline(xintercept = as.Date("2022-03-14"), colour = "black", linetype = 1, size = 5)  +
+    scale_color_manual(name = NULL,values = c("#298c8c","#ea801c","red3","blue"), labels = c("Alert Level 3 Sim.",'SEARCH-ID Model','Paused Vacc. @ Alert Level 3','Paused Vaccination')) +
+    annotate("text", x = as.Date("2022-03-24"), y = b4_cum_sim_cases - 5000, label = paste0(b4_cum_sim_cases),size = 22,angle = 0, hjust = 1,color = "#ea801c")+
+    annotate("text", x = as.Date("2022-06-02"), y = cum_sim_cases - 18000, label = paste0(cum_sim_cases),size = 22,angle = 0, hjust = 1,color = "#ea801c")+
+  annotate("text", x = as.Date("2022-03-18"), y = b4_cum_alert3 + 4000, label = paste0(b4_cum_alert3),size = 22,angle = 0, hjust = 1, color = "#298c8c")+
+    annotate("text", x = as.Date("2022-06-01"), y = cum_alert3 + 4000, label = paste0(cum_alert3),size = 22,angle = 0, hjust = 1, color = "#298c8c")+
+   annotate("text", x = as.Date("2022-03-25"), y = b4_cum_paused_vac - 20000, label = paste0(b4_cum_paused_vac),size = 22,angle = 0, hjust = 1, color = "blue")+
+    annotate("text", x = as.Date("2022-06-01"), y = cum_paused_vac - 10000, label = paste0(cum_paused_vac),size = 22,angle = 0, hjust = 1, color = "blue")+
+  annotate("text", x = as.Date("2022-03-18"), y = b4_cum_paused_vac_alert3 + 7000, label = paste0(b4_cum_paused_vac_alert3),size = 22,angle = 0, hjust = 1, color = "red3")+
+    annotate("text", x = as.Date("2022-06-01"), y = cum_paused_vac_alert3 + 10000, label = paste0(cum_paused_vac_alert3),size = 22,angle = 0, hjust = 1, color = "red3")+
+    theme_clean()+
+    theme(axis.text.x = element_text(size = 55, angle = 0,hjust = 1), 
+          axis.title.x = element_text(size = 55,color = "black", face = "bold"),
+          axis.text.y = element_text(size = 55), axis.title.y = element_text(size = 55,color = "black",face = "bold" ),
+          plot.title = element_text(size = 55, face = "bold", color = "black",hjust = 0.5),
+          legend.position = c(0.15, 0.80),
+          legend.title = element_text(size = 0),
+          legend.background = element_rect(color = NA),
+          legend.margin = margin(0,0,0,0),
+          legend.text = element_text(size = 55),
+          plot.background = element_blank())+
+    ggtitle("Cumulative Cases For Alert Level Scenarios") +
+    facet_wrap(~variable,ncol=1, scales="free_y") -> cumu_sim_alert3_pausedvacalert3_cumulative_plot
+
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=45, fig.width=55}
+sim_alert3_pausedvacalert3_scenario <- plot_grid(sim_alert3_pausedvacalert3_scenario_plots, cumu_sim_alert3_pausedvacalert3_cumulative_plot, nrow = 2, ncol=1, rel_widths = c(1,1, 1),labels= c("E", "F"),align = "hv", label_size = 45)
+sim_alert3_pausedvacalert3_scenario
+```
+
+#### ALL SCENARIOS
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=7, fig.width=10}
+all_scenario_data |>
+  ggplot(aes(x = dates,y = est_inci_serop, group = .id, color = .id))+
+  geom_point(fill = "black",shape = 19, show.legend = FALSE,  size = 5)+
+  geom_smooth(method = "loess", se = FALSE, size = 7, span = 0.15, linetype = 6, alpha = 0.55) + #
+  scale_y_continuous(limits = c(0,NA))+
+  annotate("text", x = as.Date("2021-12-18"), y = 2000, label = "Alert Level 2",size = 20,angle = 90, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2021-12-28"), y = 2000, label = "Alert Level 3",size = 20,angle = 90, hjust = 1,color = "black")+
+  annotate("text", x = as.Date("2022-02-01"), y = 2500, label = "Alert Level 4",size = 20,angle = 0, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-01-27"), y = 2000, label = "Alert Level 3",size = 20,angle = 0, hjust = 1, color = "#298c8c")+
+  annotate("text", x = as.Date("2022-01-25"), y = 4000, label = "Alert Level 3 ",size = 20,angle = 0, hjust = 1, color = "red3")+
+  annotate("text", x = as.Date("2022-03-09"), y = 4500, label = "Alert Level 3",size = 20,angle = 0, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-04-30"), y = 500, label = "",size = 15, hjust = 1, color = "black")+
+  scale_color_manual(name = NULL,values = c("#298c8c","#ea801c","red3","blue","#707070"), labels = c("Alert Level 3 Sim.",'SEARCH-ID Model','Paused Vacc. @ Alert Level 3','Paused Vacc.','True Incidence (Est)')) +
+  geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 5)  +
+  ylab('Reported Cases') +
+  geom_vline(xintercept = as.Date("2021-12-23"), colour = "gold4", linetype = 2, size = 2)  +
+  geom_vline(xintercept = as.Date("2022-01-03"), colour = "gold4", linetype = 2, size = 2)  +
+  geom_vline(xintercept = as.Date("2022-02-06"), colour = "gold4", linetype = 2, size = 2)  +
+  geom_vline(xintercept = as.Date("2022-03-14"), colour = "gold4", linetype = 2, size = 2)  +
+  annotate("text", x = as.Date("2022-01-25"), y = 5000, label = "Pre-Cancellation of Public \nHealth Emergency Declaration",size=22, hjust=1, color = "purple")+
+  annotate("text", x = as.Date("2022-05-15"), y = 5000, label = "Post Cancellation of Public \nHealth Emergency Declaration",size=22, hjust=1,color = "purple")+
+  #scale_x_date(date_breaks = "1 months", date_labels =  "%d-%b-%Y", limits = c(as.Date("2021-12-15"), as.Date("2022-06-02"))) +
+  #coord_cartesian(xlim = c(as.Date("2021-12-15"), as.Date("2022-06-02"))) +
+  theme_clean() +
+    theme(axis.text.x = element_text(size = 50, angle = 45,hjust = 1), axis.title.x = element_text(size = 50,color = "black", face = "bold"),
+          axis.text.y = element_text(size = 50), axis.title.y = element_text(size = 50,color = "black",face = "bold" ),
+          plot.title = element_text(size = 50, face = "bold", color = "black",hjust = 0.5),
+          legend.position = c(0.8, 0.75),
+          legend.title = element_text(size = 0),
+          legend.background = element_rect(color = NA),
+          legend.text = element_text(size = 50),
+          legend.margin = margin(0,0,0,0),
+          plot.background = element_blank())+
+    ggtitle("Model Simulation and Scenario Analysis") +
+    theme(plot.title = element_text(hjust = 0.5)) -> scenario_plots
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=7, fig.width=10}
+cumu_all_scenarios |>
+    reshape2:: melt(id = c(".id", "dates")) |>
+    ggplot(aes(x = dates, y = value, fill = .id, color = factor(.id))) +
+    geom_ribbon(aes(ymin = 0, ymax = value), alpha = 0.2, show.legend = FALSE) +
+    labs(x = "Dates", y = "Cumulative Cases")+
+    #scale_x_date(date_breaks = "1 week", date_labels =  "%d-%b-%Y") +
+    geom_line(size = 5)+
+    geom_point(size = 5, show.legend = FALSE)+
+    geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 4)  + 
+    # scale_fill_manual(values = c("Alert Level 3 Sim." = "red", "SEARCH-ID Model" = "purple", "True Infections (Est)" = "purple")) +
+    scale_color_manual(name = NULL,values = c("#298c8c","#ea801c","red3","blue","#707070"), labels = c("Alert Level 3 Sim.",'SEARCH-ID Model','Paused Vacc. @ Alert Level 3','Paused Vacc.','True Incidence (Est)')) +
+    annotate("text", x = as.Date("2022-03-18"), y = b4_cum_alert3 + 4000, label = paste0(b4_cum_alert3),size = 20,angle = 0, hjust = 1, color = "#298c8c")+
+    annotate("text", x = as.Date("2022-06-01"), y = cum_alert3 + 4000, label = paste0(cum_alert3),size = 20,angle = 0, hjust = 1, color = "#298c8c")+
+    annotate("text", x = as.Date("2022-03-30"), y = b4_cum_sim_cases- 4000, label = paste0(b4_cum_sim_cases),size = 20,angle = 0, hjust = 1,color = "#ea801c")+
+    annotate("text", x = as.Date("2022-06-02"), y = cum_sim_cases - 40000, label = paste0(cum_sim_cases),size = 20,angle = 0, hjust = 1,color = "#ea801c")+
+    annotate("text", x = as.Date("2022-03-18"), y = b4_cum_paused_vac_alert3 + 7000, label = paste0(b4_cum_paused_vac_alert3),size = 20,angle = 0, hjust = 1, color = "red3")+
+    annotate("text", x = as.Date("2022-06-01"), y = cum_paused_vac_alert3 + 10000, label = paste0(cum_paused_vac_alert3),size = 20,angle = 0, hjust = 1, color = "red3")+
+  annotate("text", x = as.Date("2022-03-18"), y = b4_cum_paused_vac + 7000, label = paste0(b4_cum_paused_vac),size = 20,angle = 0, hjust = 1, color = "blue")+
+    annotate("text", x = as.Date("2022-06-01"), y = cum_paused_vac - 12000, label = paste0(cum_paused_vac),size = 20,angle = 0, hjust = 1, color = "blue")+
+  theme_clean()+
+  theme(axis.text.x = element_text(size = 50, angle = 45,hjust = 1), 
+        axis.title.x = element_text(size = 50,color = "black", face = "bold"),
+        axis.text.y = element_text(size = 50), axis.title.y = element_text(size = 50,color = "black",face = "bold" ),
+        plot.title = element_text(size = 50, face = "bold", color = "black",hjust = 0.5),
+        legend.position = c(0.15, 0.80),
+        legend.title = element_text(size = 0),
+        legend.background = element_rect(color = NA),
+        legend.margin = margin(0,0,0,0),
+        legend.text = element_text(size = 50),
+        plot.background = element_blank())+
+    ggtitle("Cumulative Cases For Alert Level Scenarios") +
+    facet_wrap(~variable,ncol=1, scales="free_y") -> cumulative_plot
+
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=45, fig.width=55}
+allscenarios <- plot_grid(scenario_plots, cumulative_plot, nrow = 2, ncol=1, rel_widths = c(1, 1),labels= c("E", "F"),align = "hv", label_size = 45)
+allscenarios
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=35, fig.width=50}
+# Create a data frame with cumulative values
+b4_cumulative_data <- data.frame(
+  category = factor(c("True Infections (Est.)", "SEARCH-ID Model","Alert Level 3")), #"Paused Vacc.","Paused Vacc. & Alert Level 3")),
+  value = c(b4_cum_true_inf, b4_cum_sim_cases, b4_cum_alert3), #b4_cum_paused_vac, b4_cum_paused_vac_alert3),
+  period = factor(c("Pre-Cancellation PHE", "Pre-Cancellation PHE", "Pre-Cancellation PHE")))#, "Pre-Cancellation PHE", "Pre-Cancellation PHE")))
+
+after_cumulative_data <- data.frame(
+  category = factor(c("True Infections (Est.)", "SEARCH-ID Model","Alert Level 3")),# "Paused Vacc.","Paused Vacc. & Alert Level 3")),
+  value = c(cum_true_inf, cum_sim_cases, cum_alert3),# cum_paused_vac, cum_paused_vac_alert3),
+  period = factor(c("Post-Cancellation PHE", "Post-Cancellation PHE", "Post-Cancellation PHE")))#, "Post-Cancellation PHE", "Post-Cancellation PHE")))
+
+merged <- rbind(b4_cumulative_data, after_cumulative_data)
+
+ggplot(merged, aes(fill = category, y = value, x = period), alpha = 0.01) +
+  geom_bar(position = "dodge", stat = "identity") +
+  # geom_col()+
+  # coord_flip() +
+  geom_text(aes(label = sprintf("%.0f", value)), vjust = 0.0, size = 20, fontface = "bold", position = position_dodge(width = 0.9)) +  
+  labs(x = "Period",y = "Cumulative Cases", title="Cumulative Cases: Pre and Post Cancellation of Public Health Emergency")+
+  scale_fill_manual(values = c("blue","#ea801c", "#707070"))+#, "#298c8c","red3"))+
+  theme_clean() +
+  theme(axis.text.x = element_text(size = 55, angle = 0,hjust = 0.5), 
+        axis.title.x = element_text(size = 55,color = "black", face = "bold"),
+        axis.text.y = element_text(size = 55, angle = 0, hjust = 0.5), 
+        axis.title.y = element_text(size = 55,color = "black",face = "bold" ),
+        plot.title = element_text(size = 55, face = "bold", color = "black",hjust = 0.5),
+        legend.title = element_text(size = 0),
+        legend.background = element_rect(color = NA),
+        legend.margin = margin(0,0,0,0),
+        legend.text = element_text(size = 50),
+        plot.background = element_blank()) -> merged_barplot
+merged_barplot
+```
+
+```{r warning=FALSE, message=FALSE}
+# Create a data frame with the means of the parameters for each model
+library(ggrepel)
+
+#Create a data frame with the means of the parameters for each model
+params <- data.frame(
+  Model = factor(c("Model 1")),
+  Parameter = c("Beta_0", "Beta_2", "Beta_3", "Beta_4"),
+  Value = c(0.66688437,	0.52122715,	0.72810815,	0.71511436),
+  Alert_Level =c("No Alert Level", "Alert Level 2", "Alert Level 3", "Alert Level 4"))
+				
+# Update the Parameter column to use mathematical expressions for Beta parameters
+# params$Parameter <- factor(params$Parameter, levels = c("Beta_0", "Beta_2", "Beta_3", "Beta_4", "death_rate", "hosp_rate"),
+#   labels = c(expression(beta[1]), expression(beta[2]), expression(beta[3]), expression(beta[4]), "death_rate", "hosp_rate"))
+
+# Identify unique observations (outliers)
+outliers <- params[params$Value > 1, ]
+
+# Identify unique observations, for example, values significantly different from the others
+unique_observations <- params[params$Value > 1, ]
+
+# Create the boxplot with scatter points and labels
+p <- ggplot(params, aes(x = Parameter, y = Value, fill = Model)) +
+  geom_boxplot(outlier.shape = NA) +  
+  geom_point(aes(color = Model), position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.75), alpha = 0.5,
+             shape = 18, size = 7) +
+  geom_text_repel(
+    aes(label = round(Value, 3), color = Model),
+    position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.95),
+    size = 5,
+    show.legend = FALSE
+  ) +
+  # scale_fill_manual(values = c("Model 1" = "skyblue")) +
+  scale_color_manual(values = c("Model 1" = "red")) +
+  facet_wrap(~ Alert_Level, scales = "free_x", nrow = 1) +
+  labs(title = "Calibrated Model Parameters Under Alert Levels",
+       x = "", y = "Transmission Rate", fill = "SEARCHID", color = "SEARCHID") +
+  theme_bw() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1, color = "black", face = "bold"),
+    axis.text.y = element_text(hjust = 1, color = "black", face = "bold"),
+    #axis.text.x.top = element_blank(),
+    #axis.title.x.top = element_blank(),
+    #legend.position = "bottom",
+    legend.box = "horizontal",
+    legend.title = element_text(size = 0, face = "bold"),
+    legend.margin = margin(t = -0.85, unit = "cm"),
+    strip.background = element_rect( color = "black"),
+    strip.text = element_text(face = "bold")
+  )
+p
+```
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(reshape2)
+
+# Create the data frame
+data <- data.frame(
+  Category = c("True Infections (Est)", "SEARCH-ID Model", "Alert Level 3", 
+               "Paused Vaccination", "No Booster Shots", "Hospitalization (Data)"),
+  Date = as.Date(c("2022-04-11", "2022-04-10", "2022-03-18", "2022-03-29", "2022-02-14", "2022-03-15")),
+  Peak_Value = c(1939, 2051, 2372, 3995, 9950, 12),
+  Corresponding_Hospitalization = c(3, 2, 9, 6, 1, 12)
+)
+
+# Melt the data frame for ggplot
+data_melt <- reshape2:: melt(data, id.vars = "Category", measure.vars = c("Peak_Value", "Corresponding_Hospitalization"))
+
+# Create the boxplot
+ggplot(data_melt, aes(x = variable, y = value, fill = variable)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.2, size = 2) +  # Add jitter to show individual points
+  scale_fill_manual(values = c("Peak_Value" = "blue", "Corresponding_Hospitalization" = "red")) +
+  labs(title = "Comparison of Peak Values and Corresponding Hospitalizations",
+       x = "Category",
+       y = "Value") +
+  theme_minimal()
+
+
+```
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(reshape2)
+
+# Create the data frame
+data <- data.frame(
+  Category = c("True Infections (Est)", "SEARCH-ID Model", "Alert Level 3", 
+               "Paused Vaccination", "No Booster Shots", "Hospitalization (Data)"),
+  Date = as.Date(c("2022-04-11", "2022-04-10", "2022-03-18", "2022-03-29", "2022-02-14", "2022-03-15")),
+  Peak_Value = c(1939, 2051, 2372, 3995, 9950, 12),
+  Corresponding_Hospitalization = c(3, 2, 9, 6, 1, 12)
+)
+
+# Calculate the scaling factor
+scaling_factor <- max(data$Peak_Value) / max(data$Corresponding_Hospitalization)
+
+# Create the plot
+ggplot(data, aes(x = Date)) +
+  geom_bar(aes(y = Peak_Value, fill = "Peak Value"), stat = "identity", position = "dodge", alpha = 0.6) +
+  geom_line(aes(y = Corresponding_Hospitalization * scaling_factor, color = "Hospitalization"), size = 1.5, group = 1) +
+  geom_point(aes(y = Corresponding_Hospitalization * scaling_factor, color = "Hospitalization"), size = 3) +
+  scale_y_continuous(
+    name = "Peak Value",
+    sec.axis = sec_axis(~ . / scaling_factor, name = "Corresponding Hospitalization")
+  ) +
+  scale_fill_manual(name = "Legend", values = c("Peak Value" = "blue")) +
+  scale_color_manual(name = "Legend", values = c("Hospitalization" = "red")) +
+  labs(title = "Dates & Peak Values with Corresponding Hospitalization", x = "Date") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+vacc$weekly_atleast1dose <- c(NA, diff(vacc$numtotal_atleast1dose)) vacc$weekly_fully <- c(NA, diff(vacc$numtotal_fully)) vacc$weekly_additional <- c(NA, diff(vacc$numtotal_additional)) rownames(vacc) \<- NULL \# Synthetic cumulative vaccination data (weekly) weeks \<- 1:5 cumulative_vaccinations \<- c(100, 320, 570, 820, 1050) \# example cumulative data population \<- 10000
+
+# Data frame
+
+vaccination_data \<- data.frame(Week = weeks, Cumulative_Vaccinations = cumulative_vaccinations)
+
+# Calculate weekly vaccination rate
+
+vaccination_data$Weekly_Vaccinations <- c(vaccination_data$Cumulative_Vaccinations[1], diff(vaccination_data$Cumulative_Vaccinations))
+vaccination_data$Weekly_Vaccination_Rate \<- vaccination_data\$Weekly_Vaccinations / population
+
+# Convert weekly rate to daily rate (assuming 7 days in a week)
+
+vaccination_data$Daily_Vaccination_Rate <- vaccination_data$Weekly_Vaccination_Rate / 7
+
+print(vaccination_data)
+
+# Load necessary library
+
+library(deSolve)
+
+# SVEIR model function
+
+sveir_model \<- function(time, state, parameters) { with(as.list(c(state, parameters)), { dS \<- -beta \* S \* I / N - vaccination_rate \* S dV \<- vaccination_rate \* S dE \<- beta \* S \* I / N - sigma \* E dI \<- sigma \* E - gamma \* I dR \<- gamma \* I
+
+```         
+list(c(dS, dV, dE, dI, dR))
+```
+
+}) }
+
+# Initial conditions
+
+N \<- population I0 \<- 1 E0 \<- 0 R0 \<- 0 S0 \<- N - I0 - E0 - R0 V0 \<- 0
+
+initial_state \<- c(S = S0, V = V0, E = E0, I = I0, R = R0)
+
+# Parameters
+
+beta \<- 0.3 \# transmission rate gamma \<- 1/10 \# recovery rate sigma \<- 1/5.2 \# incubation rate
+
+# Use average daily vaccination rate for simplicity
+
+avg_daily_vaccination_rate \<- mean(vaccination_data\$Daily_Vaccination_Rate)
+
+parameters \<- c(N = N, beta = beta, gamma = gamma, sigma = sigma, vaccination_rate = avg_daily_vaccination_rate)
+
+# Time vector (10 days)
+
+times \<- seq(0, 10, by = 1)
+
+# Solve the model
+
+out \<- ode(y = initial_state, times = times, func = sveir_model, parms = parameters)
+
+# Convert output to data frame
+
+out_df \<- as.data.frame(out)
+
+# Plot the results
+
+library(ggplot2)
+
+out_df_melted \<- reshape2::melt(out_df, id.vars = "time")
+
+ggplot(out_df_melted, aes(x = time, y = value, color = variable)) + geom_line() + labs(title = "SVEIR Model with Vaccination", x = "Time (days)", y = "Number of individuals", color = "Compartment") + theme_minimal()
