@@ -14,7 +14,7 @@ This repository contains the code to reproduce the main results of the manuscrip
 This repository folder in addition contains the in-house developed python library *MLib*, which contains custom code for inference in probabilistic graphical models.
 
 ## About the datasets
-All the datasets used in this repository are publicly available. The relevant spredsheets are included in here for reproducibility purposes.
+The seroprevalence estimates used in this repository are publicly available and can be obtained from the [COVID-19 Immunity Task Force (CITF)](https://www.covid19immunitytaskforce.ca/seroprevalence-in-canada/) website. The relevant spredsheets are included in here for reproducibility purposes.
 For information about the new number of reported cases and deaths, we used the publicly available [COVID-19 Data Repository by the Center for Systems Science and Engineering at Johns Hopkins University](https://github.com/CSSEGISandData/COVID-19) 
 For policy tracking we used the [OxCGRT](https://github.com/OxCGRT/covid-policy-tracker).
 For comparing our approach with other models we used the publicly available predictions at the [COVID-19 Forecast Hub](https://github.com/reichlab/covid19-forecast-hub)
