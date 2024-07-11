@@ -1,0 +1,233 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r warning=FALSE, message=FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(macpan2)
+options(scipen = 10, digits = 4)
+```
+
+```{r warning=FALSE, message=FALSE}
+searchid_spec = mp_tmb_model_spec(
+    before = list(
+        S1 ~ 73896
+      , E1 ~ 0
+      , A1 ~ 1
+      , R1 ~ 100
+      , C1 ~ 0
+      , H1 ~ 0
+      , I1 ~ 10
+      , D1 ~ 0
+      , V2 ~ 139266
+      , E2 ~ 0
+      , A2 ~ 1
+      , R2 ~ 100
+      , C2 ~ 0
+      , H2 ~ 0
+      , I2 ~ 10
+      , D2 ~ 0
+      , V3 ~ 281265
+      , E3 ~ 0
+      , A3 ~ 1
+      , R3 ~ 100
+      , C3 ~ 0
+      , H3 ~ 0
+      , I3 ~ 1
+      , D3 ~ 0
+    )
+
+  , during = list(
+        infection_rate_1 ~ beta * S1 * (tau * (I1 + I2 + I3) + zeta * (A1 + A2 + A3)) / N
+        ,infection_rate_2 ~ beta * V2 * (tau * (I1 + I2 + I3) + zeta * (A1 + A2 + A3)) / N
+        ,infection_rate_3 ~ beta * V3 * (tau * (I1 + I2 + I3) + zeta * (A1 + A2 + A3)) / N
+
+      , S1 ~ S1 - kappa1 * infection_rate_1 - v2 * S1
+      , E1 ~ E1 + kappa1 * infection_rate_1 - sigma * E1
+      , A1 ~ A1 + mu * sigma - gamma * A1
+      , I1 ~ I1 + mu * sigma - phi1 * I1
+      , H1 ~ H1 + xi1 * phi1 * I1 - omega1 * H1
+      , R1 ~ R1 + gamma * A1 + (1 - xi1) * phi1 * I1 - (1 - theta1) * omega1 * H1 + (1 - lambda1) * eta1 * C1
+      , C1 ~ C1 + omega1 * theta1 * H1 - eta1 * C1
+      , D1 ~ D1 + lambda1 * eta1 * C1
+
+      , V2 ~ V2 + v2 * S1 - kappa2 * infection_rate_2 - v3 * V2
+      , E2 ~ E2 + kappa2 * infection_rate_2 - sigma * E2
+      , A2 ~ A2 + mu * sigma - gamma * A2
+      , I2 ~ I2 + mu * sigma - phi2 * I2
+      , H2 ~ H2 + xi2 * phi2 * I2 - omega2 * H2
+      , R2 ~ R2 + gamma * A2 + (1 - xi2) * phi2 * I2 - (1 - theta2) * omega2 * H2 + (1 - lambda2) * eta2 * C2
+      , C2 ~ C2 + omega2 * theta2 * H2 - eta2 * C2
+      , D2 ~ D2 + lambda2 * eta2 * C2
+
+      , V3 ~ V3 + v3 * V2 - kappa3 * infection_rate_3
+      , E3 ~ E3 + kappa3 * infection_rate_3 - sigma * E3
+      , A3 ~ A3 + mu * sigma - gamma * A3
+      , I3 ~ I3 + mu * sigma - phi3 * I3
+      , H3 ~ H3 + xi3 * phi3 * I3 - omega3 * H3
+      , R3 ~ R3 + gamma * A3 + (1 - xi3) * phi3 * I3 - (1 - theta3) * omega3 * H3 + (1 - lambda3) * eta3 * C3
+      , C3 ~ C3 + omega3 * theta3 * H3 - eta3 * C3
+      , D3 ~ D3 + lambda3 * eta3 * C3
+
+      , S ~ S1 + V2 + V3  # all susceptibles
+      , E ~ E1 + E2 + E3  # all exposed
+      , A ~ A1 + A2 + A3  # all asymptomatic
+      , I ~ I1 + I2 + I3  # all infectives
+      , R ~ R1 + R2 + R3  # all recovered
+      , H ~ H1 + H2 + H3  # all hospitalized
+      , C ~ C1 + C2 + C3  # all hospitalized in ICU
+      , D ~ D1 + D2 + D3  # all fatalities encountered
+    )
+  , default = list(N = 510550, beta = 0.42752579, gamma = 1/14, sigma = 0.35,
+                 mu = 0.6,  xi1 = 0.15, xi2 = 0.15, xi3 = 0.15, disp = 0.95,
+                 kappa1 = 1, kappa2 = 0.91, kappa3 = 0.3, eta1 = 1/5.5, eta2 = 1/5.5, eta3 = 1/5.5,
+                 phi1 = 1/5, phi2 = 1/5, phi3 = 1/5, theta1 = 0.007, theta2 = 0.005, theta3 = 0.0025,
+                 omega1 = 1/7, omega2 =  1/7, omega3 =  1/7, lambda1 = 0.25, lambda2 = 0.156, lambda3 = 0.150,
+                 tau = 0.799, zeta = 0.75, v2 = 0.2828, v3 = 0.1359))
+```
+
+```{r piecewise_defaults}
+beta_changepoints = c(0, 10, 21, 55, 90)
+beta_values = c(0.2752579, 0.390368, 0.25509096, 0.7390368, 0.65007704)
+```
+
+```{r time_var}
+# see ?time_var for arguments
+expr = list(
+ beta ~ time_var(beta_values, beta_changepoints)
+)
+```
+
+```{r searchid_spec}
+piecewise_spec =  (searchid_spec |> mp_tmb_insert(
+      phase="during"
+    , at=1
+    , expressions = expr
+    , default = list(beta = 0.42752579, gamma = 1/14, sigma = 0.35, mu = 0.6,  
+                     xi1 = 0.15, xi2 = 0.15, xi3 = 0.15, disp = 0.95, kappa1 = 1, kappa2 = 0.91, kappa3 = 0.3, 
+                     eta1 = 1/5.5, eta2 = 1/5.5, eta3 = 1/5.5, phi1 = 1/5, phi2 = 1/5, phi3 = 1/5, 
+                     theta1 = 0.007, theta2 = 0.005, theta3 = 0.0025, omega1 = 1/7, omega2 =  1/7, omega3 =  1/7, 
+                     lambda1 = 0.25, lambda2 = 0.156, lambda3 = 0.150, tau = 0.799, zeta = 0.75, v2 = 0.2828, v3 = 0.1359, 
+                     beta_values = c(0.42752579, 0.7390368, 0.695509096, 0.7390368, 0.65007704))
+    , integers = list(beta_changepoints = beta_changepoints))
+)
+```
+
+```{r, warning=FALSE, message=FALSE, fig.width=15, fig.height=8}
+
+(piecewise_spec
+ ## macpan2
+ |> mp_simulator(
+        time_steps = 170L
+      , outputs = c("S1", "E1", "A1", "I1", "R1","H1", "C1", "D1",
+                    "V2", "E2", "A2", "I2", "R2","H2", "C2", "D2",
+                    "V3", "E3", "A3", "I3", "R3","H3", "C3", "D3")
+    )
+ |> mp_trajectory()
+ 
+ ## dplyr
+ |> mutate(quantity = case_match(matrix
+      , "S1" ~ "Suscept1"
+      , "E1" ~ "Exposed1"
+      , "A1" ~ "Infect(asymp1)"
+      , "R1" ~ "Recov1"
+      , "C1" ~ "ICU1"
+      , "H1" ~ "Hosp1"
+      , "I1" ~ "Infect (symp)1"
+      , "D1" ~ "Dead1"
+      , "V2" ~ "SusceptVac2"
+      , "E2" ~ "Exposed2"
+      , "A2" ~ "Infect(asymp2)"
+      , "R2" ~ "Recov2"
+      , "C2" ~ "ICU2"
+      , "H2" ~ "Hosp2"
+      , "I2" ~ "Infect (symp)2"
+      , "D2" ~ "Dead2"
+      , "V3" ~ "SusceptVac3"
+      , "E3" ~ "Exposed3"
+      , "A3" ~ "Infect(asymp3)"
+      , "R3" ~ "Recov3"
+      , "C3" ~ "ICU3"
+      , "H3" ~ "Hosp3"
+      , "I3" ~ "Infect (symp)3"
+      , "D3" ~ "Dead3"
+    ))
+ 
+ ## ggplot2
+ |> ggplot() 
+ + geom_line(aes(time, value)) 
+ + facet_wrap(~ quantity, scales = "free")
+ + theme_bw()
+)
+```
+
+```{r}
+searchid_simulator = mp_simulator(
+    model = searchid_spec 
+  , time_steps = 170
+  , outputs = c("S1", "E1", "A1", "I1", "R1","H1", "C1", "D1",
+                "V2", "E2", "A2", "I2", "R2","H2", "C2", "D2",
+                "V3", "E3", "A3", "I3", "R3","H3", "C3", "D3")
+)
+searchid_simulator
+```
+
+```{r}
+searchid_results = mp_trajectory(searchid_simulator)
+plot(searchid_results$time, searchid_results$value) 
+```
+
+```{r}
+searchid_results = (searchid_results
+  |> mutate(matrix = case_match(matrix
+      , "S" ~ "Suscept"
+      , "E" ~ "Exposed"
+      , "A" ~ "Infect(asymp)"
+      , "R" ~ "Recov"
+      , "C" ~ "ICU"
+      , "H" ~ "Hosp"
+      , "I" ~ "Infect (symp)"
+      , "D" ~ "Dead"
+    ))
+  |> rename(quantity = matrix)
+  |> select(time, quantity, value)
+)
+print(head(searchid_results, 10L))
+```
+
+```{r}
+library(tidyr)
+si_results_wide <- (si_results
+  |> tidyr::pivot_wider(
+      , id_cols = time
+      , names_from = quantity
+    )
+  |> rename(Time = time)
+)
+head(si_results_wide, n = 3)
+```
+
+```{r}
+with(si_results_wide,plot(x = Time,y = Incidence))
+```
+
+```{r}
+par(las = 1) ## horizontal y-axis ticks
+matplot(
+    si_results_wide[, 1]
+  , si_results_wide[,-1]
+  , type = "l"
+  , xlab = "Time", ylab = ""
+)
+legend("topleft"
+  , col = 1:3
+  , lty = 1:3
+  , legend = c("R", "Dead")
+)
+```
+
