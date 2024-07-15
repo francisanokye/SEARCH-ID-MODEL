@@ -13,19 +13,9 @@ This repository contains the code to reproduce the main results of the manuscrip
 | I        | Number of infectious individuals   |
 | D        | Number of dead individuals         |
 
-$$
-\begin{align*}
-\frac{dS}{dt} &= -\beta_{S} S\frac{I}{N_{\text{mix}}} - \phi(S) S + \rho V\\
-\frac{dV}{dt} &=  \phi(S) S - \rho V - \beta_{V} V\frac{I}{N_{\text{mix}}} \\
-\frac{dE}{dt} &= (\beta_{S} S + \beta_{V} V) \frac{I}{N_{\text{mix}}} - \alpha E \\
-\frac{dI}{dt} &= \alpha E - \gamma_I I - \sigma I\\
-\frac{dH}{dt} &= \sigma I- \gamma_H H \\
-\frac{dR}{dt} &= \gamma_I I + \gamma_H H
-\end{align*}
-$$
-
 The size of the total population is,  $N = S + E + A  + R + C + H + I + D$, and the disease spreads through homogeneous mixing of the subpopulation $N_{\text{mix}}=N -H$.
 
+Cohort 1 - Unvaccinated or individuals with single dose:
 $$
 \begin{align*}
     \frac{dS_{1}}{dt} &= -k_{1}\beta_{i} S_{1}\frac{(\tau I + \zeta A)}{N} - v_{2}S_{1},\\
@@ -39,6 +29,8 @@ $$
 \end{align*}
 $$
 
+Cohort 2 - Double-dose vaccinated individuals:
+
 $$
 \begin{align*}
     \frac{dV_{2}}{dt} &= -k_{2}\beta_{i} V_{2}\frac{(\tau I + \zeta A)}{N} + v_{2}S_{1} - v_{3}V_{2},\\
@@ -51,7 +43,9 @@ $$
     \frac{dD_{2}}{dt} &= \eta_{2}\lambda_{2}C_{2}.\\
 \end{align*}
  $$
- 
+
+Cohort 3 - Vaccinated individuals with double-dose plus booster shots:
+
 $$
 \begin{align*}
     \frac{dV_{3}}{dt} &= -k_{3}\beta_{i} V_{3}\frac{(\tau I + \zeta A)}{N} + v_{3}V_{2},\\
