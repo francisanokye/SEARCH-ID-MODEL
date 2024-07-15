@@ -41,24 +41,17 @@ $$
 
 $$
 \begin{align*}
-    \displaystyle \frac{dV_{2}}{dt} = -k_{2}\beta_{i} V_{2}\frac{(\tau I + \zeta A)}{N} + v_{2}S_{1} - v_{3}V_{2},\\
-    \vspace{.1in}
-    \displaystyle \frac{dE_{2}}{dt} = k_{2}\beta_{i} V_{2}\frac{(\tau I + \zeta A)}{N} - \sigma E_{2},\\
-    \vspace{.1in}
-    \displaystyle \frac{dA_{2}}{dt} = \sigma \mu E_{2} - \gamma A_{2},\\
-    \vspace{.1in}
-    \displaystyle \frac{dI_{2}}{dt} = \sigma(1-\mu)E_{2} - \phi_{2} I_{2},\\
-    \vspace{.1in}
-    \displaystyle \frac{dH_{2}}{dt} = \phi_{2}\xi_{2} I_{2} - \omega_{2} H_{2},\\
-    \vspace{.1in}
-    \displaystyle \frac{dC_{2}}{dt} = \omega_{2}\theta_{2} H_{2} - \eta_{2} C_{2},\\
-    \vspace{.1in}
-    \displaystyle \frac{dR_{2}}{dt} = \gamma A_{2} + \phi_{2}(1-\xi_{2})I_{2} + \omega_{2}(1-\theta_{2})H_{2} + \eta_{2}(1 -\lambda_{2})C_{2},\\
-    \vspace{.1in}
-    \displaystyle \frac{dD_{2}}{dt} = \eta_{2}\lambda_{2}C_{2}.\\
-    $$
+    \frac{dV_{2}}{dt} = -k_{2}\beta_{i} V_{2}\frac{(\tau I + \zeta A)}{N} + v_{2}S_{1} - v_{3}V_{2},\\
+    \frac{dE_{2}}{dt} = k_{2}\beta_{i} V_{2}\frac{(\tau I + \zeta A)}{N} - \sigma E_{2},\\
+    \frac{dA_{2}}{dt} = \sigma \mu E_{2} - \gamma A_{2},\\
+    \frac{dI_{2}}{dt} = \sigma(1-\mu)E_{2} - \phi_{2} I_{2},\\
+    \frac{dH_{2}}{dt} = \phi_{2}\xi_{2} I_{2} - \omega_{2} H_{2},\\
+    \frac{dC_{2}}{dt} = \omega_{2}\theta_{2} H_{2} - \eta_{2} C_{2},\\
+    \frac{dR_{2}}{dt} = \gamma A_{2} + \phi_{2}(1-\xi_{2})I_{2} + \omega_{2}(1-\theta_{2})H_{2} + \eta_{2}(1 -\lambda_{2})C_{2},\\
+    \frac{dD_{2}}{dt} = \eta_{2}\lambda_{2}C_{2}.\\
 \end{align*}
-
+ $$
+ 
 \subsubsection*{Cohort 3}
 \[
 \left\{
