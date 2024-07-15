@@ -41,45 +41,29 @@ $$
 
 $$
 \begin{align*}
-    \frac{dV_{2}}{dt} = -k_{2}\beta_{i} V_{2}\frac{(\tau I + \zeta A)}{N} + v_{2}S_{1} - v_{3}V_{2},\\
-    \frac{dE_{2}}{dt} = k_{2}\beta_{i} V_{2}\frac{(\tau I + \zeta A)}{N} - \sigma E_{2},\\
-    \frac{dA_{2}}{dt} = \sigma \mu E_{2} - \gamma A_{2},\\
-    \frac{dI_{2}}{dt} = \sigma(1-\mu)E_{2} - \phi_{2} I_{2},\\
-    \frac{dH_{2}}{dt} = \phi_{2}\xi_{2} I_{2} - \omega_{2} H_{2},\\
-    \frac{dC_{2}}{dt} = \omega_{2}\theta_{2} H_{2} - \eta_{2} C_{2},\\
-    \frac{dR_{2}}{dt} = \gamma A_{2} + \phi_{2}(1-\xi_{2})I_{2} + \omega_{2}(1-\theta_{2})H_{2} + \eta_{2}(1 -\lambda_{2})C_{2},\\
-    \frac{dD_{2}}{dt} = \eta_{2}\lambda_{2}C_{2}.\\
+    \frac{dV_{2}}{dt} &= -k_{2}\beta_{i} V_{2}\frac{(\tau I + \zeta A)}{N} + v_{2}S_{1} - v_{3}V_{2},\\
+    \frac{dE_{2}}{dt} &= k_{2}\beta_{i} V_{2}\frac{(\tau I + \zeta A)}{N} - \sigma E_{2},\\
+    \frac{dA_{2}}{dt} &= \sigma \mu E_{2} - \gamma A_{2},\\
+    \frac{dI_{2}}{dt} &= \sigma(1-\mu)E_{2} - \phi_{2} I_{2},\\
+    \frac{dH_{2}}{dt} &= \phi_{2}\xi_{2} I_{2} - \omega_{2} H_{2},\\
+    \frac{dC_{2}}{dt} &= \omega_{2}\theta_{2} H_{2} - \eta_{2} C_{2},\\
+    \frac{dR_{2}}{dt} &= \gamma A_{2} + \phi_{2}(1-\xi_{2})I_{2} + \omega_{2}(1-\theta_{2})H_{2} + \eta_{2}(1 -\lambda_{2})C_{2},\\
+    \frac{dD_{2}}{dt} &= \eta_{2}\lambda_{2}C_{2}.\\
 \end{align*}
  $$
  
-\subsubsection*{Cohort 3}
-\[
-\left\{
-\begin{equation} \label{Cohort 3} 
-    %\eqname{Cohort 3}
-    \left.
-    \centering
-    \begin{array}{l}
-    \vspace{.1in}
-    \displaystyle \frac{dV_{3}}{dt} = -k_{3}\beta_{i} V_{3}\frac{(\tau I + \zeta A)}{N} + v_{3}V_{2},\\
-    \vspace{.1in}
-    \displaystyle \frac{dE_{3}}{dt} = k_{3}\beta_{i} V_{3}\frac{(\tau I + \zeta A)}{N} - \sigma E_{3},\\
-    \vspace{.1in}
-    \displaystyle \frac{dA_{3}}{dt} = \sigma \mu E_{3} - \gamma A_{3},\\
-    \vspace{.1in}
-    \displaystyle \frac{dI_{3}}{dt} = \sigma(1-\mu)E_{3} - \phi_{3} I_{3},\\
-    \vspace{.1in}
-    \displaystyle \frac{dH_{3}}{dt} = \phi_{3}\xi_{2} I_{3} - \omega_{3} H_{3},\\
-    \vspace{.1in}
-    \displaystyle \frac{dC_{3}}{dt} = \omega_{3}\theta_{3} H_{3} - \eta_{3} C_{3},\\
-    \vspace{.1in}
-    \displaystyle \frac{dR_{3}}{dt} = \gamma A_{3} + \phi_{3}(1-\xi_{3})I_{3} + \omega_{3}(1-\theta_{3})H_{3} + \eta_{3}(1 -\lambda_{3})C_{3},\\
-    \vspace{.1in}
-    \displaystyle \frac{dD_{3}}{dt} = \eta_{3}\lambda_{3}C_{3}.\\
-    \end{array}
-    \right.
-\end{equation}
 $$
+\begin{align*}
+    \frac{dV_{3}}{dt} &= -k_{3}\beta_{i} V_{3}\frac{(\tau I + \zeta A)}{N} + v_{3}V_{2},\\
+    \frac{dE_{3}}{dt} &= k_{3}\beta_{i} V_{3}\frac{(\tau I + \zeta A)}{N} - \sigma E_{3},\\
+    \frac{dA_{3}}{dt} &= \sigma \mu E_{3} - \gamma A_{3},\\
+    \frac{dI_{3}}{dt} &= \sigma(1-\mu)E_{3} - \phi_{3} I_{3},\\
+    \frac{dH_{3}}{dt} &= \phi_{3}\xi_{2} I_{3} - \omega_{3} H_{3},\\
+    \frac{dC_{3}}{dt} &= \omega_{3}\theta_{3} H_{3} - \eta_{3} C_{3},\\
+    \frac{dR_{3}}{dt} &= \gamma A_{3} + \phi_{3}(1-\xi_{3})I_{3} + \omega_{3}(1-\theta_{3})H_{3} + \eta_{3}(1 -\lambda_{3})C_{3},\\
+    \frac{dD_{3}}{dt} &= \eta_{3}\lambda_{3}C_{3}.\\
+    \end{align*}
+ $$
 
 
 # Parameters
