@@ -16,6 +16,7 @@ This repository contains the code to reproduce the main results of the manuscrip
 The size of the total population is,  $N = S + E + A  + R + C + H + I + D$, and the disease spreads through homogeneous mixing of the subpopulation $N_{\text{mix}}=N -H$.
 
 Cohort 1 - Unvaccinated or individuals with single dose:
+
 $$
 \begin{align*}
     \frac{dS_{1}}{dt} &= -k_{1}\beta_{i} S_{1}\frac{(\tau I + \zeta A)}{N} - v_{2}S_{1},\\
