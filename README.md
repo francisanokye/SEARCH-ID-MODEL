@@ -15,8 +15,7 @@ This repository contains the code to reproduce the main results of the manuscrip
 
 
 The size of the total population is,  $N = S + E + A  + R + C + H + I + D$, and the disease spreads through homogeneous mixing of the subpopulation $N_{\text{mix}}=N -H$.
-\[
-\left\{
+
 \begin{equation} \label{Cohort 1} \
     %\eqname{Cohort 1} 
     \left.
@@ -100,8 +99,7 @@ The size of the total population is,  $N = S + E + A  + R + C + H + I + D$, and 
     \end{array}
     \right.
 \end{equation}
-\right.
-\]
+
 
 
 # Parameters
