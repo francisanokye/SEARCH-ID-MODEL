@@ -31,25 +31,15 @@ $$
     \left.
     \centering
     \begin{array}{l}
-    \vspace{.1in}
-    \displaystyle \frac{dS_{1}}{dt} = -k_{1}\beta_{i} S_{1}\frac{(\tau I + \zeta A)}{N} - v_{2}S_{1},\\
-    \vspace{.1in}
-    \displaystyle \frac{dE_{1}}{dt} = k_{1}\beta_{i} S_{1}\frac{(\tau I + \zeta A)}{N} - \sigma E_{1},\\
-    \vspace{.1in}
-    \displaystyle \frac{dA_{1}}{dt} = \sigma \mu E_{1} - \gamma A_{1},\\
-    \vspace{.1in}
-    \displaystyle \frac{dI_{1}}{dt} = \sigma(1-\mu)E_{1} - \phi_{1} I_{1},\\
-    \vspace{.1in}
-    \displaystyle \frac{dH_{1}}{dt} = \phi_{1}\xi_{1} I_{1} - \omega_{1} H1_{t},\\
-    \vspace{.1in}
-    \displaystyle \frac{dC_{1}}{dt} = \omega_{1}\theta_{1} H_{1} - \eta_{1} C_{1},\\
-    \vspace{.1in}
-    \displaystyle \frac{dR_{1}}{dt} = \gamma A_{1} + \phi_{1}(1-\xi_{1})I_{1} + \omega_{1}(1-\theta_{1})H_{1} + \eta_{1}(1 -\lambda_{1})C_{1},\\
-    \vspace{.1in}
-    \displaystyle \frac{dD_{1}}{dt} = \eta_{1}\lambda_{1}C_{1}.\\
+    \frac{dS_{1}}{dt} = -k_{1}\beta_{i} S_{1}\frac{(\tau I + \zeta A)}{N} - v_{2}S_{1},\\
+    \frac{dE_{1}}{dt} = k_{1}\beta_{i} S_{1}\frac{(\tau I + \zeta A)}{N} - \sigma E_{1},\\
+    \frac{dA_{1}}{dt} = \sigma \mu E_{1} - \gamma A_{1},\\
+    \frac{dI_{1}}{dt} = \sigma(1-\mu)E_{1} - \phi_{1} I_{1},\\
+    \frac{dH_{1}}{dt} = \phi_{1}\xi_{1} I_{1} - \omega_{1} H1_{t},\\
+    \frac{dC_{1}}{dt} = \omega_{1}\theta_{1} H_{1} - \eta_{1} C_{1},\\
+    \frac{dR_{1}}{dt} = \gamma A_{1} + \phi_{1}(1-\xi_{1})I_{1} + \omega_{1}(1-\theta_{1})H_{1} + \eta_{1}(1 -\lambda_{1})C_{1},\\
+    \frac{dD_{1}}{dt} = \eta_{1}\lambda_{1}C_{1}.\\
     \end{array}
-    \right.
-    \caption{Caption of the equation}
 \end{equation}
 
 \subsubsection*{Cohort 2}
