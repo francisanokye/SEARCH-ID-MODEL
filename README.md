@@ -39,15 +39,8 @@ $$
 \end{align*}
 $$
 
-\subsubsection*{Cohort 2}
-\[
-\left\{
-\begin{equation} \label{Cohort 2} 
-    %\eqname{Cohort 2}
-    \left.
-    \centering
-    \begin{array}{l}
-    \vspace{.1in}
+$$
+\begin{align*}
     \displaystyle \frac{dV_{2}}{dt} = -k_{2}\beta_{i} V_{2}\frac{(\tau I + \zeta A)}{N} + v_{2}S_{1} - v_{3}V_{2},\\
     \vspace{.1in}
     \displaystyle \frac{dE_{2}}{dt} = k_{2}\beta_{i} V_{2}\frac{(\tau I + \zeta A)}{N} - \sigma E_{2},\\
@@ -63,11 +56,8 @@ $$
     \displaystyle \frac{dR_{2}}{dt} = \gamma A_{2} + \phi_{2}(1-\xi_{2})I_{2} + \omega_{2}(1-\theta_{2})H_{2} + \eta_{2}(1 -\lambda_{2})C_{2},\\
     \vspace{.1in}
     \displaystyle \frac{dD_{2}}{dt} = \eta_{2}\lambda_{2}C_{2}.\\
-    \end{array}
-    \right.
-\end{equation}
-\right.
-\]
+    $$
+\end{align*}
 
 \subsubsection*{Cohort 3}
 \[
