@@ -13,6 +13,16 @@ This repository contains the code to reproduce the main results of the manuscrip
 | I        | Number of infectious individuals   |
 | D        | Number of dead individuals         |
 
+$$
+\begin{align*}
+\frac{dS}{dt} &= -\beta_{S} S\frac{I}{N_{\text{mix}}} - \phi(S) S + \rho V\\
+\frac{dV}{dt} &=  \phi(S) S - \rho V - \beta_{V} V\frac{I}{N_{\text{mix}}} \\
+\frac{dE}{dt} &= (\beta_{S} S + \beta_{V} V) \frac{I}{N_{\text{mix}}} - \alpha E \\
+\frac{dI}{dt} &= \alpha E - \gamma_I I - \sigma I\\
+\frac{dH}{dt} &= \sigma I- \gamma_H H \\
+\frac{dR}{dt} &= \gamma_I I + \gamma_H H
+\end{align*}
+$$
 
 The size of the total population is,  $N = S + E + A  + R + C + H + I + D$, and the disease spreads through homogeneous mixing of the subpopulation $N_{\text{mix}}=N -H$.
 $$
