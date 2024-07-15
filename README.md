@@ -25,22 +25,19 @@ $$
 $$
 
 The size of the total population is,  $N = S + E + A  + R + C + H + I + D$, and the disease spreads through homogeneous mixing of the subpopulation $N_{\text{mix}}=N -H$.
+
 $$
-\begin{equation} \label{Cohort 1} \
-    %\eqname{Cohort 1} 
-    \left.
-    \centering
-    \begin{array}{l}
-    \frac{dS_{1}}{dt} = -k_{1}\beta_{i} S_{1}\frac{(\tau I + \zeta A)}{N} - v_{2}S_{1},\\
-    \frac{dE_{1}}{dt} = k_{1}\beta_{i} S_{1}\frac{(\tau I + \zeta A)}{N} - \sigma E_{1},\\
-    \frac{dA_{1}}{dt} = \sigma \mu E_{1} - \gamma A_{1},\\
-    \frac{dI_{1}}{dt} = \sigma(1-\mu)E_{1} - \phi_{1} I_{1},\\
-    \frac{dH_{1}}{dt} = \phi_{1}\xi_{1} I_{1} - \omega_{1} H1_{t},\\
-    \frac{dC_{1}}{dt} = \omega_{1}\theta_{1} H_{1} - \eta_{1} C_{1},\\
-    \frac{dR_{1}}{dt} = \gamma A_{1} + \phi_{1}(1-\xi_{1})I_{1} + \omega_{1}(1-\theta_{1})H_{1} + \eta_{1}(1 -\lambda_{1})C_{1},\\
-    \frac{dD_{1}}{dt} = \eta_{1}\lambda_{1}C_{1}.\\
-    \end{array}
-\end{equation}
+\begin{align*}
+    \frac{dS_{1}}{dt} &= -k_{1}\beta_{i} S_{1}\frac{(\tau I + \zeta A)}{N} - v_{2}S_{1},\\
+    \frac{dE_{1}}{dt} &= k_{1}\beta_{i} S_{1}\frac{(\tau I + \zeta A)}{N} - \sigma E_{1},\\
+    \frac{dA_{1}}{dt} &= \sigma \mu E_{1} - \gamma A_{1},\\
+    \frac{dI_{1}}{dt} &= \sigma(1-\mu)E_{1} - \phi_{1} I_{1},\\
+    \frac{dH_{1}}{dt} &= \phi_{1}\xi_{1} I_{1} - \omega_{1} H1_{t},\\
+    \frac{dC_{1}}{dt} &= \omega_{1}\theta_{1} H_{1} - \eta_{1} C_{1},\\
+    \frac{dR_{1}}{dt} &= \gamma A_{1} + \phi_{1}(1-\xi_{1})I_{1} + \omega_{1}(1-\theta_{1})H_{1} + \eta_{1}(1 -\lambda_{1})C_{1},\\
+    \frac{dD_{1}}{dt} &= \eta_{1}\lambda_{1}C_{1}.\\
+\end{align*}
+$$
 
 \subsubsection*{Cohort 2}
 \[
