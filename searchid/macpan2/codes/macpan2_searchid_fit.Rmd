@@ -1,0 +1,613 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width=7,
+  fig.height=7
+)
+```
+
+```{r warning=FALSE, message=FALSE, macpan2_verbose = FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(macpan2)
+library(ggthemes)
+library(broom.mixed)
+options(scipen = 10, digits = 1)
+```
+
+```{r}
+est_infect_from_seroprevalence <- read.csv("~/Documents/MUN/SEARCH-ID-MODEL/searchid/macpan2/data/omicron_estimated_serop.csv")
+est_infect_from_seroprevalence$date <- as.Date(est_infect_from_seroprevalence$date, format = "%Y-%m-%d")
+est_infect_from_seroprevalence <- est_infect_from_seroprevalence |>
+  rename_at("date",~"dates")
+
+observed_data = (est_infect_from_seroprevalence
+  |> select(dates, est_inci_serop)
+  |> mutate(matrix = "cases")
+  |> rename(cases = est_inci_serop)
+  |> mutate(time = seq_along(dates))
+)
+
+(observed_data
+  |> ggplot(aes(time, cases))
+  + geom_line() + geom_point()
+  + ggtitle("Omicron Infections in Newfoundland & Labrador, Canada")
+  + theme_clean()
+)
+
+
+```
+
+```{r warning=FALSE, message=FALSE}
+searchid_spec = mp_tmb_model_spec(
+  
+    before = list(
+        S1 ~ 73896, E1 ~ 48, A1 ~ 100, R1 ~ 100, C1 ~ 100, H1 ~ 10, I1 ~ 10, D1 ~ 1
+      , V2 ~ 139266, E2 ~ 48, A2 ~ 100, R2 ~ 100, C2 ~ 100, H2 ~ 10, I2 ~ 10, D2 ~ 1
+      , V3 ~ 281265, E3 ~ 48, A3 ~ 100, R3 ~ 100, C3 ~ 100, H3 ~ 10, I3 ~ 10, D3 ~ 1
+      , S ~ S1 + V2 + V3  # all susceptibles
+      , E ~ E1 + E2 + E3  # all exposed
+      , A ~ A1 + A2 + A3  # all asymptomatic
+      , I ~ I1 + I2 + I3  # all infectives
+      , R ~ R1 + R2 + R3  # all recovered
+      , H ~ H1 + H2 + H3  # all hospitalized
+      , C ~ C1 + C2 + C3  # all hospitalized in ICU
+      , D ~ D1 + D2 + D3  # all fatalities encountered
+    )
+
+  , during = list(
+        infection_rate_1 ~ beta * S1 * (tau * (I1 + I2 + I3) + zeta * (A1 + A2 + A3)) / N
+      , infection_rate_2 ~ beta * V2 * (tau * (I1 + I2 + I3) + zeta * (A1 + A2 + A3)) / N
+      , infection_rate_3 ~ beta * V3 * (tau * (I1 + I2 + I3) + zeta * (A1 + A2 + A3)) / N
+
+      , S1 ~ S1 - kappa1 * infection_rate_1 - v2 * S1
+      , E1 ~ E1 + kappa1 * infection_rate_1 - sigma * E1
+      , A1 ~ A1 + mu * sigma - gamma * A1
+      , I1 ~ I1 + mu * sigma - phi1 * I1
+      , H1 ~ H1 + xi1 * phi1 * I1 - omega1 * H1
+      , R1 ~ R1 + gamma * A1 + (1 - xi1) * phi1 * I1 - (1 - theta1) * omega1 * H1 + (1 - lambda1) * eta1 * C1
+      , C1 ~ C1 + omega1 * theta1 * H1 - eta1 * C1
+      , D1 ~ D1 + lambda1 * eta1 * C1
+
+      , V2 ~ V2 + v2 * S1 - kappa2 * infection_rate_2  - v3 * V2
+      , E2 ~ E2 + kappa2 * infection_rate_2 - sigma * E2
+      , A2 ~ A2 + mu * sigma - gamma * A2
+      , I2 ~ I2 + mu * sigma - phi2 * I2
+      , H2 ~ H2 + xi2 * phi2 * I2 - omega2 * H2
+      , R2 ~ R2 + gamma * A2 + (1 - xi2) * phi2 * I2 - (1 - theta2) * omega2 * H2 + (1 - lambda2) * eta2 * C2
+      , C2 ~ C2 + omega2 * theta2 * H2 - eta2 * C2
+      , D2 ~ D2 + lambda2 * eta2 * C2
+
+      , V3 ~ V3 + v3 * V2 - kappa3 * infection_rate_3
+      , E3 ~ E3 + kappa3 * infection_rate_3 - sigma * E3
+      , A3 ~ A3 + mu * sigma - gamma * A3
+      , I3 ~ I3 + mu * sigma - phi3 * I3
+      , H3 ~ H3 + xi3 * phi3 * I3 - omega3 * H3
+      , R3 ~ R3 + gamma * A3 + (1 - xi3) * phi3 * I3 - (1 - theta3) * omega3 * H3 + (1 - lambda3) * eta3 * C3
+      , C3 ~ C3 + omega3 * theta3 * H3 - eta3 * C3
+      , D3 ~ D3 + lambda3 * eta3 * C3
+
+      , S ~ S1 + V2 + V3  # all susceptibles
+      , E ~ E1 + E2 + E3  # all exposed
+      , A ~ A1 + A2 + A3  # all asymptomatic
+      , I ~ I1 + I2 + I3  # all infectives
+      , R ~ R1 + R2 + R3  # all recovered
+      , H ~ H1 + H2 + H3  # all hospitalized
+      , C ~ C1 + C2 + C3  # all hospitalized in ICU
+      , D ~ D1 + D2 + D3  # all fatalities encountered
+    )
+  , default = list(N = 510550, beta = 1.35, gamma = 1/14, sigma = 0.35,
+                 mu = 0.06,  xi1 = 0.15, xi2 = 0.15, xi3 = 0.15, 
+                 kappa1 = 1, kappa2 = 0.91, kappa3 = 0.3, eta1 = 1/5.5, eta2 = 1/5.5, eta3 = 1/5.5,
+                 phi1 = 1/5, phi2 = 1/5, phi3 = 1/5, theta1 = 0.007, theta2 = 0.005, theta3 = 0.0025,
+                 omega1 = 1/7, omega2 =  1/7, omega3 =  1/7, lambda1 = 0.025, lambda2 = 0.0156, lambda3 = 0.0150,
+                 tau = 0.799, zeta = 0.75, v2 = 0.2828, v3 = 0.1359))
+
+```
+
+## Piecewise Time Variation & Simulator
+
+```{r baseline_searchid, message=FALSE, warning=FALSE, fig.width=10, fig.height=6}
+
+# Piecewise Time Variation
+state_labels <- c("S", "E", "A", "R", "C", "H", "I", "D", "cases")
+beta_changepoints <- c(1, 10, 21, 55, 90)
+beta_values <- c(3.5, 7.390368, 9.695509096, 7.390368, 15.065007704)
+
+expr <- list(
+  beta ~ time_var(beta_values, beta_changepoints)
+)
+
+# Insert piece-wise transmission rates
+searchid_spec <- mp_tmb_insert(
+  searchid_spec,
+  phase = "during",
+  at = 1L,  # Start at time step 1
+  expressions = expr,
+  default = list(beta_values = beta_values),
+  integers = list(beta_changepoints = beta_changepoints)
+)
+
+# Constrain the beta parameters
+transformed_searchid_spec <- mp_tmb_insert(
+  model = searchid_spec,
+  phase = "before",
+  at = 1L,  # Start at time step 1
+  expressions = list(beta_values ~ exp(log_beta_values)),
+  default = list(
+    log_beta_values = rep(mean(log(beta_values)), length(beta_values))
+  )
+)
+
+# Simulator
+searchid_simulator <- mp_simulator(
+  searchid_spec,
+  time_steps = 170,
+  outputs = state_labels
+)
+
+# Check for NULL values in observed_data
+if (is.null(observed_data)) {
+  stop("Error: observed_data is NULL. Please provide valid observed data.")
+}
+
+# Plotting
+searchid_simulator %>%
+  mp_trajectory() %>%
+  mutate(state = factor(matrix, state_labels)) %>%
+  ggplot() +
+  geom_line(aes(time, value)) +
+  facet_wrap(~ state, scales = "free") +
+  theme_bw()
+
+
+```
+
+
+
+
+
+```{r simulating_dynamics}
+
+# state variables
+state_labels = c("S", "E", "A", "R","C","H", "I", "D", "cases")
+
+# set up calibrator
+searchid_calibrator = mp_tmb_calibrator(
+    spec = searchid_spec
+  , data = observed_data
+  , traj = "cases"
+  , par = c("beta") 
+  , outputs = state_labels
+)
+# print to check
+searchid_calibrator
+
+# trajectory has 90 time steps (which is what we expect)
+nrow(searchid_calibrator 
+  |> mp_trajectory()
+  |> filter(matrix=="R")
+  |> select(time) 
+  |> unique()
+)
+  
+
+# which time steps are missing in observed data
+(searchid_calibrator 
+  |> mp_trajectory()
+  |> filter(matrix=="R")
+  |> anti_join(observed_data, by="time")
+
+) 
+
+# before optimizing, do the dynamics look reasonable? 
+(searchid_calibrator 
+    |> mp_trajectory()
+    |> ggplot(aes(time, value))
+    + facet_wrap(vars(matrix), scales='free')
+    + geom_line()
+    + theme_bw()
+)
+```
+
+
+
+
+
+```{r}
+# set up calibrator object
+piecewise_calib = mp_tmb_calibrator(
+    spec = transformed_searchid_spec
+  , data = list(observed_data)
+  , traj = "cases"
+  , par = "log_beta_values"
+  , outputs = state_labels
+)
+
+# optimization step
+mp_optimize(piecewise_calib)
+```
+
+## Simulator
+
+```{r baseline_searchid, message=FALSE, warning=FALSE, fig.width=10, fig.height=6}
+state_labels = c("S", "E", "A", "R","C","H", "I", "D", "cases")
+searchid_simulator = (searchid_spec
+  |> mp_simulator(
+    time_steps = 170
+    , outputs = state_labels
+  )
+)
+(searchid_simulator
+  |> mp_trajectory()
+  |> mutate(state = factor(matrix, state_labels))
+  |>  ggplot()
+ + geom_line(aes(time, value))
+ + facet_wrap(~ state, scales = "free")
+ + theme_bw()
+)
+```
+
+```{r}
+searchid_simulator$update$matrices(
+  
+  ## observed data
+  I_obs = observed_data$cases,
+  
+  ## simulated trajectory to compare with data
+  R_sim = empty_matrix, 
+  
+  ## location of I in the state vector
+  ## (the `-1L` bit is to get 0-based indices instead of 1-based)
+  R_index = match("R", state_labels) - 1L, 
+  
+  ## matrix to contain the log likelihood values at 
+  ## each time step
+  log_lik = empty_matrix, 
+  
+  ## need to save the simulation history of each of these matrices
+  .mats_to_save = c("R_sim", "log_lik")
+)
+```
+
+```{r}
+searchid_simulator$insert$expressions(
+  R_sim ~ R,
+  .phase = "during"
+)
+```
+
+```{r}
+searchid_simulator$insert$expressions(
+  log_lik ~ dpois(I_obs, clamp(rbind_time(R_sim))),
+  .phase = "after"
+)
+searchid_simulator$replace$obj_fn(~ -sum(log_lik))
+```
+
+```{r}
+searchid_simulator$get$initial("beta_values")
+```
+
+
+```{r}
+default_beta = mean(searchid_simulator$get$initial("beta_values"))
+params_to_fit = data.frame(
+    mat = "log_beta_values"
+  , row = 0:4
+  , default = log(default_beta)
+)
+print(params_to_fit)
+```
+
+
+## Preparing the Data
+
+The first step in preparing data for `macpan2` is to simulate from the model that you are considering. Here we simulate the `"reports"` variable because it corresponds to the reported incidence (the number of new cases per time-step, which in our case is one week, multiplied by a reporting probability).
+```{r}
+searchid_simulator = (piecewise_spec |> mp_simulator(
+  , time_steps = 170
+  , outputs = "cases"
+))
+
+mp_trajectory(searchid_simulator) 
+```
+
+
+```{r, warning=FALSE, message=FALSE, fig.width=18, fig.height=10}
+
+(piecewise_spec
+ ## macpan2
+ |> mp_simulator(
+        time_steps = 170
+      , outputs = c("S", "E", "A", "I", "R","H", "C", "D"
+                    , "S1", "E1", "A1", "I1", "R1","H1", "C1", "D1"
+                    , "V2", "E2", "A2", "I2", "R2","H2", "C2", "D2"
+                    , "V3", "E3", "A3", "I3", "R3","H3", "C3", "D3","cases")
+    )
+ |> mp_trajectory()
+ 
+ ## dplyr
+ |> mutate(quantity = case_match(matrix
+      , "S" ~ "tot_S"
+      , "E" ~ "tot_E"
+      , "A" ~ "tot_A"
+      , "R" ~ "tot_R"
+      , "C" ~ "tot_C"
+      , "H" ~ "tot_H"
+      , "I" ~ "tot_I"
+      , "D" ~ "tot_D"
+      , "cases" ~ "cases"
+    ))
+ 
+ ## ggplot2
+ |> ggplot() 
+ + geom_line(aes(time, value)) 
+ + facet_wrap(~ quantity, scales = "free")
+ + theme_bw()
+)
+```
+## Set up the Optimizer
+
+Now we can create an object that can be calibrated.
+
+```{r warning=FALSE, message=FALSE}
+searchid_calibrator = mp_tmb_calibrator(
+    spec = piecewise_spec
+  , data = observed_data
+  , traj = "cases"  
+  ## fit the following parameters
+  , par = c("beta", "phi1","phi2","phi3", "lambda1", "lambda2","lambda3","theta1","theta2","theta3", "xi1","xi2","xi3")
+
+)
+
+searchid_opt = mp_optimize(searchid_calibrator)
+
+print(searchid_opt)
+```
+
+## Run the Optimization
+
+```{r}
+mp_tmb_coef(searchid_calibrator, conf.int = TRUE)
+```
+
+That doesn't look right!  Those are very high `beta` and `gamma` values, and the confidence intervals are enormous and overlap zero.
+
+But the model fit doesn't look all that bad.
+
+```{r}
+fitted_data = mp_trajectory_sd(searchid_calibrator, conf.int = TRUE)
+(observed_data
+  |> ggplot()
+  + geom_point(aes(time, value))
+  + geom_line(aes(time, value)
+    , data = fitted_data
+  )
+  + geom_ribbon(aes(time, ymin = conf.low, ymax = conf.high)
+    , data = fitted_data
+    , alpha = 0.2
+    , colour = "red"
+  )
+ + geom_ribbon(aes(time, ymin = conf.low, ymax = conf.high)
+      , data = fitted_data
+      , alpha = 0.2
+      , colour = "red"
+    )
+    + theme_bw()
+ # + facet_wrap(~matrix, ncol = 1, scales = "free")
+)
+```
+
+More warnings, but now the optimizer converges. And the standard errors in the coefficient table and fixed effect correlations seem more plausible.
+
+```{r}
+mp_tmb_coef(searchid_calibrator)
+mp_tmb_fixef_cov(searchid_calibrator) |> cov2cor()
+```
+
+Prepare to fit to the data. We make a function so that we can easily update the dimension of the radial basis.
+
+```{r}
+make_rbf_calibrator = function(dimension) {
+  mp_tmb_calibrator(
+      spec = piecewise_spec
+    , data = observed_data
+    , traj = "cases"  
+    
+    ## -----------------------------
+    ## this is the key bit
+    , tv = mp_rbf("beta", dimension)
+    ## -----------------------------
+    
+    , par = c("beta", "phi1","phi2","phi3", "lambda1", "lambda2","lambda3","theta1","theta2","theta3", "xi1","xi2","xi3")
+  )
+}
+```
+
+And it is also convenient to make a function for plotting the results
+```{r}
+plot_fit = function(cal_object) {
+  fitted_data = mp_trajectory_sd(cal_object, conf.int = TRUE)
+  (observed_data
+    |> ggplot()
+    + geom_point(aes(time, value))
+    + geom_line(aes(time, value)
+      , data = fitted_data
+      , colour = "red"
+    )
+    + geom_ribbon(aes(time, ymin = conf.low, ymax = conf.high)
+      , data = fitted_data
+      , alpha = 0.2
+      , colour = "red"
+    )
+    + theme_bw()
+  )
+}
+```
+
+Now we try fitting for a number of different dimensions.
+
+```{r warning=FALSE, message=FALSE}
+rbf_searchid_calibrator = make_rbf_calibrator(dimension = 3)
+mp_optimize(rbf_searchid_calibrator)
+plot_fit(rbf_searchid_calibrator)
+```
+
+```{r}
+searchid_spec = mp_tmb_model_spec(
+    before = list(
+        S1 ~ 73896
+      , E1 ~ 48
+      , A1 ~ 1000
+      , R1 ~ 100
+      , C1 ~ 100
+      , H1 ~ 10
+      , I1 ~ 10
+      , D1 ~ 1
+      , V2 ~ 139266
+      , E2 ~ 48
+      , A2 ~ 1000
+      , R2 ~ 100
+      , C2 ~ 100
+      , H2 ~ 10
+      , I2 ~ 10
+      , D2 ~ 1
+      , V3 ~ 281265
+      , E3 ~ 48
+      , A3 ~ 100
+      , R3 ~ 100
+      , C3 ~ 100
+      , H3 ~ 10
+      , I3 ~ 10
+      , D3 ~ 1
+      , S ~ 0
+      , E ~ 0
+      , A ~ 0
+      , R ~ 0
+      , C ~ 0
+      , H ~ 0
+      , I ~ 0
+      , D ~ 0
+    )
+
+  , during = list(
+        infection_rate_1 ~ beta * S1 * (tau * (I) + zeta * (A)) / N
+        ,infection_rate_2 ~ beta * V2 * (tau * (I) + zeta * (A)) / N
+        ,infection_rate_3 ~ beta * V3 * (tau * (I) + zeta * (A)) / N
+
+      , S1 ~ S1 - kappa1 * infection_rate_1 - v2 * S1
+      , E1 ~ E1 + kappa1 * infection_rate_1 - sigma * E1
+      , A1 ~ A1 + mu * sigma - gamma * A1
+      , I1 ~ I1 + mu * sigma - phi1 * I1
+      , H1 ~ H1 + xi1 * phi1 * I1 - omega1 * H1
+      , R1 ~ R1 + gamma * A1 + (1 - xi1) * phi1 * I1 - (1 - theta1) * omega1 * H1 + (1 - lambda1) * eta1 * C1
+      , C1 ~ C1 + omega1 * theta1 * H1 - eta1 * C1
+      , D1 ~ D1 + lambda1 * eta1 * C1
+
+      , V2 ~ V2 + v2 * S1 - kappa2 * infection_rate_2  - v3 * V2
+      , E2 ~ E2 + kappa2 * infection_rate_2 - sigma * E2
+      , A2 ~ A2 + mu * sigma - gamma * A2
+      , I2 ~ I2 + mu * sigma - phi2 * I2
+      , H2 ~ H2 + xi2 * phi2 * I2 - omega2 * H2
+      , R2 ~ R2 + gamma * A2 + (1 - xi2) * phi2 * I2 - (1 - theta2) * omega2 * H2 + (1 - lambda2) * eta2 * C2
+      , C2 ~ C2 + omega2 * theta2 * H2 - eta2 * C2
+      , D2 ~ D2 + lambda2 * eta2 * C2
+
+      , V3 ~ V3 + v3 * V2 - kappa3 * infection_rate_3
+      , E3 ~ E3 + kappa3 * infection_rate_3 - sigma * E3
+      , A3 ~ A3 + mu * sigma - gamma * A3
+      , I3 ~ I3 + mu * sigma - phi3 * I3
+      , H3 ~ H3 + xi3 * phi3 * I3 - omega3 * H3
+      , R3 ~ R3 + gamma * A3 + (1 - xi3) * phi3 * I3 - (1 - theta3) * omega3 * H3 + (1 - lambda3) * eta3 * C3
+      , C3 ~ C3 + omega3 * theta3 * H3 - eta3 * C3
+      , D3 ~ D3 + lambda3 * eta3 * C3
+
+      , S ~ S1 + V2 + V3  # all susceptibles
+      , E ~ E1 + E2 + E3  # all exposed
+      , A ~ A1 + A2 + A3  # all asymptomatic
+      , I ~ I1 + I2 + I3  # all infectives
+      , R ~ R1 + R2 + R3  # all recovered
+      , H ~ H1 + H2 + H3  # all hospitalized
+      , C ~ C1 + C2 + C3  # all hospitalized in ICU
+      , D ~ D1 + D2 + D3  # all fatalities encountered
+    )
+  , default = list(N = 510550, beta = 1.35, gamma = 1/14, sigma = 0.35,
+                 mu = 0.06,  xi1 = 0.15, xi2 = 0.15, xi3 = 0.15, 
+                 kappa1 = 1, kappa2 = 0.91, kappa3 = 0.3, eta1 = 1/5.5, eta2 = 1/5.5, eta3 = 1/5.5,
+                 phi1 = 1/5, phi2 = 1/5, phi3 = 1/5, theta1 = 0.007, theta2 = 0.005, theta3 = 0.0025,
+                 omega1 = 1/7, omega2 =  1/7, omega3 =  1/7, lambda1 = 0.025, lambda2 = 0.0156, lambda3 = 0.0150,
+                 tau = 0.799, zeta = 0.75, v2 = 0.2828, v3 = 0.1359))
+
+searchid_spec = mp_tmb_insert(searchid_spec
+  , expressions = list(cases ~ R)
+  , at = Inf 
+  , phase = "during"
+)
+
+# Piecewise Time Variation
+state_labels <- c("S", "E", "A", "R", "C", "H", "I", "D", "cases")
+beta_changepoints <- c(0, 10, 21, 55, 90)
+beta_values <- c(0.35, 0.7390368, 0.9695509096, 0.7390368, 50.065007704)
+
+expr <- list(
+  beta ~ time_var(beta_values, beta_changepoints)
+)
+
+# Insert piece-wise transmission rates
+searchid_spec <- mp_tmb_insert(
+  searchid_spec,
+  phase = "during",
+  at = Inf,
+  expressions = expr,
+  default = list(beta_values = beta_values),
+  integers = list(beta_changepoints = beta_changepoints)
+)
+
+# Constrain the beta parameters
+transformed_searchid_spec <- mp_tmb_insert(
+  model = searchid_spec,
+  phase = "before",
+  at = 1,
+  expressions = list(beta_values ~ exp(log_beta_values)),
+  default = list(
+    log_beta_values = rep(mean(log(beta_values)), length(beta_values))
+  )
+)
+
+# Simulator
+searchid_simulator <- mp_simulator(
+  searchid_spec,
+  time_steps = 170,
+  outputs = state_labels
+)
+
+# Plotting
+searchid_simulator %>%
+  mp_trajectory() %>%
+  mutate(state = factor(matrix, state_labels)) %>%
+  ggplot() +
+  geom_line(aes(time, value)) +
+  facet_wrap(~ state, scales = "free") +
+  theme_bw()
+
+# Set up calibrator object
+piecewise_calib <- mp_tmb_calibrator(
+  spec = transformed_searchid_spec,
+  data = observed_data,
+  traj = "cases",
+  par = "log_beta_values",
+  outputs = state_labels
+)
+
+```
+
+
+## References

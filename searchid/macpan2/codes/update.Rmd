@@ -1,0 +1,565 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r warning = FALSE, message = FALSE, macpan2_verbose = FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(macpan2)
+library(ggthemes)
+library(broom.mixed)
+options(scipen = 10, digits = 1)
+knitr::opts_chunk$set(fig.width = 10, fig.height = 6)
+basefig_setup <- function() par(las = 1, bty = "l")
+knitr::knit_hooks$set(basefig = basefig_setup)
+```
+
+
+```{r local_function, include=FALSE}
+# to be included in mp_tmb_coef in the future
+# see here, https://github.com/canmod/macpan2/issues/179
+backtrans <- function(x) {
+  vars1 <- intersect(c("default", "estimate", "conf.low", "conf.high"), names(x))
+  prefix <- stringr::str_extract(x[["mat"]], "^log(it)?_")  |> tidyr::replace_na("none")
+  sx <- split(x, prefix)
+  for (ptype in setdiff(names(sx), "none")) {
+    link <- make.link(stringr::str_remove(ptype, "_"))
+    sx[[ptype]] <- (sx[[ptype]]
+                    |> mutate(across(std.error, ~link$mu.eta(estimate)*.))
+                    |> mutate(across(any_of(vars1), link$linkinv))
+                    |> mutate(across(mat, ~stringr::str_remove(., paste0("^", ptype))))
+    )
+  }
+  bind_rows(sx)
+}
+
+```
+
+## Load Newfoundland & Labrador Omicron Data
+
+```{r}
+est_infect_from_seroprevalence <- read.csv("~/Documents/MUN/SEARCH-ID-MODEL/searchid/macpan2/data/omicron_estimated_serop.csv")
+est_infect_from_seroprevalence$date <- as.Date(est_infect_from_seroprevalence$date, format = "%Y-%m-%d")
+est_infect_from_seroprevalence <- est_infect_from_seroprevalence |>
+  rename_at("date",~"dates")
+
+observed_data = (est_infect_from_seroprevalence
+  |> select(dates, est_inci_serop)
+  |> mutate(matrix = "cases")
+  |> rename(value = est_inci_serop)
+  |> mutate(time = seq_along(dates))
+)
+
+(observed_data
+  |> ggplot(aes(time, value))
+  + geom_line() + geom_point()
+  + ggtitle("Omicron Infections in NMewfoundland & Labrador, Canada")
+  + theme_clean()
+)
+```
+
+```{r warning=FALSE, message=FALSE}
+searchid_spec = mp_tmb_model_spec(
+    before = list(
+        S1 ~ 73896, E1 ~ 48, A1 ~ 100, R1 ~ 100, C1 ~ 100, H1 ~ 10, I1 ~ 10, D1 ~ 1
+      , V2 ~ 139266, E2 ~ 48, A2 ~ 100, R2 ~ 100, C2 ~ 100, H2 ~ 10, I2 ~ 10, D2 ~ 1
+      , V3 ~ 281265, E3 ~ 48, A3 ~ 100, R3 ~ 100, C3 ~ 100, H3 ~ 10, I3 ~ 10, D3 ~ 1
+      , S ~ S1 + V2 + V3
+      , E ~ E1 + E2 + E3
+      , A ~ A1 + A2 + A3
+      , R ~ R1 + R2 + R3
+      , C ~ C1 + C2 + C3
+      , H ~ H1 + H2 + H3
+      , I ~ I1 + I2 + I3
+      , D ~ D1 + D2 + D3
+    )
+
+  , during = list(
+         infection_rate_1 ~ beta * S1 * (tau * (I) + zeta * (A)) / N
+        ,infection_rate_2 ~ beta * V2 * (tau * (I) + zeta * (A)) / N
+        ,infection_rate_3 ~ beta * V3 * (tau * (I) + zeta * (A)) / N
+
+      , S1 ~ S1 - kappa1 * infection_rate_1 - v2 * S1
+      , E1 ~ E1 + kappa1 * infection_rate_1 - sigma * E1
+      , A1 ~ A1 + mu * sigma - gamma * A1
+      , I1 ~ I1 + mu * sigma - phi1 * I1
+      , H1 ~ H1 + xi1 * phi1 * I1 - omega1 * H1
+      , R1 ~ R1 + gamma * A1 + (1 - xi1) * phi1 * I1 - (1 - theta1) * omega1 * H1 + (1 - lambda1) * eta1 * C1
+      , C1 ~ C1 + omega1 * theta1 * H1 - eta1 * C1
+      , D1 ~ D1 + lambda1 * eta1 * C1
+
+      , V2 ~ V2 + v2 * S1 - kappa2 * infection_rate_2  - v3 * V2
+      , E2 ~ E2 + kappa2 * infection_rate_2 - sigma * E2
+      , A2 ~ A2 + mu * sigma - gamma * A2
+      , I2 ~ I2 + mu * sigma - phi2 * I2
+      , H2 ~ H2 + xi2 * phi2 * I2 - omega2 * H2
+      , R2 ~ R2 + gamma * A2 + (1 - xi2) * phi2 * I2 - (1 - theta2) * omega2 * H2 + (1 - lambda2) * eta2 * C2
+      , C2 ~ C2 + omega2 * theta2 * H2 - eta2 * C2
+      , D2 ~ D2 + lambda2 * eta2 * C2
+
+      , V3 ~ V3 + v3 * V2 - kappa3 * infection_rate_3
+      , E3 ~ E3 + kappa3 * infection_rate_3 - sigma * E3
+      , A3 ~ A3 + mu * sigma - gamma * A3
+      , I3 ~ I3 + mu * sigma - phi3 * I3
+      , H3 ~ H3 + xi3 * phi3 * I3 - omega3 * H3
+      , R3 ~ R3 + gamma * A3 + (1 - xi3) * phi3 * I3 - (1 - theta3) * omega3 * H3 + (1 - lambda3) * eta3 * C3
+      , C3 ~ C3 + omega3 * theta3 * H3 - eta3 * C3
+      , D3 ~ D3 + lambda3 * eta3 * C3
+
+      , S ~ S1 + V2 + V3  # all susceptibles
+      , E ~ E1 + E2 + E3  # all exposed
+      , A ~ A1 + A2 + A3  # all asymptomatic
+      , I ~ I1 + I2 + I3  # all infectives
+      , R ~ R1 + R2 + R3  # all recovered
+      , H ~ H1 + H2 + H3  # all hospitalized
+      , C ~ C1 + C2 + C3  # all hospitalized in ICU
+      , D ~ D1 + D2 + D3  # all fatalities encountered
+    )
+  , default = list(N = 510550, beta = 0.35, gamma = 1/14, sigma = 0.35,
+                 mu = 0.06,  xi1 = 0.15, xi2 = 0.15, xi3 = 0.15, 
+                 kappa1 = 1, kappa2 = 0.91, kappa3 = 0.3, eta1 = 1/5.5, eta2 = 1/5.5, eta3 = 1/5.5,
+                 phi1 = 1/5, phi2 = 1/5, phi3 = 1/5, theta1 = 0.007, theta2 = 0.005, theta3 = 0.0025,
+                 omega1 = 1/7, omega2 =  1/7, omega3 =  1/7, lambda1 = 0.025, lambda2 = 0.0156, lambda3 = 0.0150,
+                 tau = 0.799, zeta = 0.75, v2 = 0.2828, v3 = 0.1359))
+
+searchid_spec = mp_tmb_insert(searchid_spec
+  , expressions = list(cases ~ R)
+  , at = Inf 
+  , phase = "during"
+)
+```
+
+## Piecewise Time Variation
+
+```{r piecewise_defaults}
+state_labels <- c("S", "E", "A", "R", "C", "H", "I", "D", "cases")
+beta_changepoints <- c(0, 10, 21, 55, 90)
+beta_values <- c(10.42752579, 10.7390368, 10.695509096, 10.7390368, 10.65007704)
+```
+
+```{r time_var}
+# see ?time_var for arguments
+expr = list(
+ beta ~ time_var(beta_values, beta_changepoints)
+)
+
+```
+
+Now that we know our expression is updating `beta` correctly, we can modify the SIR model to include this piece-wise transmission rate.
+```{r searchid_simulator}
+# model specification with piece-wise transmission rates
+piecewise_spec = (
+  
+  searchid_spec
+  # insert expression for updating beta at the beginning of the simulation loop
+  |> mp_tmb_insert(
+      phase="during"
+    , at=1L
+    , expressions = expr
+    , default = list(beta_values = beta_values)
+    , integers = list(beta_changepoints = beta_changepoints))
+)
+# transformed model specification
+transformed_spec = mp_tmb_insert(
+    model = piecewise_spec
+  , phase = "before"
+  , at = 1L
+  , expressions = list(beta_values ~ exp(log_beta_values))
+  , default = list(log_beta_values = rep(mean(log(beta_values)), length(beta_values)))
+)
+
+# create simulator object
+transformed_spec_simulator = (transformed_spec
+   |> mp_simulator(time_steps = 170, outputs=c(state_labels))
+)
+
+```
+
+Now we plot the updated simulations using these change-points, which we highlight with vertical lines.
+
+```{r baseline_searchid, message=FALSE, warning=FALSE, fig.width=12, fig.height=7}
+state_labels = c("S", "E", "A", "R","C","H", "I", "D", "cases")
+searchid_simulator = (searchid_spec
+  |> mp_simulator(
+    time_steps = 170
+    , outputs = state_labels
+  )
+)
+(searchid_simulator
+  |> mp_trajectory()
+  |> mutate(state = factor(matrix, state_labels))
+  |>  ggplot()
+ + geom_line(aes(time, value, colour = state))
+  + geom_point(aes(time, value, colour = state), size = 0.5)
+  + geom_vline(
+    aes(xintercept = x),
+    linetype = "dashed",
+    alpha = 0.5,
+    data = data.frame(x = beta_changepoints)
+  )
+ + facet_wrap(~ state, scales = "free")
+ + theme_bw()
+)
+```
+
+## Set up the Optimizer
+
+Now we can create an object that can be calibrated.
+
+```{r warning=FALSE, message=FALSE}
+searchid_calibrator = mp_tmb_calibrator(
+    spec = transformed_spec |> mp_rk4()
+  , data = observed_data
+  , traj = "cases"  
+  ## this is the key bit
+  , tv = mp_rbf("beta", dimension=1)
+  ## fit the following parameters
+  , par = c("log_beta_values","sigma","mu","gamma","phi1","phi2","phi3", "lambda1", "lambda2","lambda3","theta1","theta2","theta3", "xi1","xi2","xi3")
+)
+
+searchid_opt = mp_optimize(searchid_calibrator)
+
+print(searchid_opt)
+```
+
+```{r}
+mp_tmb_coef(searchid_calibrator, conf.int = TRUE)
+```
+
+```{r}
+plot_fit = function(cal_object) {
+  fitted_data = mp_trajectory_sd(cal_object, conf.int = TRUE)
+  (observed_data
+    |> ggplot(na.rm = TRUE)
+    + geom_point(aes(time, value),size = 2)
+    + geom_line(aes(time, value)
+      , data = fitted_data
+      , colour = "red"
+      , size = 2
+      , na.rm = TRUE
+    )
+    + geom_ribbon(aes(time, ymin = conf.low, ymax = conf.high)
+      , data = fitted_data
+      , alpha = 0.2
+      , colour = "red"
+    )
+    + theme_bw()
+  )
+}
+
+plot_fit(searchid_calibrator)
+```
+
+Now we try fitting for a number of different dimensions.
+
+```{r warning=FALSE, message=FALSE}
+# rbf_searchid_calibrator = make_rbf_calibrator(dimension = 3)
+# mp_optimize(rbf_searchid_calibrator)
+# plot_fit(searchid_calibrator)
+```
+
+```{r}
+observed_data
+fitted_data = mp_trajectory_sd(searchid_calibrator, conf.int = TRUE)
+(observed_data
+  |> ggplot()
+  + geom_point(aes(time, cases))
+  + geom_line(aes(time, cases)
+    , data = fitted_data
+  )
+  + geom_ribbon(aes(time, ymin = conf.low, ymax = conf.high)
+    , data = fitted_data
+    , alpha = 0.2
+    , colour = "red"
+  )
+ + geom_ribbon(aes(time, ymin = conf.low, ymax = conf.high)
+      , data = fitted_data
+      , alpha = 0.2
+      , colour = "red"
+    )
+    + theme_bw()
+ # + facet_wrap(~matrix, ncol = 1, scales = "free")
+)
+```
+
+## Calibrating Time Variation Parameters
+
+
+```{r transformed_spec}
+
+# transformed model specification
+transformed_spec = mp_tmb_insert(
+    model = piecewise_spec
+  , phase = "before"
+  , at = 1
+  , expressions = list(beta_values ~ exp(log_beta_values))
+  , default = list(log_beta_values = rep(mean(log(beta_values)), length(beta_values)))
+)
+
+transformed_spec
+```
+
+Next we create the calibrator object and specify that we want to estimate the vector of time varying transmission rates, `log_beta_values`, by passing this parameter name to the `par` argument. 
+
+```{r}
+est_infect_from_seroprevalence <- read.csv("~/Documents/MUN/SEARCH-ID-MODEL/searchid/macpan2/data/omicron_estimated_serop.csv")
+est_infect_from_seroprevalence$date <- as.Date(est_infect_from_seroprevalence$date, format = "%Y-%m-%d")
+est_infect_from_seroprevalence <- est_infect_from_seroprevalence |>
+  rename_at("date",~"dates")
+
+observed_data = (est_infect_from_seroprevalence
+  |> select(dates, est_inci_serop)
+  |> mutate(matrix = "cases")
+  |> rename(cases = est_inci_serop)
+  |> mutate(time = seq_along(dates))
+)
+
+(observed_data
+  |> ggplot(aes(time, cases))
+  + geom_line() + geom_point()
+  + ggtitle("Omicron Infections in Newfoundland & Labrador, Canada")
+  + theme_clean()
+)
+
+
+structure(observed_data)
+```
+
+
+## Set up the Optimizer
+
+Now we can create an object that can be calibrated.
+
+```{r warning=FALSE, message=FALSE}
+searchid_calibrator = mp_tmb_calibrator(
+    spec = transformed_spec
+  , data = observed_data
+  , traj = "cases"  
+  ## fit the following parameters
+  , par = c("log_beta_values", "phi1","phi2","phi3", "lambda1", "lambda2","lambda3","theta1","theta2","theta3", "xi1","xi2","xi3")
+
+)
+
+searchid_opt = mp_optimize(searchid_calibrator)
+
+print(searchid_opt)
+```
+
+```{r piecewise_calib}
+# set up calibrator object
+# piecewise_calib = mp_tmb_calibrator(
+#     spec = transformed_spec
+#   , data = observed_data["cases"]
+#   , traj = "cases"
+#   # we want to estimate the log-transformed parameters
+#   , par = "log_beta_values"
+#   , outputs = state_labels
+# )
+
+# optimization step
+# mp_optimize(piecewise_calib)
+```
+
+After optimizing, we can make a coefficient plot with the estimated values and their confidence intervals, to compare with the true values.
+
+```{r piecewise_est, echo=FALSE, results=FALSE}
+# get parameter estimates, and compare with true values
+cc <- (mp_tmb_coef(piecewise_calib, conf.int=TRUE)
+        # back transform to get beta values on original scale
+        |> backtrans()
+) |> cbind(true_value = beta_values)
+
+(ggplot(cc,aes(estimate,row,col="estimated value"))
+  + geom_point()
+  + geom_errorbarh(aes(xmin=conf.low, xmax=conf.high))
+  + geom_point(aes(true_value, row,col="true value"))
+  + geom_vline(xintercept = 0, lty = 2)
+  + ggtitle("Coefficient plot")
+  + theme_bw()
+  + ylab("beta_values")
+)
+
+```
+
+In general, the transmission rate estimates follow the expected pattern changing from high, to low, to moderate. The most precise estimate, for the true value of `r beta_values[1]`, results because the observed prevalence data is most informative about the transmission rate when the infection is initially spreading. It makes sense that we get the most accurate estimate for the final transmission rate because most of the observed data is simulated with the final known transmission rate. We lose accuracy and precision for the middle rate because there is only `r beta_changepoints[3]-beta_changepoints[2]` time steps of observed data informing this parameter.
+
+
+## Radial Basis Functions for Flexible Time Variation (In-Progress)
+
+This section uses radial basis functions (RBFs) to generate models with a flexible functional form for smooth changes in the transmission rate.
+
+Before we can add the fancy radial basis for the transmission rate, we need a base model. We use an SIR model that has been modified to include waning.
+
+```{r sir_waning}
+sir_waning = mp_tmb_library("starter_models"
+  , "sir_waning"
+  , package = "macpan2"
+)
+```
+
+
+The `macpan2::rbf` function can be used to produce a matrix giving the values of each basis function (each column) at each time step (each row). Using this matrix, $X$, and a weights vector, $b$, we can get a flexible output vector, $y$, with a shape that can be modified by changing the weights vector.
+
+$$
+y = Xb
+$$
+
+The following code illustrates this approach.
+
+```{r, fig.height=8, fig.width=6, basefig = TRUE}
+set.seed(1L)
+d = 20
+n = 2500
+X = rbf(n, d)
+b = rnorm(d, sd = 0.01)
+par(mfrow = c(3, 1)
+  , mar = c(0.5, 4, 1, 1) + 0.1
+)
+matplot(X
+  , type = "l", lty = 1, col = 1
+  , ylab = "basis functions"
+  , axes = FALSE
+)
+axis(side = 2)
+box()
+barplot(b
+  , xlab = ""
+  , ylab = "weights"
+)
+par(mar = c(5, 4, 1, 1) + 0.1)
+plot(X %*% b
+  , type = "l"
+  , xlab = "time"
+  , ylab = "output"
+)
+```
+
+Here `d` is the dimension of the basis, or number of functions, and `n` is the number of time steps. By multiplying the uniform basis matrix (top panel) by a set of weights (middle panel), we obtain a non-uniform curve (bottom panel). Note how the peaks (troughs) in the output are associated with large positive (negative) weights.
+
+Now we want to transform the output of the (matrix) product of the RBF matrix and the weights vector into a time-series for the transmission rate, $\beta$. Although we could just use the output vector as the $\beta$ time series, it is more convenient to transform it so that the $\beta$ values yield more interesting dynamics in an SIR model. In particular, our model for $\beta_t$ as a function of time, $t$, is
+
+$$
+\log(\beta_t) = \log(\gamma_t) + \log(N) - \log(S_t) + x_tb
+$$
+
+Here we have the recovery rate, $\gamma_t$, and number of susceptibles, $S_t$, at time, $t$, the total population, $N$, and the $t$th row of $X$, $x_t$. To better understand the rationale for this equation note that if every element of $b$ is set to zero, we have the following condition.
+
+$$
+\frac{\beta_t S_t}{N} = \gamma_t
+$$
+
+This condition assures that the number of infected individuals remains constant at time, $t$. This means that positive values of $b$ will tend to generate outbreaks and negative values will tend to reduce transmission.
+
+**fixme**: I (BMB) understand why you're setting the model up this way, but it's an odd/non-standard setup - may confuse people who are already familiar with epidemic models (it confused me initially).
+
+Here is a simulation model with a radial basis for exogenous transmission rate dynamics.
+
+```{r sim_rbf}
+set.seed(1L)
+
+spec_waning = (sir_waning
+             |> mp_tmb_insert(
+                 phase = "before"
+               , at = Inf
+               , expressions = list(eta ~ gamma * exp(X %*% b))
+               , default = list(eta = empty_matrix, X = X, b = b)
+             ) |> mp_tmb_insert(
+                 phase = "during"
+               , at = 1
+               , expressions = list(beta  ~ eta[time_step(1)] / clamp(S/N, 1/100))
+             )
+)
+
+
+simulator_waning = (spec_waning
+  |> mp_simulator(
+    time_steps = n
+  , outputs = c("S", "I", "R", "infection", "beta")
+  , default = list(
+      N = 100000, I = 500, R = 0
+    , beta = 1, gamma = 0.2, phi = 0.01
+
+  ))
+)
+
+
+print(simulator_waning)
+```
+
+```{r plot_rbf, fig.height=8, fig.width=6}
+(simulator_waning
+ |> mp_trajectory()
+ |> ggplot()
+ + facet_wrap(~ matrix, ncol = 1, scales = 'free')
+ + geom_line(aes(time, value))
+)
+```
+
+
+### Calibration
+
+We can perform calibration with a time-varying parameter specified with a radial basis, by using the function `macpan2::mp_rbf()`. We follow the ususal steps in calibration.
+
+1\. Simulate from the model and add some poisson noise:
+
+```{r obs_rbf}
+obs_rbf = (simulator_waning
+ |> mp_trajectory()
+ |> filter(matrix=="I")
+ |> mutate(across(value, ~ rpois(n(), .)))
+)
+
+```
+
+
+2\. Add calibration information.
+
+```{r calib_rbf}
+calib_rbf = mp_tmb_calibrator(sir_waning
+   , data = obs_rbf
+   , traj = "I"
+   ## estimate 
+   , par = "beta"
+   , tv = mp_rbf("beta", dimension = d, initial_weights = b)
+   ## pass all defaults, including dimension of the rbf `d` and initial weights vector `b`
+   , default = list(N = 100000, I = 500, R = 0, beta = 1, gamma = 0.2, phi = 0.01, d = d, b = b)
+
+  
+)   
+mp_optimize(calib_rbf)
+## check estimates
+mp_tmb_coef(calib_rbf,conf.int = TRUE)
+```
+
+3\. Review results.
+
+The fit to the observed data looks reasonable, however there are some obvious wiggly deviations.
+```{r rbf_fit, include = FALSE, message = FALSE}
+fitted_data = mp_trajectory_sd(calib_rbf, conf.int = TRUE)
+```
+
+```{r rbf_fit_plot, echo=FALSE}
+## visualize fit
+(ggplot(obs_rbf, aes(time,value))
+      + geom_point()
+      + geom_line(aes(time, value)
+      , data = fitted_data
+      , colour = "red"
+    )
+    + geom_ribbon(aes(time, ymin = conf.low, ymax = conf.high)
+      , data = fitted_data
+      , alpha = 0.2
+      , colour = "red"
+    )
+    + theme_bw()
+    + ylab("prevalence")
+)
+
+```
+
+
+## References

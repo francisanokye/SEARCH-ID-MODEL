@@ -10,31 +10,55 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(macpan2)
+library(ggthemes)
+library(broom.mixed)
 options(scipen = 10, digits = 4)
 ```
+
+```{r}
+est_infect_from_seroprevalence <- read.csv("~/Documents/MUN/SEARCH-ID-MODEL/searchid/macpan2/data/omicron_estimated_serop.csv")
+est_infect_from_seroprevalence$date <- as.Date(est_infect_from_seroprevalence$date, format = "%Y-%m-%d")
+
+observed_data = (est_infect_from_seroprevalence
+  |> select(date, est_inci_serop)
+  |> mutate(matrix = "R")
+  |> rename(value = est_inci_serop)
+  |> mutate(time = seq_along(date))
+)
+
+(observed_data
+  |> ggplot(aes(time, value))
+  + geom_line() + geom_point()
+  + ggtitle("Omicron Infections in NMewfoundland & Labrador, Canada")
+  + theme_clean()
+)
+```
+
+
+
 
 ```{r warning=FALSE, message=FALSE}
 searchid_spec = mp_tmb_model_spec(
     before = list(
         S1 ~ 73896
-      , E1 ~ 0
-      , A1 ~ 1
+      , E1 ~ 438
+      , A1 ~ 0
       , R1 ~ 100
       , C1 ~ 0
       , H1 ~ 0
-      , I1 ~ 10
+      , I1 ~ 1
       , D1 ~ 0
       , V2 ~ 139266
-      , E2 ~ 0
-      , A2 ~ 1
+      , E2 ~ 438
+      , A2 ~ 0
       , R2 ~ 100
       , C2 ~ 0
       , H2 ~ 0
-      , I2 ~ 10
+      , I2 ~ 1
       , D2 ~ 0
       , V3 ~ 281265
-      , E3 ~ 0
-      , A3 ~ 1
+      , E3 ~ 438
+      , A3 ~ 0
       , R3 ~ 100
       , C3 ~ 0
       , H3 ~ 0
@@ -91,42 +115,43 @@ searchid_spec = mp_tmb_model_spec(
                  tau = 0.799, zeta = 0.75, v2 = 0.2828, v3 = 0.1359))
 ```
 
-```{r piecewise_defaults}
-beta_changepoints = c(0, 10, 21, 55, 90)
-beta_values = c(0.2752579, 0.390368, 0.25509096, 0.7390368, 0.65007704)
-```
-
-```{r time_var}
-# see ?time_var for arguments
-expr = list(
- beta ~ time_var(beta_values, beta_changepoints)
-)
-```
-
 ```{r searchid_spec}
 piecewise_spec =  (searchid_spec |> mp_tmb_insert(
       phase="during"
-    , at=1
-    , expressions = expr
+    , at = Inf
+    , expressions = list(beta ~ time_var(beta_values, beta_changepoints))
     , default = list(beta = 0.42752579, gamma = 1/14, sigma = 0.35, mu = 0.6,  
                      xi1 = 0.15, xi2 = 0.15, xi3 = 0.15, disp = 0.95, kappa1 = 1, kappa2 = 0.91, kappa3 = 0.3, 
                      eta1 = 1/5.5, eta2 = 1/5.5, eta3 = 1/5.5, phi1 = 1/5, phi2 = 1/5, phi3 = 1/5, 
                      theta1 = 0.007, theta2 = 0.005, theta3 = 0.0025, omega1 = 1/7, omega2 =  1/7, omega3 =  1/7, 
                      lambda1 = 0.25, lambda2 = 0.156, lambda3 = 0.150, tau = 0.799, zeta = 0.75, v2 = 0.2828, v3 = 0.1359, 
-                     beta_values = c(0.42752579, 0.7390368, 0.695509096, 0.7390368, 0.65007704))
-    , integers = list(beta_changepoints = beta_changepoints))
+                     beta_values = c(0.35, 0.7390368, 0.695509096, 0.7390368, 0.65007704))
+    , integers = list(beta_changepoints = c(0, 10, 21, 55, 90)))
 )
 ```
 
-```{r, warning=FALSE, message=FALSE, fig.width=15, fig.height=8}
+```{r}
+piecewise_spec = mp_tmb_insert(piecewise_spec
+    ## insert this expression ...
+  , expressions = list(cases ~ R * report_prob)
+  , at = Inf  
+  , phase = "during"
+  
+    ## add a new default value for the reporting probability
+  , default = list(report_prob = 1)
+)
+```
+
+```{r, warning=FALSE, message=FALSE, fig.width=18, fig.height=10}
 
 (piecewise_spec
  ## macpan2
  |> mp_simulator(
-        time_steps = 170L
-      , outputs = c("S1", "E1", "A1", "I1", "R1","H1", "C1", "D1",
-                    "V2", "E2", "A2", "I2", "R2","H2", "C2", "D2",
-                    "V3", "E3", "A3", "I3", "R3","H3", "C3", "D3")
+        time_steps = 170
+      , outputs = c("S", "E", "A", "I", "R","H", "C", "D"
+                    , "S1", "E1", "A1", "I1", "R1","H1", "C1", "D1"
+                    , "V2", "E2", "A2", "I2", "R2","H2", "C2", "D2"
+                    , "V3", "E3", "A3", "I3", "R3","H3", "C3", "D3","cases")
     )
  |> mp_trajectory()
  
@@ -156,6 +181,14 @@ piecewise_spec =  (searchid_spec |> mp_tmb_insert(
       , "H3" ~ "Hosp3"
       , "I3" ~ "Infect (symp)3"
       , "D3" ~ "Dead3"
+      , "S" ~ "tot_S"
+      , "E" ~ "tot_E"
+      , "A" ~ "tot_A"
+      , "R" ~ "tot_R"
+      , "C" ~ "tot_C"
+      , "H" ~ "tot_H"
+      , "I" ~ "tot_I"
+      , "D" ~ "tot_D"
     ))
  
  ## ggplot2
@@ -178,8 +211,17 @@ searchid_simulator
 ```
 
 ```{r}
-searchid_results = mp_trajectory(searchid_simulator)
-plot(searchid_results$time, searchid_results$value) 
+searchid_calibrator = mp_tmb_calibrator(
+    spec = searchid_spec
+  , data = observed_data
+  
+  ## name the trajectory variable, with a name that
+  ## is the same in both the spec and the data
+  , traj = "R"  
+  
+  ## fit the following parameters
+  , par = c("beta")
+)
 ```
 
 ```{r}
