@@ -2,6 +2,8 @@
 
 This repository contains the code to reproduce the main results of the manuscript [Dynamic Response to Omicron Spread Under Structured Alert Levels: A Compartmental Analysis of Newfoundland and Labrador's Public Health Strategy](https://). All the experiments were run in the R programming language using the [pomp](https://kingaa.github.io/pomp/install.html) and [macpan2](https://github.com/canmod/macpan2) packages on 1.6 GHz Dual-Core Intel Core i5, 8 GB memory MacBook Air computer.
 
+The SEARCHID model describes the Omicron dynamics in Newfoundland and Labrador (NL) during the COVID-19 pandemic and stratifies the population of NL into three cohorts, namely; unvaccinated/single dose vaccinated individuals, double-dose individuals and those with a third booster shots. With the assumption that the population, $N$, is fixed and only asymptomatics (A) and symptomatics (I) could spread the virus as at the period considered due to improved regulations and population immunity, the model is described as follows:
+
 Cohort 1 - Unvaccinated or individuals with single dose:
 
 $$
