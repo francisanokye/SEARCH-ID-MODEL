@@ -68,12 +68,12 @@ The size of the total population is,  $N = S1 +V2 + V3 + E_{1,2,3} + A_{1,2,3}  
 | ---------------- | --------------------------------------------------------------------------------------------------- |
 | $v2$             | per capita vaccination rate of unvaccinated/single dose susceptibles                                |
 | $v3$             | per capita vaccination rate of double dose susceptibles                                             |
-| $\kappa_{1,2,3}$ | vaccine efficacy reduction rate                                                                      |
-| $\beta_S$  | per capita transmission rate for susceptibles (in $N_{\text{mix}}$ population)                      |
-| $\beta_V$  | per capita transmission rate for vaccinated individuals (in $N_{\text{mix}}$ population)            |
-| $\alpha$   | per capita infection rate (average time spent in compartment $E$ is $1/\alpha$)                     |
-| $\gamma_I$ | per capita recovery rate for infected  individuals                                                  |
-| $\gamma_H$ | per capita recovery rate for hospitalized individuals                                               |
+| $\kappa_{1,2,3}$ | vaccine efficacy reduction rate                                                                     |
+| $\beta_{1,2,3,4}$| transmission rate associated with alert levels                                                      |
+| $\phi_{1,2,3}$   | per capita transmission rate for vaccinated individuals (in $N_{\text{mix}}$ population)            |
+| $\mu$   | per capita infection rate (average time spent in compartment $E$ is $1/\alpha$)                     |
+| $\gamma$ | per capita recovery rate for infected  individuals                                                  |
+| $\$ | per capita recovery rate for hospitalized individuals                                               |
 | $\sigma$   | per capita rate at which infected individuals develop severe infections and require hospitalization |
 
 
