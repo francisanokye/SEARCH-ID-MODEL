@@ -71,9 +71,15 @@ The size of the total population is,  $N = S1 +V2 + V3 + E_{1,2,3} + A_{1,2,3}  
 | $\kappa_{1,2,3}$ | vaccine efficacy reduction rate                                                                     |
 | $\beta_{1,2,3,4}$| transmission rate associated with alert levels                                                      |
 | $\phi_{1,2,3}$   | per capita transmission rate for vaccinated individuals (in $N_{\text{mix}}$ population)            |
+| $\xi_{1,2,3}$   | per capita transmission rate for vaccinated individuals (in $N_{\text{mix}}$ population)            |
+| $\omega_{1,2,3}$   | per capita transmission rate for vaccinated individuals (in $N_{\text{mix}}$ population)            |
+| $\theta_{1,2,3}$   | per capita transmission rate for vaccinated individuals (in $N_{\text{mix}}$ population)            |
+| $\lambda_{1,2,3}$   | per capita transmission rate for vaccinated individuals (in $N_{\text{mix}}$ population)            |
+| $\eta_{1,2,3}$   | per capita transmission rate for vaccinated individuals (in $N_{\text{mix}}$ population)            |
 | $\mu$   | per capita infection rate (average time spent in compartment $E$ is $1/\alpha$)                     |
 | $\gamma$ | per capita recovery rate for infected  individuals                                                  |
-| $\$ | per capita recovery rate for hospitalized individuals                                               |
+| $\tau$ | per capita recovery rate for hospitalized individuals                                               |
+| $\zeta$ | per capita recovery rate for hospitalized individuals                                               |
 | $\sigma$   | per capita rate at which infected individuals develop severe infections and require hospitalization |
 
 
