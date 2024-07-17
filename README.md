@@ -49,18 +49,18 @@ $$
     \end{align*}
  $$
 
-| variable | description                        |
-| -------- | ---------------------------------- |
-| S        | Number of susceptible individuals  |
-| E        | Number of exposed individuals      |
-| A        | Number of asymptomatic individuals |
-| R        | Number of recovered individuals    |
-| C        | Number of ICU admitted individuals |
-| H        | Number of hospitalized individuals |
-| I        | Number of infectious individuals   |
-| D        | Number of dead individuals         |
+| variable         | description                        |
+| ---------------- | ---------------------------------- |
+| S1,V2, V3        | Number of susceptible individuals  |
+| E1, E2, E3       | Number of exposed individuals      |
+| A1, A2, A3       | Number of asymptomatic individuals |
+| R1, R2, R3       | Number of recovered individuals    |
+| C1, C2, C3       | Number of ICU admitted individuals |
+| H1, H2, H3       | Number of hospitalized individuals |
+| I1, I2, I3       | Number of infectious individuals   |
+| D1, D2, D3       | Number of dead individuals         |
 
-The size of the total population is,  $N = S + E + A  + R + C + H + I + D$, and the disease spreads through homogeneous mixing of the subpopulation $N_{\text{mix}}=N -H$.
+The size of the total population is,  $N = S + E_{1,2,3} + A  + R + C + H + I + D$, and the disease spreads through homogeneous mixing of the subpopulation $N_{\text{mix}}=N -H$.
 
 # Parameters
 
