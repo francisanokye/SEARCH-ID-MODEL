@@ -68,14 +68,14 @@ The size of the total population is,  $N = S1 +V2 + V3 + E_{1,2,3} + A_{1,2,3}  
 | Parameter         | Description                                                                                         |
 | ---------------- | --------------------------------------------------------------------------------------------------- |
 | $\sigma$ | latent rate |
-|$\beta_{1}| transmission coefficient associated with each alert level 1 |
-|$\beta_{2} | transmission coefficient associated with each alert level 2 |
-|$ \beta_{3} | transmission coefficient associated with each alert level 3 |
-\( \beta_{4} \) & transmission coefficient associated with each alert level 4 |
-\( \mu \) & fraction of exposed who are asymptomatics |
+|$\beta_{1}$| transmission coefficient associated with each alert level 1 |
+|$\beta_{2}$ | transmission coefficient associated with each alert level 2 |
+|$ \beta_{3}$ | transmission coefficient associated with each alert level 3 |
+|$ \beta_{4} $| transmission coefficient associated with each alert level 4 |
+|$\mu$ |fraction of exposed who are asymptomatics |
 |$\gamma$ | recovery rate for symptomatic individuals who are not isolated |
-|$v_{2}$| proportion of \( S_{1} \)  who transition to \( V_{2} \) after taking second vaccine dose|
-|$v_{3}$ |proportion of \( V_{2} \)  who transition to \( V_{3} \) after taking booster vaccine shots |
+|$v_{2}$| proportion of $S_{1}$ who transition to $V_{2}$ after taking second vaccine dose|
+|$v_{3}$ |proportion of $V_{2}$  who transition to $V_{3}$ after taking booster vaccine shots |
 | $\kappa_{1}$ | multiplicative reduction in transmission rate due to single vaccine dose |
 |$\kappa_{2}$ | multiplicative reduction in transmission rate due to double vaccine doses |
 | $\kappa_{3}$ | multiplicative reduction in transmission rate due to booster vaccine shots |
@@ -87,8 +87,8 @@ The size of the total population is,  $N = S1 +V2 + V3 + E_{1,2,3} + A_{1,2,3}  
 | $\eta_{1}$ | mean number of days spent in ICU for single dose or unvaccinated individuals |
 |$\eta_{2}$ | mean number of days spent in ICU for individuals with double dose |
 | $\eta_{3}$ | mean number of days spent in ICU for individuals with booster shots |
-|$\phi_{1}$ | mean number of days in compartment $ I_{1} $ for single dose or unvaccinated individuals |
-|$\phi_{2}$ | mean number of days in compartment $ I_{2}$ for individuals with double dose |
+|$\phi_{1}$ | mean number of days in compartment $I_{1}$ for single dose or unvaccinated individuals |
+|$\phi_{2}$ | mean number of days in compartment $I_{2}$ for individuals with double dose |
 | $\phi_{3}$ | mean number of days in compartment $I_{3}$ for individuals with booster shots |
 | $\lambda_{1}$ | proportion of ICU patients who die unvaccinated |
 | $\lambda_{2}$ | proportion of ICU patients who die with double dose |
@@ -100,28 +100,6 @@ The size of the total population is,  $N = S1 +V2 + V3 + E_{1,2,3} + A_{1,2,3}  
 |$\theta_{1}$ | proportion of hospitalized who go into ICU unvaccinated |
 |$\theta_{2}$ | proportion of hospitalized who go into ICU with double dose |
 |$\theta_{3}$ | proportion of hospitalized who go into ICU with booster shots |
-
-
-
-| variable         | description                                                                                         |
-| ---------------- | --------------------------------------------------------------------------------------------------- |
-| $v2$             | per capita vaccination rate of unvaccinated/single dose susceptibles                                |
-| $v3$             | per capita vaccination rate of double dose susceptibles                                             |
-| $\kappa_{1,2,3}$ | vaccine efficacy reduction rate                                                                     |
-| $\beta_{1,2,3,4}$| transmission rate associated with alert levels                                                      |
-| $\phi_{1,2,3}$   | per capita transmission rate for vaccinated individuals (in $N_{\text{mix}}$ population)            |
-| $\xi_{1,2,3}$   | per capita transmission rate for vaccinated individuals (in $N_{\text{mix}}$ population)            |
-| $\omega_{1,2,3}$   | per capita transmission rate for vaccinated individuals (in $N_{\text{mix}}$ population)            |
-| $\theta_{1,2,3}$   | per capita transmission rate for vaccinated individuals (in $N_{\text{mix}}$ population)            |
-| $\lambda_{1,2,3}$   | per capita transmission rate for vaccinated individuals (in $N_{\text{mix}}$ population)            |
-| $\eta_{1,2,3}$   | per capita transmission rate for vaccinated individuals (in $N_{\text{mix}}$ population)            |
-| $\mu$   | per capita infection rate (average time spent in compartment $E$ is $1/\alpha$)                     |
-| $\gamma$ | per capita recovery rate for infected  individuals                                                  |
-| $\tau$ | per capita recovery rate for hospitalized individuals                                               |
-| $\zeta$ | per capita recovery rate for hospitalized individuals                                               |
-| $\sigma$   | per capita rate at which infected individuals develop severe infections and require hospitalization |
-
-
 
 ## About the datasets
 The seroprevalence estimates used in this repository are publicly available and can be obtained from the [COVID-19 Immunity Task Force (CITF)](https://www.covid19immunitytaskforce.ca/seroprevalence-in-canada/) website. Its relevant CSV format is included in here for reproducibility purposes.
