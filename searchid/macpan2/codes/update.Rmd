@@ -200,17 +200,16 @@ searchid_spec = mp_tmb_model_spec(
       , H ~ H1 + H2 + H3
       , I ~ I1 + I2 + I3
       , D ~ D1 + D2 + D3
-      
       )
   
   , default = list(beta = 0.35, gamma = 1/14, sigma = 0.35,
-                 mu = 0.06,  xi1 = 0.015, xi2 = 0.015, xi3 = 0.015, 
+                 mu = 0.6,  xi1 = 0.015, xi2 = 0.015, xi3 = 0.015, 
                  kappa1 = 1, kappa2 = 0.91, kappa3 = 0.3, eta1 = 1/5.5, eta2 = 1/5.5, eta3 = 1/5.5,
-                 phi1 = 1/5, phi2 = 1/5, phi3 = 1/5, theta1 = 0.007, theta2 = 0.005, theta3 = 0.0025,
+                 phi1 = 1/5, phi2 = 1/5, phi3 = 1/5, theta1 = 0.07, theta2 = 0.05, theta3 = 0.025,
                  omega1 = 1/7, omega2 =  1/7, omega3 =  1/7, lambda1 = 0.25, lambda2 = 0.156, lambda3 = 0.150,
                  tau = 0.799, zeta = 0.75, v2 = 0.2828, v3 = 0.1359, N1 = 34738, N2 = 149060, N3 = 285908,
-                 E1 = 50, A1 = 1, R1 = 0, C1 = 0, H1 = 0, I1 = 10, D1 = 0 , E2 = 50, A2 = 5, R2 = 0, 
-                 C2 = 0, H2 = 0, I2 = 1, D2 = 0, E3 = 50, A3 = 5, R3 = 0, C3 = 0, H3 = 0, I3 = 1, D3 = 0)
+                 E1 = 80, A1 = 1, R1 = 0, C1 = 1, H1 = 1, I1 = 10, D1 = 1 , E2 = 80, A2 = 5, R2 = 0, 
+                 C2 = 1, H2 = 1, I2 = 1, D2 = 1, E3 = 80, A3 = 5, R3 = 0, C3 = 1, H3 = 1, I3 = 1, D3 = 1)
 )
 
 searchid_spec = mp_tmb_insert(searchid_spec
@@ -224,7 +223,8 @@ searchid_spec = mp_tmb_insert(searchid_spec
 
 ```{r piecewise_defaults}
 beta_changepoints <- c(0, 10, 21, 55, 90)
-beta_values <- c(0.2752579, 0.390368, 0.4695509096, 0.390368, 0.65007704)
+# beta_values <- c(0.2752579, 0.390368, 0.4695509096, 0.390368, 0.65007704)
+beta_values <- c(5.10, 0.17, 0.63, 0.70, 0.83)
 ```
 
 ```{r time_var}
