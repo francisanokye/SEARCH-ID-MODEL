@@ -64,10 +64,11 @@ The size of the total population is,  $N = S1 +V2 + V3 + E_{1,2,3} + A_{1,2,3}  
 
 # Parameters
 
-| variable   | description                                                                                         |
-| ---------- | --------------------------------------------------------------------------------------------------- |
-| $\phi$     | per capita vaccination rate of susceptibles                                                         |
-| $\rho$     | per capita vaccine waning rate                                                                      |
+| variable         | description                                                                                         |
+| ---------------- | --------------------------------------------------------------------------------------------------- |
+| $v2$             | per capita vaccination rate of unvaccinated/single dose susceptibles                                |
+| $v3$             | per capita vaccination rate of double dose susceptibles                                             |
+| $\kappa_{1,2,3}$ | vaccine efficacy reduction rate                                                                      |
 | $\beta_S$  | per capita transmission rate for susceptibles (in $N_{\text{mix}}$ population)                      |
 | $\beta_V$  | per capita transmission rate for vaccinated individuals (in $N_{\text{mix}}$ population)            |
 | $\alpha$   | per capita infection rate (average time spent in compartment $E$ is $1/\alpha$)                     |
