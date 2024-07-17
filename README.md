@@ -60,7 +60,7 @@ $$
 | I1, I2, I3       | Number of infectious individuals   |
 | D1, D2, D3       | Number of dead individuals         |
 
-The size of the total population is,  $N = S + E_{1,2,3} + A  + R + C + H + I + D$, and the disease spreads through homogeneous mixing of the subpopulation $N_{\text{mix}}=N -H$.
+The size of the total population is,  $N = S1 +V2 + V3 + E_{1,2,3} + A_{1,2,3}  + R_{1,2,3} + C_{1,2,3} + H_{1,2,3} + I_{1,2,3} + D_{1,2,3}$, and the disease spreads through homogeneous mixing of the population.
 
 # Parameters
 
