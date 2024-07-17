@@ -86,7 +86,7 @@ For the parameterization of the vaccination rate across cohorts, we used the Gov
 
 ## Model Implemetation in macpan2
 
-<img src= "https://github.com/francisanokye/SEARCH-ID-MODEL/blob/main/searchid/macpan2/figures/disease_states_init.png">
+<img src= "https://github.com/francisanokye/SEARCH-ID-MODEL/blob/main/searchid/macpan2/figures/disease_sates_init.png">
 
 
 <img src= "https://github.com/francisanokye/SEARCH-ID-MODEL/blob/main/searchid/macpan2/figures/model_fit.png">
