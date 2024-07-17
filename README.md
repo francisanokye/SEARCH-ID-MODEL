@@ -85,6 +85,7 @@ For the number of Newfoundland & Labrador COVID-19 (Omicron) daily reported case
 For the parameterization of the vaccination rate across cohorts, we used the Government of Canada's publicly available data: [COVID-19 vaccination: Vaccination coverage](https://health-infobase.canada.ca/covid-19/vaccination-coverage/).
 
 ## Model Implemetation in macpan2
+
 <img src= "https://github.com/francisanokye/SEARCH-ID-MODEL/blob/main/searchid/macpan2/figures/disease_states_init.png">
 
 
