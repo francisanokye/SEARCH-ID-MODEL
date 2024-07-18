@@ -94,7 +94,6 @@ The size of the total population is,  $N = S1 +V2 + V3 + E_{1,2,3} + A_{1,2,3}  
 | $\lambda_{1}$ | proportion of ICU patients who die unvaccinated |
 | $\lambda_{2}$ | proportion of ICU patients who die with double dose |
 | $\lambda_{3}$ | proportion of ICU patients who die with booster shots |
-|$\alpha$ | fraction of asymptomatic tested and are true asymptomatic |
 |$\xi_{1}$ | proportion of symptomatic who are hospitalized unvaccinated |
 |$\xi_{2}$ | proportion of symptomatic who are hospitalized with double dose |
 |$\xi_{3}$ | proportion of symptomatic who are hospitalized with booster shots |
