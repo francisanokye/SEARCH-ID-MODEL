@@ -1,4 +1,5 @@
 # SEARCH-ID MODEL
+Please visit [here](https://docs.google.com/document/d/1hdHnPkjz6GBj1uK-ep7LuTPX6-VsP_DHEZ3NIB9AtLY/edit?usp=sharing) for my experience with macpan2 and project workflow information.
 
 This repository contains the code to reproduce the main results of the manuscript [Dynamic Response to Omicron Spread Under Structured Alert Levels: A Compartmental Analysis of Newfoundland and Labrador's Public Health Strategy](https://). All the experiments were run in the R programming language using the [pomp](https://kingaa.github.io/pomp/install.html) and [macpan2](https://github.com/canmod/macpan2) packages on 1.6 GHz Dual-Core Intel Core i5, 8 GB memory MacBook Air computer.
 
