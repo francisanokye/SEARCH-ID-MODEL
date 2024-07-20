@@ -65,7 +65,7 @@ observed_data = (est_infect_from_seroprevalence |>
 
 
 ```{r}
-source("~/Documents/MUN/SEARCH-ID-MODEL/searchid/macpan2/codes/searchid_tmb.R")
+source("~/Documents/MUN/SEARCH-ID-MODEL/searchid/macpan2/codes/searchid/searchid_tmb.R")
 
 ## -------------------------
 ## get model searchid from library
@@ -163,34 +163,29 @@ searchid_calibrator = mp_tmb_calibrator(
   , default = list(gamma = 1/14, sigma = 0.35, mu = 0.6, kappa1 = 1, kappa2 = 0.91, kappa3 = 0.3, 
                    tau = 0.799, zeta = 0.75, v2 = 0.2828, v3 = 0.1359)
 )
-searchid_opt = mp_optimize(searchid_calibrator)
+
+mp_optimize(searchid_calibrator)
 
 ```
 
 ```{r}
-searchid_opt$convergence
-```
+euler_coef <- (mp_tmb_coef(searchid_calibrator, conf.int=TRUE)
+       |> backtrans()
+)
 
-
-```{r}
-mp_tmb_coef(searchid_calibrator, conf.int = TRUE) 
-```
-```{r}
-mp_tmb_coef(searchid_calibrator, conf.int = TRUE) |> backtrans()
+euler_coef
 ```
 
 ```{r message=FALSE, warning=FALSE, fig.height = 7, fig.width=10}
 plot_fit = function(cal_object) {
-  fitted_data = mp_trajectory(cal_object)
+  fitted_data = mp_trajectory_sd(cal_object, conf.int=TRUE)
   fitted_data$dates <- seq.Date(from = as.Date("2021-12-01"), by = "day", length.out = nrow(fitted_data))
   fitted_data <- fitted_data[fitted_data$dates > "2021-12-14",]
-  print(fitted_data)
-  plot(fitted_data$time, fitted_data$value)
   observed_data <- observed_data[observed_data$dates > "2021-12-14",]
   ggplot(observed_data, aes(x = dates, y = value, colour = "black"), na.rm = TRUE) +
-    geom_point(size = 2) +
-    geom_point(aes(x = dates, y = value,colour = "red"), data = fitted_data,  size = 2) +
-    # geom_ribbon(aes(x = dates, ymin = conf.low, ymax = conf.high), data = fitted_data, alpha = 0.2, fill = "red") +
+    geom_line(size = 2) +
+    geom_line(aes(x = dates, y = value,colour = "red"), data = fitted_data,  size = 2) +
+    geom_ribbon(aes(x = dates, ymin = conf.low, ymax = conf.high), data = fitted_data, alpha = 0.2) +
     labs(x = "Date (Dec 2021  - June 2022)", y = "Omicron True Infections", title = "SEARCH-ID Model Fit With macpan2", color = "") +
     scale_color_manual(labels = c("true incidence", "macpan2 fit"),values = c("black","red")) +
     annotate("text", x = as.Date("2021-12-18"), y = 700, label = expression(beta[2] == 0.20),size = 6,angle = 90, hjust = 1, color = "black")+

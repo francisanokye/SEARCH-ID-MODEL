@@ -65,21 +65,21 @@ observed_data = (est_infect_from_seroprevalence |>
 
 
 ```{r}
-source("~/Documents/MUN/SEARCH-ID-MODEL/searchid/macpan2/codes/searchid_tmb.R")
+source("~/Documents/MUN/SEARCH-ID-MODEL/searchid/macpan2/codes/searchi/searchi_tmb.R")
 
 ## -------------------------
 ## get model searchid from library
 ## -------------------------
 
-searchid_spec = searchid_spec
+searchi_spec = spec
 
-# searchid_spec = mp_tmb_insert(searchid_spec
-#   , expressions = list(cases ~ R)
-#   , at = Inf 
-#   , phase = "during"
-# )
+searchi_spec = mp_tmb_insert(searchi_spec
+  , expressions = list(cases ~ R)
+  , at = Inf
+  , phase = "during"
+)
 
-print(searchid_spec)
+print(searchi_spec)
 ```
 
 
@@ -88,7 +88,7 @@ print(searchid_spec)
 ```{r piecewise_defaults}
 beta_changepoints <- c(0, 10, 21, 55, 90)
 # beta_values <- c(0.2752579, 0.390368, 0.4695509096, 0.390368, 0.65007704)
-beta_values <- c(5.10, 0.17, 0.63, 0.70, 0.83)
+beta_values <- c(5.10, 0.57, 0.63, 0.70, 0.63)
 ```
 
 ```{r time_var}
@@ -100,14 +100,11 @@ expr = list(
 ```
 
 ```{r baseline_searchid, message=FALSE, warning=FALSE, fig.width=15, fig.height=10}
-state_labels = c("S", "E", "A", "I", "R","H", "C", "D",
-                  "S1", "E1", "A1", "I1", "R1","H1", "C1", "D1",
-                  "V2", "E2", "A2", "I2", "R2","H2", "C2", "D2",
-                  "V3", "E3", "A3", "I3", "R3","H3", "C3", "D3","cases")
+state_labels = c("S", "E", "A", "R", "C","H","I","cases")
 
 # model specification with piece-wise transmission rates
 piecewise_spec = (
-  searchid_spec |> 
+  searchi_spec |> 
     mp_tmb_insert(
       phase="during"
     , at=1L
@@ -154,14 +151,10 @@ Now we can create an object that can be calibrated.
 
 ```{r warning=FALSE, message=FALSE}
 searchid_calibrator = mp_tmb_calibrator(
-    spec = transformed_spec |> mp_euler() # mp_euler(), mp_euler_multinomial()
+    spec = transformed_spec |> mp_euler() 
   , data = observed_data
   , traj = "cases"  
-  , par = c("log_beta_values","phi1","phi2","phi3", "eta1","eta2","eta3",
-            "lambda1","lambda2","lambda3","theta1","theta2","theta3","omega1", "omega2","omega3","xi1","xi2","xi3", 
-            "E1", "A1", "I1", "R1","E2", "A2", "I2", "R2","E3", "A3", "I3", "R3")
-  , default = list(gamma = 1/14, sigma = 0.35, mu = 0.6, kappa1 = 1, kappa2 = 0.91, kappa3 = 0.3, 
-                   tau = 0.799, zeta = 0.75, v2 = 0.2828, v3 = 0.1359)
+  , par = c("log_beta_values", "phi", "xi", "theta", "omega", "alpha","E", "A", "I", "C", "H")
 )
 searchid_opt = mp_optimize(searchid_calibrator)
 
