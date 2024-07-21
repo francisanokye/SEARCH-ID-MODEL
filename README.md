@@ -11,11 +11,11 @@ SEARI (no vaccination) and SEARCHI (no vaccination) are the pieces before vaccin
 
 $$
 \begin{align*}
-    \frac{dS_{1}}{dt} &= -\beta_{i} S\frac{(I + A)}{N},\\
-    \frac{dE_{1}}{dt} &= \beta_{i} S\frac{(I + A)}{N} - \sigma E,\\
-    \frac{dA_{1}}{dt} &= \sigma \mu E - \gamma A,\\
-    \frac{dI_{1}}{dt} &= \sigma(1-\mu)E - \alpha I,\\
-    \frac{dR_{1}}{dt} &= \gamma A + \alpha I,\\
+    \frac{dS}{dt} &= -\beta_{i} S\frac{(I + A)}{N},\\
+    \frac{dE}{dt} &= \beta_{i} S\frac{(I + A)}{N} - \sigma E,\\
+    \frac{dA}{dt} &= \sigma \mu E - \gamma A,\\
+    \frac{dI}{dt} &= \sigma(1-\mu)E - \alpha I,\\
+    \frac{dR}{dt} &= \gamma A + \alpha I,\\
 \end{align*}
 $$
 
@@ -24,11 +24,14 @@ $$
 
 $$
 \begin{align*}
-    \frac{dS_{1}}{dt} &= -\beta_{i} S\frac{(I + A)}{N},\\
-    \frac{dE_{1}}{dt} &= \beta_{i} S\frac{(I + A)}{N} - \sigma E,\\
-    \frac{dA_{1}}{dt} &= \sigma \mu E - \gamma A,\\
-    \frac{dI_{1}}{dt} &= \sigma(1-\mu)E - \alpha I,\\
-    \frac{dR_{1}}{dt} &= \gamma A + \alpha I,\\
+    \frac{dS}{dt} &= -\beta_{i} S\frac{(I + A)}{N},\\
+    \frac{dE}{dt} &= \beta_{i} S_{1}\frac{(I + A)}{N} - \sigma E,\\
+    \frac{dA}{dt} &= \sigma \mu E - \gamma A,\\
+    \frac{dI}{dt} &= \sigma(1-\mu)E - \phi I,\\
+    \frac{dH}{dt} &= \phi\xi I - \omega H1,\\
+    \frac{dC}{dt} &= \omega\theta H - \eta C,\\
+    \frac{dR}{dt} &= \gamma A + \phi(1-\xi)I + \omega(1-\theta)H + \eta(1 -\lambda)C,\\
+    
 \end{align*}
 $$
 
