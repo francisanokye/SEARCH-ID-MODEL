@@ -20,7 +20,7 @@ $$
 $$
 
 ### SEARCHI
-<img src= "https://github.com/francisanokye/SEARCH-ID-MODEL/blob/main/searchid/macpan2/figures/seari.png">
+<img src= "https://github.com/francisanokye/SEARCH-ID-MODEL/blob/main/searchid/macpan2/figures/searchi.png">
 
 $$
 \begin{align*}
