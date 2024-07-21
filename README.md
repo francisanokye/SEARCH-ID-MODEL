@@ -12,7 +12,7 @@ SEARI (no vaccination) and SEARCHI (no vaccination) are the pieces before vaccin
 $$
 \begin{align*}
     \frac{dS_{1}}{dt} &= \beta_{i} S\frac{(I + A)}{N},\\
-    \frac{dE_{1}}{dt} &= \beta_{i} S\frac{(I + A)}{N} - \sigma,\\
+    \frac{dE_{1}}{dt} &= \beta_{i} S\frac{(I + A)}{N} - \sigma E,\\
     \frac{dA_{1}}{dt} &= \sigma \mu E - \gamma A,\\
     \frac{dI_{1}}{dt} &= \sigma(1-\mu)E - \alpha I,\\
     \frac{dR_{1}}{dt} &= \gamma A + \alpha I,\\
