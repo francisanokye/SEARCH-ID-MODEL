@@ -11,18 +11,15 @@ SEARI (no vaccination) and SEARCHI (no vaccination) are the pieces before vaccin
 
 $$
 \begin{align*}
-    \frac{dS_{1}}{dt} &= \beta_{i} S\frac{(\tau I + \zeta A)}{N} - v_{2}S_{1},\\
-    \frac{dE_{1}}{dt} &= k_{1}\beta_{i} S_{1}\frac{(\tau I + \zeta A)}{N} - \sigma E_{1},\\
-    \frac{dA_{1}}{dt} &= \sigma \mu E_{1} - \gamma A_{1},\\
-    \frac{dI_{1}}{dt} &= \sigma(1-\mu)E_{1} - \phi_{1} I_{1},\\
-    \frac{dH_{1}}{dt} &= \phi_{1}\xi_{1} I_{1} - \omega_{1} H1_{t},\\
-    \frac{dC_{1}}{dt} &= \omega_{1}\theta_{1} H_{1} - \eta_{1} C_{1},\\
-    \frac{dR_{1}}{dt} &= \gamma A_{1} + \phi_{1}(1-\xi_{1})I_{1} + \omega_{1}(1-\theta_{1})H_{1} + \eta_{1}(1 -\lambda_{1})C_{1},\\
-    \frac{dD_{1}}{dt} &= \eta_{1}\lambda_{1}C_{1}.\\
+    \frac{dS_{1}}{dt} &= \beta_{i} S\frac{(I + A)}{N},\\
+    \frac{dE_{1}}{dt} &= \beta_{i} S\frac{(I + A)}{N} - \sigma,\\
+    \frac{dA_{1}}{dt} &= \sigma \mu E - \gamma A,\\
+    \frac{dI_{1}}{dt} &= \sigma(1-\mu)E - \alpha I,\\
+    \frac{dR_{1}}{dt} &= \gamma A + \alpha I,\\
 \end{align*}
 $$
 
-
+### SEARCHID
 The SEARCHID model describes the Omicron dynamics in Newfoundland and Labrador (NL) during the COVID-19 pandemic and stratifies the population of NL into three cohorts (1, 2 and 3), namely; unvaccinated/single dose vaccinated individuals, double-dose individuals and those with a third booster shots. With the assumption that the population, $N$, is fixed and only asymptomatics (A) and symptomatics (I) could spread the virus as at the period considered due to improved regulations and population immunity, the model is described as follows:
 
 Cohort 1 - Unvaccinated or individuals with single dose:
