@@ -1,14 +1,28 @@
-# SEARCH-ID MODEL
+
 Please visit [here](https://docs.google.com/document/d/1hdHnPkjz6GBj1uK-ep7LuTPX6-VsP_DHEZ3NIB9AtLY/edit?usp=sharing) for my experience with macpan2 and project workflow information.
 
 This repository contains the code to reproduce the main results of the manuscript [Dynamic Response to Omicron Spread Under Structured Alert Levels: A Compartmental Analysis of Newfoundland and Labrador's Public Health Strategy](https://). All the experiments were run in the R programming language using the [pomp](https://kingaa.github.io/pomp/install.html) and [macpan2](https://github.com/canmod/macpan2) packages on 1.6 GHz Dual-Core Intel Core i5, 8 GB memory MacBook Air computer.
 
-The SEARCHID model describes the Omicron dynamics in Newfoundland and Labrador (NL) during the COVID-19 pandemic and stratifies the population of NL into three cohorts (1, 2 and 3), namely; unvaccinated/single dose vaccinated individuals, double-dose individuals and those with a third booster shots. With the assumption that the population, $N$, is fixed and only asymptomatics (A) and symptomatics (I) could spread the virus as at the period considered due to improved regulations and population immunity, the model is described as follows:
+We first attempted to modularize our code by building the simplest models with only the needed compartments that excluded vaccination and expanded our way up to the SEARCHID model.
+SEARI (no vaccination) and SEARCHI (no vaccination) are the pieces before vaccination and are just enough for the start. 
 
-
+## SEARI
 <img src= "https://github.com/francisanokye/SEARCH-ID-MODEL/blob/main/searchid/macpan2/figures/seari.png">
+$$
+\begin{align*}
+    \frac{dS_{1}}{dt} &= -k_{1}\beta_{i} S_{1}\frac{(\tau I + \zeta A)}{N} - v_{2}S_{1},\\
+    \frac{dE_{1}}{dt} &= k_{1}\beta_{i} S_{1}\frac{(\tau I + \zeta A)}{N} - \sigma E_{1},\\
+    \frac{dA_{1}}{dt} &= \sigma \mu E_{1} - \gamma A_{1},\\
+    \frac{dI_{1}}{dt} &= \sigma(1-\mu)E_{1} - \phi_{1} I_{1},\\
+    \frac{dH_{1}}{dt} &= \phi_{1}\xi_{1} I_{1} - \omega_{1} H1_{t},\\
+    \frac{dC_{1}}{dt} &= \omega_{1}\theta_{1} H_{1} - \eta_{1} C_{1},\\
+    \frac{dR_{1}}{dt} &= \gamma A_{1} + \phi_{1}(1-\xi_{1})I_{1} + \omega_{1}(1-\theta_{1})H_{1} + \eta_{1}(1 -\lambda_{1})C_{1},\\
+    \frac{dD_{1}}{dt} &= \eta_{1}\lambda_{1}C_{1}.\\
+\end{align*}
+$$
 
-
+# SEARCH-ID MODEL
+The SEARCHID model describes the Omicron dynamics in Newfoundland and Labrador (NL) during the COVID-19 pandemic and stratifies the population of NL into three cohorts (1, 2 and 3), namely; unvaccinated/single dose vaccinated individuals, double-dose individuals and those with a third booster shots. With the assumption that the population, $N$, is fixed and only asymptomatics (A) and symptomatics (I) could spread the virus as at the period considered due to improved regulations and population immunity, the model is described as follows:
 
 Cohort 1 - Unvaccinated or individuals with single dose:
 
