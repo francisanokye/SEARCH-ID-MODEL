@@ -28,7 +28,7 @@ $$
     \frac{dE}{dt} &= \beta_{i} S_{1}\frac{(I + A)}{N} - \sigma E,\\
     \frac{dA}{dt} &= \sigma \mu E - \gamma A,\\
     \frac{dI}{dt} &= \sigma(1-\mu)E - \phi I,\\
-    \frac{dH}{dt} &= \phi\xi I - \omega H1,\\
+    \frac{dH}{dt} &= \phi\xi I - \omega H,\\
     \frac{dC}{dt} &= \omega\theta H - \eta C,\\
     \frac{dR}{dt} &= \gamma A + \phi(1-\xi)I + \omega(1-\theta)H + \eta C,\\
 \end{align*}
