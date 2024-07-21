@@ -31,7 +31,6 @@ $$
     \frac{dH}{dt} &= \phi\xi I - \omega H1,\\
     \frac{dC}{dt} &= \omega\theta H - \eta C,\\
     \frac{dR}{dt} &= \gamma A + \phi(1-\xi)I + \omega(1-\theta)H + \eta(1 -\lambda)C,\\
-    
 \end{align*}
 $$
 
