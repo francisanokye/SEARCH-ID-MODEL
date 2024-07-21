@@ -11,7 +11,20 @@ SEARI (no vaccination) and SEARCHI (no vaccination) are the pieces before vaccin
 
 $$
 \begin{align*}
-    \frac{dS_{1}}{dt} &= \beta_{i} S\frac{(I + A)}{N},\\
+    \frac{dS_{1}}{dt} &= -\beta_{i} S\frac{(I + A)}{N},\\
+    \frac{dE_{1}}{dt} &= \beta_{i} S\frac{(I + A)}{N} - \sigma E,\\
+    \frac{dA_{1}}{dt} &= \sigma \mu E - \gamma A,\\
+    \frac{dI_{1}}{dt} &= \sigma(1-\mu)E - \alpha I,\\
+    \frac{dR_{1}}{dt} &= \gamma A + \alpha I,\\
+\end{align*}
+$$
+
+### SEARCHI
+<img src= "https://github.com/francisanokye/SEARCH-ID-MODEL/blob/main/searchid/macpan2/figures/seari.png">
+
+$$
+\begin{align*}
+    \frac{dS_{1}}{dt} &= -\beta_{i} S\frac{(I + A)}{N},\\
     \frac{dE_{1}}{dt} &= \beta_{i} S\frac{(I + A)}{N} - \sigma E,\\
     \frac{dA_{1}}{dt} &= \sigma \mu E - \gamma A,\\
     \frac{dI_{1}}{dt} &= \sigma(1-\mu)E - \alpha I,\\
