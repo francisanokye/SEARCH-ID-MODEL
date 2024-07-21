@@ -25,7 +25,7 @@ $$
 $$
 \begin{align*}
     \frac{dS}{dt} &= -\beta_{i} S\frac{(I + A)}{N},\\
-    \frac{dE}{dt} &= \beta_{i} S_{1}\frac{(I + A)}{N} - \sigma E,\\
+    \frac{dE}{dt} &= \beta_{i} S\frac{(I + A)}{N} - \sigma E,\\
     \frac{dA}{dt} &= \sigma \mu E - \gamma A,\\
     \frac{dI}{dt} &= \sigma(1-\mu)E - \phi I,\\
     \frac{dH}{dt} &= \phi\xi I - \omega H,\\
