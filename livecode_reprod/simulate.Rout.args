@@ -1,2 +1,0 @@
-rpcall("simulate.Rout .pipestar simulate.R spec.rds params.rda")
-
