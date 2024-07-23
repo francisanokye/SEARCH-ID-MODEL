@@ -4,7 +4,22 @@ Please visit [here](https://docs.google.com/document/d/1hdHnPkjz6GBj1uK-ep7LuTPX
 This repository contains the code to reproduce the main results of the manuscript [Dynamic Response to Omicron Spread Under Structured Alert Levels: A Compartmental Analysis of Newfoundland and Labrador's Public Health Strategy](https://). All the experiments were run in the R programming language using the [pomp](https://kingaa.github.io/pomp/install.html) and [macpan2](https://github.com/canmod/macpan2) packages on 1.6 GHz Dual-Core Intel Core i5, 8 GB memory MacBook Air computer.
 
 We first attempted to modularize our code by building the simplest models with only the needed compartments that excluded vaccination and expanded our way up to the SEARCHID model.
-SEARI (no vaccination) and SEARCHI (no vaccination) are the pieces before vaccination and are just enough for the start. 
+SIR, SEIR, SEARI (no vaccination) and SEARCHI (no vaccination) are the pieces before vaccination and are just enough for the start. 
+
+### SIR
+
+
+### SEIR 
+
+$$
+\begin{align*}
+    \frac{dS}{dt} &= -\beta_{i} S\frac{I}{N},\\
+    \frac{dE}{dt} &= \beta_{i} S\frac{(I + A)}{N} - \sigma E,\\
+    \frac{dI}{dt} &= \sigma E - \gamma I,\\
+    \frac{dR}{dt} &=  \gamma I,\\
+\end{align*}
+$$
+
 
 ### SEARI
 <img src= "https://github.com/francisanokye/SEARCH-ID-MODEL/blob/main/searchid/macpan2/figures/seari.png">
