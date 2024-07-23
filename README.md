@@ -37,7 +37,7 @@ $$
 ### SEARCHID
 The SEARCHID model describes the Omicron dynamics in Newfoundland and Labrador (NL) during the COVID-19 pandemic and stratifies the population of NL into three cohorts (1, 2 and 3), namely; unvaccinated/single dose vaccinated individuals, double-dose individuals and those with a third booster shots. 
 
-<img src= "">
+<img src= "https://github.com/francisanokye/SEARCH-ID-MODEL/blob/main/searchid/macpan2/figures/s1v2v3eairhcd_model.png">
 
 With the assumption that the population, $N$, is fixed and only asymptomatics (A) and symptomatics (I) could spread the virus as at the period considered due to improved regulations and population immunity, the model is described as follows:
 
