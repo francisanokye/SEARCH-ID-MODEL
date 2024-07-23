@@ -15,8 +15,6 @@ vim_session:
 
 Sources += Makefile
 
-current:params.Rout flows.Rout timevar_spec.Rout simulate.Rout calibrate.Rout
-
 params.Rout: params.R
 	$(pipeR)
 
@@ -29,7 +27,7 @@ timevar_spec.Rout: timevar_spec.R flows.rda params.rda
 simulate.Rout: simulate.R timevar_spec.rds params.rda
 	$(pipeR)
 
-seroprevdata.Rout: seroprevdata.R  
+seroprevdata.Rout: seroprevdata.R ../../data/omicron_estimated_serop.csv
 	$(pipeR)
 
 calibrate.Rout: calibrate.R timevar_spec.rds seroprevdata.rds
