@@ -74,7 +74,7 @@ source("~/Documents/MUN/SEARCH-ID-MODEL/searchid/macpan2/codes/seari/seari_tmb.R
 seari_spec = spec
 
 seari_spec = mp_tmb_insert(seari_spec
-  , expressions = list(cases ~ R)
+  , expressions = list(cases ~ R * 0.01)
   , at = Inf
   , phase = "during"
 )
@@ -85,22 +85,17 @@ print(seari_spec)
 
 ## Piecewise Time Variation
 
-```{r piecewise_defaults}
+```{r baseline_searchid, message=FALSE, warning=FALSE, fig.width=15, fig.height=10}
 beta_changepoints <- c(0, 10, 21, 55, 90)
-# beta_values <- c(0.2752579, 0.390368, 0.4695509096, 0.390368, 0.65007704)
-beta_values <- c(5.10, 0.17, 0.63, 0.70, 0.13)
-```
+# beta_values <- c(0.40, 0.37, 0.63, 0.70, 0.33)
+beta_values <- c(0.40, 0.37, 0.63, 0.70, 0.33)
 
-```{r time_var}
 # see ?time_var for arguments
 expr = list(
  beta ~ time_var(beta_values, beta_changepoints)
 )
 
-```
-
-```{r baseline_searchid, message=FALSE, warning=FALSE, fig.width=15, fig.height=10}
-state_labels = c("S", "E", "A", "I", "R","cases")
+state_labels = c("S", "E", "A", "R", "I","cases")
 
 # model specification with piece-wise transmission rates
 piecewise_spec = (
@@ -150,26 +145,26 @@ transformed_spec_simulator = (transformed_spec |>
 Now we can create an object that can be calibrated.
 
 ```{r warning=FALSE, message=FALSE}
-searchid_calibrator = mp_tmb_calibrator(
+seari_calibrator = mp_tmb_calibrator(
     spec = transformed_spec |> mp_euler() 
   , data = observed_data
   , traj = "cases"  
-  , par = c("log_beta_values", "E")
+  , par = c("log_beta_values","gamma_a","mu","gamma_i", "E","A","I","R")
 )
-searchid_opt = mp_optimize(searchid_calibrator)
 
+mp_optimize(seari_calibrator)
 ```
 
 ```{r}
-searchid_opt$convergence
+mp_tmb_coef(seari_calibrator, conf.int = TRUE) 
 ```
 
+```{r}
+euler_coef <- (mp_tmb_coef(seari_calibrator, conf.int=TRUE)
+       |> backtrans()
+)
 
-```{r}
-mp_tmb_coef(searchid_calibrator, conf.int = TRUE) 
-```
-```{r}
-mp_tmb_coef(searchid_calibrator, conf.int = TRUE) |> backtrans()
+euler_coef
 ```
 
 ```{r message=FALSE, warning=FALSE, fig.height = 7, fig.width=10}
@@ -216,5 +211,5 @@ plot_fit = function(cal_object) {
 }
 
 # Assuming searchid_calibrator is the calibration object
-plot_fit(searchid_calibrator)
+plot_fit(seari_calibrator)
 ```

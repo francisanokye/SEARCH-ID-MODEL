@@ -55,7 +55,7 @@ observed_data = (est_infect_from_seroprevalence |>
 (observed_data |> 
     ggplot(aes(time, value))
   + geom_line() + geom_point()
-  + ggtitle("Omicron Infections in NMewfoundland & Labrador, Canada")
+  + ggtitle("Omicron Infections in Newfoundland & Labrador, Canada")
   + theme_clean()
 )
 ```
@@ -66,40 +66,22 @@ observed_data = (est_infect_from_seroprevalence |>
 
 ```{r}
 source("~/Documents/MUN/SEARCH-ID-MODEL/searchid/macpan2/codes/searchi/searchi_tmb.R")
-
-## -------------------------
-## get model searchid from library
-## -------------------------
-
-searchi_spec = spec
-
-searchi_spec = mp_tmb_insert(searchi_spec
-  , expressions = list(cases ~ R)
-  , at = Inf
-  , phase = "during"
-)
-
-print(searchi_spec)
 ```
-
 
 ## Piecewise Time Variation
 
-```{r piecewise_defaults}
+```{r baseline_searchid, message=FALSE, warning=FALSE, fig.width=15, fig.height=10}
+searchi_spec = spec
+
 beta_changepoints <- c(0, 10, 21, 55, 90)
 # beta_values <- c(0.2752579, 0.390368, 0.4695509096, 0.390368, 0.65007704)
-beta_values <- c(5.10, 0.57, 0.63, 0.70, 0.63)
-```
+beta_values <- c(0.40, 0.57, 0.63, 0.70, 0.63)
 
-```{r time_var}
 # see ?time_var for arguments
 expr = list(
  beta ~ time_var(beta_values, beta_changepoints)
 )
 
-```
-
-```{r baseline_searchid, message=FALSE, warning=FALSE, fig.width=15, fig.height=10}
 state_labels = c("S", "E", "A", "R", "C","H","I","cases")
 
 # model specification with piece-wise transmission rates
@@ -124,12 +106,10 @@ transformed_spec = mp_tmb_insert(
 # create simulator object
 transformed_spec_simulator = (transformed_spec |> 
                                 mp_euler() |> 
-                                mp_simulator(time_steps = 170, outputs = c(state_labels))
-                              )
-(transformed_spec_simulator
-  |> mp_trajectory()
-  |> mutate(state = factor(matrix, state_labels))
-  |>  ggplot()
+                                mp_simulator(time_steps = 170, outputs = c(state_labels)) |> 
+                                mp_trajectory() |> 
+                                mutate(state = factor(matrix, state_labels)) |>  
+                                ggplot()
  + geom_line(aes(time, value, colour = state))
   + geom_point(aes(time, value, colour = state), size = 0.5)
   + geom_vline(
@@ -143,6 +123,8 @@ transformed_spec_simulator = (transformed_spec |>
  facet_wrap(~ state, scales = "free")
  + theme_clean()
 )
+
+transformed_spec_simulator
 ```
 
 ## Set up the Optimizer
@@ -150,35 +132,28 @@ transformed_spec_simulator = (transformed_spec |>
 Now we can create an object that can be calibrated.
 
 ```{r warning=FALSE, message=FALSE}
-searchid_calibrator = mp_tmb_calibrator(
+searchi_calibrator = mp_tmb_calibrator(
     spec = transformed_spec |> mp_euler() 
   , data = observed_data
   , traj = "cases"  
-  , par = c("log_beta_values", "phi", "xi", "theta", "omega", "alpha","E", "A", "I", "C", "H")
+  , par = c("log_beta_values", "phi", "gamma_a", "sigma", "xi", "theta", "omega", "alpha","E", "A", "R","C", "H", "I")
 )
-searchid_opt = mp_optimize(searchid_calibrator)
-
+mp_optimize(searchi_calibrator)
 ```
 
 ```{r}
-searchid_opt$convergence
-```
+euler_coef <- (mp_tmb_coef(searchi_calibrator, conf.int=TRUE)
+       |> backtrans()
+)
 
-
-```{r}
-mp_tmb_coef(searchid_calibrator, conf.int = TRUE) 
-```
-```{r}
-mp_tmb_coef(searchid_calibrator, conf.int = TRUE) |> backtrans()
+euler_coef
 ```
 
 ```{r message=FALSE, warning=FALSE, fig.height = 7, fig.width=10}
 plot_fit = function(cal_object) {
-  fitted_data = mp_trajectory(cal_object)
+  fitted_data = mp_trajectory_sd(cal_object)
   fitted_data$dates <- seq.Date(from = as.Date("2021-12-01"), by = "day", length.out = nrow(fitted_data))
   fitted_data <- fitted_data[fitted_data$dates > "2021-12-14",]
-  print(fitted_data)
-  plot(fitted_data$time, fitted_data$value)
   observed_data <- observed_data[observed_data$dates > "2021-12-14",]
   ggplot(observed_data, aes(x = dates, y = value, colour = "black"), na.rm = TRUE) +
     geom_point(size = 2) +
@@ -216,5 +191,5 @@ plot_fit = function(cal_object) {
 }
 
 # Assuming searchid_calibrator is the calibration object
-plot_fit(searchid_calibrator)
+plot_fit(searchi_calibrator)
 ```
