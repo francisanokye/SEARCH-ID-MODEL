@@ -8,13 +8,20 @@ SIR, SEIR, SEARI (no vaccination) and SEARCHI (no vaccination) are the pieces be
 
 ### SIR
 
+$$
+\begin{align*}
+    \frac{dS}{dt} &= -\beta_{i} S\frac{I}{N},\\
+    \frac{dI}{dt} &= \beta_{i} S\frac{I}{N} - \gamma I,\\
+    \frac{dR}{dt} &=  \gamma I,\\
+\end{align*}
+$$
 
 ### SEIR 
 
 $$
 \begin{align*}
     \frac{dS}{dt} &= -\beta_{i} S\frac{I}{N},\\
-    \frac{dE}{dt} &= \beta_{i} S\frac{(I + A)}{N} - \sigma E,\\
+    \frac{dE}{dt} &= \beta_{i} S\frac{I}{N} - \sigma E,\\
     \frac{dI}{dt} &= \sigma E - \gamma I,\\
     \frac{dR}{dt} &=  \gamma I,\\
 \end{align*}
