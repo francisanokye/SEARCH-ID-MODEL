@@ -7,7 +7,7 @@ We first attempted to modularize our code by building the simplest models with o
 SIR, SEIR, SEARI (no vaccination) and SEARCHI (no vaccination) are the pieces before vaccination and are just enough for the start. 
 
 ### SIR
-<img src= "https://github.com/francisanokye/SEARCH-ID-MODEL/blob/main/searchid/macpan2/figures/searchi.png">
+<img src= "https://github.com/francisanokye/SEARCH-ID-MODEL/blob/main/searchid/macpan2/figures/sir.png">
 
 $$
 \begin{align*}
