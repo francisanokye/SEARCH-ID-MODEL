@@ -228,8 +228,8 @@ searchid_process_step <- Csnippet("
         // Compute the state transitions
     // #####################################
   
-    dN[2] = rpois(rate[2] * dt); // double dose uptake is assumed to be Poisson distributed
-    dN[13] = rpois(rate[13] * dt); // booster dose uptake is assumed to be Poisson distributed
+    dN[2] = rate[2];//rpois(rate[2] * dt); // double dose uptake is assumed to be Poisson distributed
+    dN[13] = rate[13];//rpois(rate[13] * dt); // booster dose uptake is assumed to be Poisson distributed
   
     reulermultinom(2, S1, &rate[1], dt, &dN[1]);
     reulermultinom(2, E1, &rate[3], dt, &dN[3]);
@@ -402,7 +402,7 @@ paramnames <- c(parameters_to_estimate, fixed_params_names)
   ############## INITIAL PARAMETERS ############## 
 # Beta_0 = 0.6620067, Beta_2 = 0.4400276, Beta_3 = 0.7550420, Beta_4 = 0.660000,	
 				
-initial_params = c(Beta_0 = 0.65007704, Beta_2 = 0.42752579, Beta_3 = 0.7090368, Beta_3m = 0.7790368, Beta_4 = 0.665509096,
+initial_params = c(Beta_0 = 0.65007704, Beta_2 = 0.50752579, Beta_3 = 0.6500368, Beta_3m = 0.7500368, Beta_4 = 0.689509096,
                  gamma_a = 1/14, sigma = 0.35, death_rate = 0.79812553, hosp_rate = 0.0059967661,
                  mu = 0.6,  xi1 = 0.15, xi2 = 0.15, xi3 = 0.15, disp = 0.95,
                  kappa1 = 1, kappa2 = 0.91, kappa3 = 0.3, eta1 = 1/5.5, eta2 = 1/5.5, eta3 = 1/5.5,
@@ -442,7 +442,7 @@ M2 <- M[(M$.id != "data"),]
 M1$date <- dates <- seq.Date(from = as.Date("2021-12-01"), by = "day", length.out = nrow(M1))
 M2$date <- dates <- seq.Date(from = as.Date("2021-12-01"), by = "day", length.out = nrow(M2))
 M <- rbind(M1,M2)
-M <- M[M$date > "2021-12-14",]
+# M <- M[M$date > "2021-12-14",]
 rownames(M) <- NULL
 
 M |> 
@@ -534,84 +534,84 @@ pf %>% logLik() %>% logmeanexp(se = TRUE, ess=TRUE)
 ```
 
 ```{r, fig.height = 5, fig.width = 8, echo = TRUE}
-# params_rw_sd = rw_sd(Beta_0 = 0.0001, Beta_2 = 0.0001, Beta_3 = 0.0001, Beta_4 = 0.0001, death_rate = 0.0001, hosp_rate = 0.0001)
-# 
-# registerDoRNG(482947940)
-# start_time = Sys.time()
-# paste0("MIF Parameter Search Started @: ",start_time)
-# 
-# bake(file = "MIF_WRITEUP_LOCMIFghfi1.rds", {
-#   foreach(i = 1:4, .combine = c) %dopar% {
-#     suppressPackageStartupMessages({
-#       library(tidyverse)
-#       library(pomp)
-#     })
-#     Omicron_PMCMC %>%
-#       mif2(
-#         params = initial_params,
-#         Np = 5000, Nmif = 200,
-#         cooling.fraction.50 = 0.5,
-#         rw.sd = params_rw_sd
-#       )
-#   } -> mifs_local
-#   attr(mifs_local,"ncpu") <- getDoParWorkers()
-#   mifs_local
-# }) -> mifs_local
-# 
-# bake(file = "MIF_WRITEUP_LOCEVALghfi1.rds", {
-#   foreach(mf = mifs_local, .combine = rbind) %dopar% {
-#     suppressPackageStartupMessages({
-#       library(tidyverse)
-#       library(pomp)
-#     })
-#     ll = replicate(10, logLik(pfilter(mf, Np = 20000))) %>%
-#          logmeanexp(se = TRUE)
-#     coef(mf) %>% bind_rows() %>% bind_cols(loglik = ll[1], loglik.se = ll[2])
-#   } -> mif_output
-#   attr(mif_output,"ncpu") <- getDoParWorkers()
-#   mif_output
-# }) -> mif_output
-# 
-# end_time = Sys.time()
-# paste0("MIF Search Took ", round(difftime(end_time, start_time, units="hours"),3),"hrs", " - " , round(difftime(end_time, start_time, units="min"),3), "mins", " - ", round(difftime(end_time, start_time, units="secs"),3),"sec", " To Run.")
+params_rw_sd = rw_sd(Beta_0 = 0.0001, Beta_2 = 0.0001, Beta_3 = 0.0001, Beta_3m = 0.0001, Beta_4 = 0.0001, death_rate = 0.0001, hosp_rate = 0.0001, disp = 0.0001)
+
+registerDoRNG(482947940)
+start_time = Sys.time()
+paste0("MIF Parameter Search Started @: ",start_time)
+
+bake(file = "MIF_WRITEUP_LOCMIFYx.rds", {
+  foreach(i = 1:4, .combine = c) %dopar% {
+    suppressPackageStartupMessages({
+      library(tidyverse)
+      library(pomp)
+    })
+    Omicron_PMCMC %>%
+      mif2(
+        params = initial_params,
+        Np = 5000, Nmif = 500,
+        cooling.fraction.50 = 0.5,
+        rw.sd = params_rw_sd
+      )
+  } -> mifs_local
+  attr(mifs_local,"ncpu") <- getDoParWorkers()
+  mifs_local
+}) -> mifs_local
+
+bake(file = "MIF_WRITEUP_LOCEVALYx.rds", {
+  foreach(mf = mifs_local, .combine = rbind) %dopar% {
+    suppressPackageStartupMessages({
+      library(tidyverse)
+      library(pomp)
+    })
+    ll = replicate(10, logLik(pfilter(mf, Np = 20000))) %>%
+         logmeanexp(se = TRUE)
+    coef(mf) %>% bind_rows() %>% bind_cols(loglik = ll[1], loglik.se = ll[2])
+  } -> mif_output
+  attr(mif_output,"ncpu") <- getDoParWorkers()
+  mif_output
+}) -> mif_output
+
+end_time = Sys.time()
+paste0("MIF Search Took ", round(difftime(end_time, start_time, units="hours"),3),"hrs", " - " , round(difftime(end_time, start_time, units="min"),3), "mins", " - ", round(difftime(end_time, start_time, units="secs"),3),"sec", " To Run.")
 ```
 
 ```{r, eval = FALSE}
-# mif_output %>% arrange(-loglik) %>% head %>%
-#   knitr::kable(digits = 4, caption = "Local search results (in decreasing order of likelihood)")
-# write.csv(mif_output,"~/Documents/nl_ba1_two_peak_pmcmc_model/data/MIFPARAMETERSFINALLhgfi1.csv",row.names = FALSE)
+mif_output %>% arrange(-loglik) %>% head %>%
+  knitr::kable(digits = 4, caption = "Local search results (in decreasing order of likelihood)")
+write.csv(mif_output,"~/Documents/nl_ba1_two_peak_pmcmc_model/data/MIFPARAMETERSFINALYx.csv",row.names = FALSE)
 ```
 
 ```{r warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=7}
-# mifs_local %>%
-#   traces(c(parameters_to_estimate,"loglik")) %>%
-#   melt() %>%
-#   ggplot(aes(x = iteration, y = value, group = .L1, color = factor(.L1))) +
-#   theme_bw() +
-#   geom_line() +
-#   guides(color = FALSE) +
-#   facet_wrap(~name, scales = "free_y")
+mifs_local %>%
+  traces(c(parameters_to_estimate,"loglik")) %>%
+  melt() %>%
+  ggplot(aes(x = iteration, y = value, group = .L1, color = factor(.L1))) +
+  theme_bw() +
+  geom_line() +
+  guides(color = FALSE) +
+  facet_wrap(~name, scales = "free_y")
 ```
 
 ```{r warning=FALSE, message=FALSE, echo=FALSE, fig.width=15, fig.height=15}
-# set.seed(132628335)
-# Omicron_PMCMC |>
-#   simulate(params = mif_output[1,],nsim=1, format="data.frame", include.data=TRUE) |>
-#     dplyr:::select.data.frame(c(".id","day","est_inci_serop", "hosp","death","R")) |>
-#     reshape2::melt(id = c(".id", "day")) |>
-#     ggplot(aes(x=day,y=value,color=ifelse(.id=="data","data","simulation"),group=.id))+
-#     scale_color_manual(labels = c("True Cases", "Model Simulation"),values = c("black","#00A087B2"))+
-#     labs(color="")+
-#     geom_point()+
-#     geom_smooth(span = 0.15) +
-#     theme_clean()+
-#     scale_color_manual(values = c("red","navy")) +
-#     theme(axis.text.x = element_text(size = 14), axis.title.x = element_text(size = 14,color = "black"),
-#           axis.text.y = element_text(size = 14), axis.title.y = element_text(size = 14,color = "black"),
-#           plot.title = element_text(size = 14, face = "bold", color = "black",hjust = 0.5))+
-#     ggtitle("Simulation With Initial Guess Parameters.") +
-#     theme(plot.title = element_text(hjust = 0.5)) +
-#     facet_wrap(~variable,ncol=1,scales="free_y")
+set.seed(132628335)
+Omicron_PMCMC |>
+  simulate(params = mif_output[1,],nsim=1, format="data.frame", include.data=TRUE) |>
+    dplyr:::select.data.frame(c(".id","day","est_inci_serop", "hosp","death","R")) |>
+    reshape2::melt(id = c(".id", "day")) |>
+    ggplot(aes(x=day,y=value,color=ifelse(.id=="data","data","simulation"),group=.id))+
+    scale_color_manual(labels = c("True Cases", "Model Simulation"),values = c("black","#00A087B2"))+
+    labs(color="")+
+    geom_point()+
+    geom_smooth(span = 0.15) +
+    theme_clean()+
+    scale_color_manual(values = c("red","navy")) +
+    theme(axis.text.x = element_text(size = 14), axis.title.x = element_text(size = 14,color = "black"),
+          axis.text.y = element_text(size = 14), axis.title.y = element_text(size = 14,color = "black"),
+          plot.title = element_text(size = 14, face = "bold", color = "black",hjust = 0.5))+
+    ggtitle("Simulation With Initial Guess Parameters.") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    facet_wrap(~variable,ncol=1,scales="free_y")
 ```
 
 ```{r message=FALSE, warning=FALSE}
@@ -624,8 +624,8 @@ library(pomp)
 ############## Run and calibrate model using PMCMC ##############
 
 num_chains <- 4
-num_mcmc <- 5000
-num_np <- 500
+num_mcmc <- 500
+num_np <- 5000
 
 # Set the perturbation intensities for parameter random walk for proposals
 perturbation_intensity <- rep(0.001, length(parameters_to_estimate))
@@ -634,11 +634,11 @@ names(perturbation_intensity) <- parameters_to_estimate
 start_time = Sys.time()
 paste0("Model Training started at: ",start_time)
 
-bake(file = "~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/Serop_PmcmcMM1Xkij.rds", {
+bake(file = "~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/Serop_PmcmcMMYx.rds", {
   foreach(i = 1:num_chains, .combine = c, .packages = c("pomp","tidyverse")) %dopar%{
     Omicron_PMCMC |>
       pmcmc(
-        params = initial_params,
+        params = mif_output[1,],
         Nmcmc = num_mcmc,
         Np = num_np,
         paramnames = c("Beta_0","Beta_2","Beta_3","Beta_4","death_rate","hosp_rate"),
@@ -648,10 +648,10 @@ bake(file = "~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/Serop_PmcmcMM1X
   pmcmc_chains
 }, seed = 0, kind = "L'Ecuyer") -> pmcmc_chains
 
-saveRDS(pmcmc_chains, "~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/serop_chainMM1Xkij.rds")
+saveRDS(pmcmc_chains, "~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/serop_chainMMYx.rds")
   
 # likelihood estimate for search results
-bake(file = "~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/Serop_search_pmcmc_likMM1Xkij.rds", {
+bake(file = "~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/Serop_search_pmcmc_likMMYx.rds", {
   foreach(pmcmc_run = pmcmc_chains, .combine = rbind) %dopar% {
     ll = replicate(10, logLik(pfilter(pmcmc_run, Np = 20000))) |>
       logmeanexp(se = TRUE)
@@ -665,7 +665,7 @@ stopCluster(num_clusters)
 
 end_time = Sys.time()
 paste0("SEARCH-ID Model took ", round(difftime(end_time, start_time, units="hours"),3),"hrs", " - " , round(difftime(end_time, start_time, units="min"),3), "mins", " - ", round(difftime(end_time, start_time, units="secs"),3),"sec", " to run and calibrate parameters.")
-write.csv(pmcmc_results,"~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/Serop_search_pmcmc_paramMM1Xkij.csv",row.names = FALSE)
+write.csv(pmcmc_results,"~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/Serop_search_pmcmc_paramMMYx.csv",row.names = FALSE)
 ```
 
 ```{r}

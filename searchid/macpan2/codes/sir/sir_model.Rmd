@@ -97,7 +97,7 @@ sir_transformed_spec = mp_tmb_insert(
   , phase = "before"
   , at = 1L
   , expressions = list(beta_values ~ exp(log_beta_values))
-  , default = list(log_beta_values = rep(mean(log(beta_values)), length(beta_values)))
+  , default = list(log_beta_values = log(beta_values))
 )
 
 # create simulator object
