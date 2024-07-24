@@ -18,7 +18,7 @@ $$
 $$
 
 ### SEIR 
-<img src= "https://github.com/francisanokye/SEARCH-ID-MODEL/blob/main/searchid/macpan2/figures/searchi.png">
+<img src= "https://github.com/francisanokye/SEARCH-ID-MODEL/blob/main/searchid/macpan2/figures/seir.png">
 
 $$
 \begin{align*}
