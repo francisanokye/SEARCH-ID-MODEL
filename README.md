@@ -143,8 +143,8 @@ The size of the total population is,  $N = S1 +V2 + V3 + E_{1,2,3} + A_{1,2,3}  
 |$\omega_{1}$ |  mean number of days spent in hospitalization for single dose or unvaccinated individuals |
 |$\omega_{2}$ |  mean number of days spent in hospitalization for individuals with double dose |
 |$\omega_{3}$ |  mean number of days spent in hospitalization individuals with booster shots |
-|$\zeta$ |reduced infectiousness of asymptomatic cases  |
-| $\tau$ |reduced infectiousness of symptomatic cases |
+|$\zeta$ |relative asymptomatic transmission (or contact) proportion |
+| $\tau$ |relative symptomatic transmission (or contact) proportion|
 | $\eta_{1}$ | mean number of days spent in ICU for single dose or unvaccinated individuals |
 |$\eta_{2}$ | mean number of days spent in ICU for individuals with double dose |
 | $\eta_{3}$ | mean number of days spent in ICU for individuals with booster shots |
