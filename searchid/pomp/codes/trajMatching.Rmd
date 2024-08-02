@@ -1,0 +1,348 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+library(pomp)
+library(tidyverse)
+
+# read_csv(
+#   "https://kingaa.github.io/sbied/stochsim/Measles_Consett_1948.csv"
+# ) |>
+#   select(week,reports=cases) -> meas
+
+est_infect_from_seroprevalence <- read.csv("~/Documents/MUN/SEARCH-ID-MODEL/searchid/macpan2/data/omicron_estimated_serop.csv")
+est_infect_from_seroprevalence$date <- as.Date(est_infect_from_seroprevalence$date, format = "%Y-%m-%d")
+est_infect_from_seroprevalence <- est_infect_from_seroprevalence |>
+  rename_at("date",~"dates")
+
+meas = est_infect_from_seroprevalence |>
+                   select(day, est_inci_serop)
+meas$day <- 1:nrow(meas)
+
+
+sir_rinit <- Csnippet("
+  S = nearbyint(eta*N);
+  I = 1;
+  R = nearbyint((1-eta)*N);
+  H = 0;
+  ")
+
+sir_dmeas <- Csnippet("
+  lik = dnbinom_mu(est_inci_serop,k,rho*H,give_log);
+  ")
+
+meas_ske <- Csnippet("
+   double dt = 1.0;
+   DS = S - S*(1-exp(-Beta*I/N*dt));
+   DI = I + S*(1-exp(-Beta*I/N*dt)) - I*(1-exp(-mu_IR*dt));
+   DR = R + I*(1-exp(-mu_IR*dt));
+   DH = H + S*(1-exp(-Beta*I/N*dt));
+")
+
+meas |>
+  trajectory(
+    times = "day", t0 = 0,
+    params=c(
+      Beta=5.5,mu_IR=0.85,rho=0.5,k=10,eta=0.08,N=510550
+    ),
+    rinit=sir_rinit,
+    dmeasure=sir_dmeas,
+    skeleton = pomp::map(meas_ske,delta.t = 1),
+    accumvars="H",
+    statenames=c("S","I","R","H"),
+    paramnames=c("Beta","mu_IR","N","eta","rho","k")
+  ) -> measSIR
+
+measSIR |> plot()
+
+measSIR |> trajectory(params=c(
+      Beta=7.5,mu_IR=0.85,rho=0.5,k=10,eta=0.08,N=38000
+    ),format="data.frame") |>
+  ggplot(mapping=aes(x=day,y=H,color=.id,group=.id))+
+  guides(color="none")+
+  geom_line()+
+  theme_bw()
+```
+
+```{r}
+library(macpan2); library(dplyr); library(tidyr); library(ggplot2)
+
+source(system.file("starter_models/si/tmb.R", package = "macpan2"))
+library(ggplot2)
+library(dplyr)
+
+(specs
+  |> lapply(mp_simulator, 50L, "I")
+  |> lapply(mp_trajectory)
+  |> bind_rows(.id = "integrator")
+  |> rename(prevalance = value)
+  |> ggplot()
+  + geom_line(aes(time, prevalance, colour = integrator))
+)
+```
+
+```{r}
+#source("inst/starter_models/seir/tmb.R")
+library(macpan2)
+library(ggplot2)
+library(dplyr)
+
+## -------------------------
+## get model spec from library
+## -------------------------
+
+spec = mp_tmb_library("starter_models","seir",package="macpan2")
+spec 
+
+## -------------------------
+## define simulator
+## -------------------------
+
+# set number of time steps in simulation
+time_steps = 100L
+
+# simulator object
+seir = mp_simulator(  
+    model = spec
+  , time_steps = time_steps
+  , outputs = c("S", "E", "I","R")
+)
+
+## -------------------------
+## specify objective function
+## -------------------------
+
+# negative log likelihood
+# choosing to use E to estimate alpha
+obj_fn = ~ -sum(dpois(E_obs, rbind_time(E, E_obs_times)))
+obj_fn
+# update simulator to create new variables 
+seir$update$matrices(
+    E_obs = empty_matrix
+  , E_obs_times = empty_matrix
+)
+
+# update simulator to include this function
+seir$replace$obj_fn(obj_fn)
+
+## -------------------------
+## parameterize model
+## -------------------------
+
+# choose which parameter(s) to estimate
+# 1/alpha = time spent in E compartment
+seir$update$transformations(Log("alpha"))
+seir$replace$params(log(spec$default$alpha),"log_alpha")
+
+## -------------------------
+## simulate fake data
+## -------------------------
+
+# alpha value to simulate data with
+true_alpha = 1/5
+
+## simulate observed data using true parameters
+observed_data = seir$report(log(true_alpha))
+observed_data
+
+## compute exposure for each time step
+E_obs = rpois(time_steps, subset(observed_data, matrix == "E", select = c(value)) %>% pull())
+E_obs_times = subset(observed_data, matrix == "E", select = c(time)) %>% pull()
+
+if (interactive()) {
+  plot(E_obs, type = "l", las = 1)
+}
+
+
+## -------------------------
+## update simulator with fake data to fit to
+## -------------------------
+
+seir$update$matrices(
+    E_obs = E_obs
+  , E_obs_times = E_obs_times
+)
+
+
+## -------------------------
+## plot likelihood surface (curve)
+## -------------------------
+
+if (interactive()) {
+  log_alphas = seq(from = log(1/100), to = log(1), length = 100)
+  ll = vapply(
+      log_alphas
+    , seir$objective
+    , numeric(1L)
+  )
+  plot(log_alphas, ll, type = "l", las = 1)
+  abline(v = log(true_alpha))
+}
+
+## -------------------------
+## fit parameters
+## -------------------------
+
+## optimize and check convergence
+## converges with a warning
+seir$optimize$nlminb()
+
+## plot observed vs predicted
+if (interactive()) {
+  print(seir$current$params_frame())
+  print(paste0("exp(default alpha) ",exp(seir$current$params_frame()$default)))
+  print(paste0("exp(current alpha) ",exp(seir$current$params_frame()$current)))
+  plot(E_obs, type = "l", las = 1)
+  lines(seir$report() %>% filter(matrix=="E") %>% select(time,value), col = "red")
+}
+
+## -------------------------
+## exploring
+## -------------------------
+
+## plot all densities
+if (interactive()) {
+  ggplot(seir$report(), aes(x=time, y=value, colour=matrix))+
+    geom_line()+
+    theme_bw()+
+    ylab("individuals")
+}
+
+```
+
+```{r}
+#source("inst/starter_models/seir/tmb.R")
+library(macpan2)
+library(ggplot2)
+library(dplyr)
+
+## -------------------------
+## get model spec from library
+## -------------------------
+
+spec = mp_tmb_library("starter_models","seir",package="macpan2")
+spec 
+
+## -------------------------
+## define simulator
+## -------------------------
+
+# set number of time steps in simulation
+time_steps = 100L
+
+# simulator object
+seir = mp_simulator(  
+    model = spec
+  , time_steps = time_steps
+  , outputs = c("S", "E", "I","R")
+)
+
+## -------------------------
+## specify objective function
+## -------------------------
+
+# negative log likelihood
+# choosing to use E to estimate alpha
+obj_fn = ~ -sum(dpois(E_obs, rbind_time(E, E_obs_times)))
+
+# update simulator to create new variables 
+seir$update$matrices(
+    E_obs = empty_matrix
+  , E_obs_times = empty_matrix
+)
+
+# update simulator to include this function
+seir$replace$obj_fn(obj_fn)
+
+
+## -------------------------
+## parameterize model
+## -------------------------
+
+# choose which parameter(s) to estimate
+# 1/alpha = time spent in E compartment
+seir$update$transformations(Log("alpha"))
+seir$replace$params(log(spec$default$alpha),"log_alpha")
+seir
+
+## -------------------------
+## simulate fake data
+## -------------------------
+
+# alpha value to simulate data with
+true_alpha = 1/5
+
+## simulate observed data using true parameters
+observed_data = seir$report(log(true_alpha))
+
+## compute exposure for each time step
+E_obs = rpois(time_steps, subset(observed_data, matrix == "E", select = c(value)) %>% pull())
+E_obs_times = subset(observed_data, matrix == "E", select = c(time)) %>% pull()
+
+if (interactive()) {
+  plot(E_obs, type = "l", las = 1)
+}
+
+
+## -------------------------
+## update simulator with fake data to fit to
+## -------------------------
+
+seir$update$matrices(
+    E_obs = E_obs
+  , E_obs_times = E_obs_times
+)
+
+
+## -------------------------
+## plot likelihood surface (curve)
+## -------------------------
+
+if (interactive()) {
+  log_alphas = seq(from = log(1/100), to = log(1), length = 100)
+  ll = vapply(
+      log_alphas
+    , seir$objective
+    , numeric(1L)
+  )
+  plot(log_alphas, ll, type = "l", las = 1)
+  abline(v = log(true_alpha))
+}
+
+## -------------------------
+## fit parameters
+## -------------------------
+
+## optimize and check convergence
+## converges with a warning
+seir$optimize$nlminb()
+
+## plot observed vs predicted
+if (interactive()) {
+  print(seir$current$params_frame())
+  print(paste0("exp(default alpha) ",exp(seir$current$params_frame()$default)))
+  print(paste0("exp(current alpha) ",exp(seir$current$params_frame()$current)))
+  plot(E_obs, type = "l", las = 1)
+  lines(seir$report() %>% filter(matrix=="E") %>% select(time,value), col = "red")
+}
+
+## -------------------------
+## exploring
+## -------------------------
+
+## plot all densities
+if (interactive()) {
+  ggplot(seir$report(), aes(x=time, y=value, colour=matrix))+
+    geom_line()+
+    theme_bw()+
+    ylab("individuals")
+}
+
+```
+

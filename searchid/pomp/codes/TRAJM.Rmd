@@ -1,0 +1,107 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+library(pomp)
+```
+
+
+```{r}
+library(pomp)
+library(tidyverse)
+
+read_csv(
+  "https://kingaa.github.io/sbied/stochsim/Measles_Consett_1948.csv"
+) |>
+  select(week,reports=cases) -> meas
+
+sir_rinit <- Csnippet("
+  S = nearbyint(eta*N);
+  I = 1;
+  R = nearbyint((1-eta)*N);
+  H = 0;
+  ")
+
+sir_dmeas <- Csnippet("
+  lik = dnbinom_mu(reports,k,rho*H,give_log);
+  ")
+
+meas_ske <- Csnippet("
+   double dt = 1.0;
+   DS = S - S*(1-exp(-Beta*I/N*dt));
+   DI = I + S*(1-exp(-Beta*I/N*dt)) - I*(1-exp(-mu_IR*dt));
+   DR = R + I*(1-exp(-mu_IR*dt));
+   DH = H + S*(1-exp(-Beta*I/N*dt));
+")
+
+meas |>
+  trajectory(
+    times = "week", t0 = 0,
+    params=c(
+      Beta=7.5,mu_IR=0.5,rho=0.5,k=10,eta=0.08,N=38000
+    ),
+    rinit=sir_rinit,
+    dmeasure=sir_dmeas,
+    skeleton = pomp::map(meas_ske,delta.t = 1),
+    accumvars="H",
+    statenames=c("S","I","R","H"),
+    paramnames=c("Beta","mu_IR","N","eta","rho","k")
+  ) -> measSIR
+
+measSIR |> plot()
+```
+
+```{r}
+pomp(
+  data=subset(niamey, community == "C", select = -community),
+  times = "biweek", 
+  t0 = 0,
+  skeleton = vectorfield(
+    Csnippet("
+      DS = -Beta*S*I/N;
+      DI = Beta*S*I/N - gamma*I;
+      DR = gamma*I;")),
+  rinit=Csnippet("
+      S = S_0;
+      I = I_0;
+      R = N-S_0-I_0;"),
+  statenames = c("S","I","R"),
+  paramnames = c("Beta","gamma","N","S_0","I_0")) -> niameyA
+
+```
+
+```{r}
+sse <- function (params) {
+  x <- trajectory(niameyA,params=params)
+  discrep <- x["I", ,] - obs(niameyA)
+  sum(discrep^2)
+}
+```
+
+```{r}
+f1 <- function (beta) {
+  params <- c(Beta = beta, gamma = 1, N = 510550, S_0 = 10000, I_0 = 10)
+  sse(params)
+}
+beta <- seq(from = 30, to = 40, by = 0.5)
+SSE <- sapply(beta,f1)
+```
+
+```{r}
+beta.hat <- beta[which.min(SSE)]
+plot(beta, SSE, type = 'l')
+abline(v = beta.hat, lty = 2)
+```
+
+```{r}
+coef(niameyA) <- c(Beta=beta.hat,gamma=1,N=50000,S_0=10000,I_0=10)
+x <- trajectory(niameyA,format="data.frame")
+ggplot(data=join(as.data.frame(niameyA),x,by='biweek'),
+       mapping=aes(x=biweek))+
+  geom_line(aes(y=measles),color='black')+
+  geom_line(aes(y=I),color='red')
+```
+

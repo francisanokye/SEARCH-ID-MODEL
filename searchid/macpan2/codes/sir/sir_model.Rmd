@@ -71,7 +71,7 @@ sir = spec
 ## Piecewise Time Variation
 
 beta_changepoints <- c(0, 10, 21, 55, 90)
-beta_values <- c(3.10, 0.17, 0.63, 0.70, 0.83)
+beta_values <- c(0.40, 0.37, 0.63, 0.70, 0.33)
 time_steps = 170
 beta = 0.8 
 gamma = 0.2 
@@ -102,7 +102,7 @@ sir_transformed_spec = mp_tmb_insert(
 
 # create simulator object
 sir_transformed_spec_simulator = (sir_transformed_spec |> 
-                                mp_euler() |> 
+                                mp_rk4() |> 
                                 mp_simulator(time_steps = 170, outputs = c(state_labels))
                               )
 (sir_transformed_spec_simulator
@@ -130,9 +130,10 @@ Now we can create an object that can be calibrated.
 
 ```{r warning=FALSE, message=FALSE}
 sir_calibrator = mp_tmb_calibrator(
-    spec = sir_transformed_spec |> mp_euler() 
+    spec = sir_transformed_spec |> mp_rk4() 
   , data = observed_data
   , traj = "cases"  
+  
   , par = c("log_beta_values","I", "R")
   , default = list(gamma = gamma, beta = beta)
 )
@@ -157,7 +158,7 @@ plot_fit = function(cal_object) {
   observed_data <- observed_data[observed_data$dates > "2021-12-14",]
   ggplot(observed_data, aes(x = dates, y = value, colour = "black"), na.rm = TRUE) +
     geom_line(size = 2) +
-    geom_line(aes(x = dates, y = value,colour = "red"), data = fitted_data,  size = 2) +
+    geom_line(aes(x = dates, y = value,colour = "red"), data = fitted_data,  size = 1) +
     geom_ribbon(aes(x = dates, ymin = conf.low, ymax = conf.high), data = fitted_data, alpha = 0.2) +
     labs(x = "Date (Dec 2021  - June 2022)", y = "Omicron True Infections", title = "SEARCH-ID Model Fit With macpan2", color = "") +
     scale_color_manual(labels = c("true incidence", "macpan2 fit"),values = c("black","red")) +
@@ -194,3 +195,22 @@ plot_fit = function(cal_object) {
 plot_fit(sir_calibrator)
 
 ```
+
+```{r}
+spec = mp_tmb_library("starter_models", "sir", package = "macpan2")
+sim = mp_simulator(spec, 50, "infection")
+data = mp_trajectory(sim)
+cal = mp_tmb_calibrator(
+    spec,
+    data,
+    traj = "infection",
+    par = "beta",
+    default = list(beta = 0.25)
+)
+mp_optimize(cal)
+mp_tmb_coef(cal)  ## requires broom.mixed package
+
+```
+
+
+

@@ -45,19 +45,19 @@ est_infect_from_seroprevalence$date <- as.Date(est_infect_from_seroprevalence$da
 est_infect_from_seroprevalence <- est_infect_from_seroprevalence |>
   rename_at("date",~"dates")
 
-observed_data = (est_infect_from_seroprevalence |> 
+observed_data = est_infect_from_seroprevalence |> 
                    select(dates, est_inci_serop) |> 
                    mutate(matrix = "cases") |>
                    rename_at("est_inci_serop" , ~ "value") |>
                    mutate(time = seq_along(dates))
-                 )
+                 
 
-(observed_data |> 
-    ggplot(aes(time, value))
-  + geom_line() + geom_point()
-  + ggtitle("Omicron Infections in Newfoundland & Labrador, Canada")
-  + theme_clean()
-)
+# (observed_data |> 
+#     ggplot(aes(time, value))
+#   + geom_line() + geom_point()
+#   + ggtitle("Omicron Infections in Newfoundland & Labrador, Canada")
+#   + theme_clean()
+# )
 ```
 
 ## As at 15th December 2021, NL had 34 active cases of COVID-19 and 2,047 people had recovered.
@@ -75,14 +75,14 @@ searchi_spec = spec
 
 beta_changepoints <- c(0, 10, 21, 55, 90)
 # beta_values <- c(0.2752579, 0.390368, 0.4695509096, 0.390368, 0.65007704)
-beta_values <- c(0.40, 0.57, 0.63, 0.70, 0.63)
+beta_values <- c(0.051, 0.15301, 0.15390, 0.15188, 0.15230) # c(0.010, 0.0357, 0.073, 0.095, 0.095)
 
 # see ?time_var for arguments
 expr = list(
  beta ~ time_var(beta_values, beta_changepoints)
 )
 
-state_labels = c("S", "E", "A", "R", "C","H","I","cases")
+state_labels = c("S", "E", "A", "R", "C","H","I")
 
 # model specification with piece-wise transmission rates
 piecewise_spec = (
@@ -100,12 +100,12 @@ transformed_spec = mp_tmb_insert(
   , phase = "before"
   , at = 1L
   , expressions = list(beta_values ~ exp(log_beta_values))
-  , default = list(log_beta_values = rep(mean(log(beta_values)), length(beta_values)))
+  , default = list(log_beta_values = log(beta_values))
 )
 
 # create simulator object
 transformed_spec_simulator = (transformed_spec |> 
-                                mp_euler() |> 
+                                mp_rk4() |> 
                                 mp_simulator(time_steps = 170, outputs = c(state_labels)) |> 
                                 mp_trajectory() |> 
                                 mutate(state = factor(matrix, state_labels)) |>  
@@ -118,12 +118,18 @@ transformed_spec_simulator = (transformed_spec |>
     alpha = 0.5,
     data = data.frame(x = beta_changepoints)
   )+
-  labs(x = "Date (Dec 2021  - June 2022)", y = "Omicron Incidence", title = "SEARCH-ID Model Incidence Trajectory With macpan2", color = "") +
+  labs(x = "Date (Dec 2021  - June 2022)", y = "Omicron Incidence", title = "SEARCH-ID Model Incidence Trajectory With macpan2", color = "", size = 5) +
 
  facet_wrap(~ state, scales = "free")
  + theme_clean()
 )
 
+# transformed_spec_simulator$insert$expressions(
+#   log_lik ~ dpois(cases, clamp(rbind_time(sim_cases))),
+#   .phase = "after"
+# )
+# transformed_spec_simulator$replace$obj_fn(~ -sum(log_lik))
+# 
 transformed_spec_simulator
 ```
 
@@ -133,10 +139,11 @@ Now we can create an object that can be calibrated.
 
 ```{r warning=FALSE, message=FALSE}
 searchi_calibrator = mp_tmb_calibrator(
-    spec = transformed_spec |> mp_euler() 
+    spec = transformed_spec |> mp_rk4() 
   , data = observed_data
-  , traj = "cases"  
-  , par = c("log_beta_values", "phi", "gamma_a", "sigma", "xi", "theta", "omega", "alpha","E", "A", "R","C", "H", "I")
+  , traj = "cases"
+  , outputs = "cases"
+  , par = c("beta_values",  "phi", "mu", "xi", "theta", "omega", "alpha","E", "A", "I")
 )
 mp_optimize(searchi_calibrator)
 ```
@@ -157,10 +164,10 @@ plot_fit = function(cal_object) {
   observed_data <- observed_data[observed_data$dates > "2021-12-14",]
   ggplot(observed_data, aes(x = dates, y = value, colour = "black"), na.rm = TRUE) +
     geom_point(size = 2) +
-    geom_point(aes(x = dates, y = value,colour = "red"), data = fitted_data,  size = 2) +
+    geom_line(aes(x = dates, y = value,colour = "red"), data = fitted_data,  size = 1.5) +
     # geom_ribbon(aes(x = dates, ymin = conf.low, ymax = conf.high), data = fitted_data, alpha = 0.2, fill = "red") +
-    labs(x = "Date (Dec 2021  - June 2022)", y = "Omicron True Infections", title = "SEARCH-ID Model Fit With macpan2", color = "") +
-    scale_color_manual(labels = c("true incidence", "macpan2 fit"),values = c("black","red")) +
+    labs(x = "Date (Dec 2021  - June 2022)", y = "Omicron True Infections", title = "SEARCHI Model Fit With macpan2", color = "") +
+    scale_color_manual(labels = c("true incidence", "macpan2 fit"),values = c("black","orange")) +
     annotate("text", x = as.Date("2021-12-18"), y = 700, label = expression(beta[2] == 0.20),size = 6,angle = 90, hjust = 1, color = "black")+
   annotate("text", x = as.Date("2021-12-28"), y = 700, label = expression(beta[3] == 5.21),size = 6,angle = 90, hjust = 1,color = "black")+
   annotate("text", x = as.Date("2022-01-30"), y = 550, label = expression(beta[4] == 0.62),size = 6,angle = 0, hjust = 1, color = "black")+
@@ -193,3 +200,10 @@ plot_fit = function(cal_object) {
 # Assuming searchid_calibrator is the calibration object
 plot_fit(searchi_calibrator)
 ```
+
+```{r}
+searchi_calibrator
+```
+
+
+

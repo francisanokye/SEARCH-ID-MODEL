@@ -352,7 +352,7 @@ searchid_init <- Csnippet("
       lik = (give_log) ? R_NegInf : 0.0;
     } else {
       // lik = dnbinom_mu(est_inci_serop, k,  Recov, give_log) + dnbinom_mu(death, 1, D * death_rate, give_log) + dpois(hosp, H * //hosp_rate , give_log);
-        lik = dpois(est_inci_serop, disp * Recov, give_log) + dnbinom_mu(death, 1, D * death_rate, give_log) + dpois(hosp, H * hosp_rate , give_log);
+        lik = dpois(est_inci_serop, nearbyint(Recov), give_log) + dnbinom_mu(death, 1, nearbyint(D * death_rate), give_log) + dpois(hosp, nearbyint(H * hosp_rate) , give_log);
       if (!give_log && lik <= 0) {
         lik = R_NegInf;
       } else if (!give_log) {
@@ -370,9 +370,9 @@ searchid_init <- Csnippet("
       }
     else{
       //est_inci_serop = rnbinom_mu(k, Recov);
-      est_inci_serop = rpois(disp * Recov);
-      hosp = rpois(H * hosp_rate);
-      death = rnbinom_mu(1, D * death_rate);
+      est_inci_serop = rpois(nearbyint(Recov));
+      hosp = rpois(nearbyint(H * hosp_rate));
+      death = rnbinom_mu(1, nearbyint(D * death_rate));
       
       }
     ")
@@ -384,7 +384,7 @@ searchid_init <- Csnippet("
     "S1", "E1", "A1", "I1", "R1","H1", "C1", "D1",
     "V2", "E2", "A2", "I2", "R2","H2", "C2", "D2",
     "V3", "E3", "A3", "I3", "R3","H3", "C3", "D3",
-    "Recov1","Recov2","Recov3","Recov","R_eff","R_eff1")
+    "Recov1","Recov2","Recov3","Recov")
   
 fixed_params_names <- c(
   "kappa1", "kappa2", "kappa3","phi1","phi2","phi3", 
@@ -395,52 +395,64 @@ fixed_params_names <- c(
   "V2_0", "E2_0", "A2_0", "I2_0", "R2_0", "H2_0", "C2_0", "D2_0",
   "V3_0", "E3_0", "A3_0", "I3_0", "R3_0", "H3_0", "C3_0", "D3_0") 
 
-parameters_to_estimate <- c("Beta_0","Beta_2","Beta_3", "Beta_3m","Beta_4","death_rate", "hosp_rate", "disp") 
+parameters_to_estimate <- c("Beta_0","Beta_2","Beta_3", "Beta_3m","Beta_4","death_rate", "hosp_rate") 
 
 paramnames <- c(parameters_to_estimate, fixed_params_names)
   
   ############## INITIAL PARAMETERS ############## 
 # Beta_0 = 0.6620067, Beta_2 = 0.4400276, Beta_3 = 0.7550420, Beta_4 = 0.660000,	
 				
-initial_params = c(Beta_0 = 0.65007704, Beta_2 = 0.50752579, Beta_3 = 0.6500368, Beta_3m = 0.7500368, Beta_4 = 0.689509096,
+# initial_params = c(Beta_2 = 0.2110002579, Beta_3 = 0.350000368, Beta_4 = 0.6909096, Beta_3m = 0.7000368, Beta_0 = 0.7007704, 
+#                  gamma_a = 1/14, sigma = 0.35, death_rate = 0.79812553, hosp_rate = 0.0059967661,
+#                  mu = 0.6,  xi1 = 0.15, xi2 = 0.15, xi3 = 0.15, 
+#                  kappa1 = 1, kappa2 = 0.91, kappa3 = 0.3, eta1 = 1/5.5, eta2 = 1/5.5, eta3 = 1/5.5,
+#                  phi1 = 1/5, phi2 = 1/5, phi3 = 1/5, theta1 = 0.007, theta2 = 0.005, theta3 = 0.0025,
+#                  omega1 = 1/7, omega2 =  1/7, omega3 =  1/7, lambda1 = 0.25, lambda2 = 0.156, lambda3 = 0.150,
+#                  tau = 0.799, zeta = 0.75, v2 = 0.2828, v3 = 0.1359,
+#                  S1_0 = 73896, E1_0 = 438, A1_0 = 10, I1_0 = 10, R1_0 = 4090, H1_0 = 0, C1_0 = 0, D1_0 = 0,
+#                  V2_0 = 139266, E2_0 = 438, A2_0 = 10, I2_0 = 10, R2_0 = 4090, H2_0 = 0, C2_0 = 0, D2_0 = 0,
+#                  V3_0 = 281265, E3_0 = 438, A3_0 = 10, I3_0 = 5, R3_0 = 4090, H3_0 = 0, C3_0 = 0, D3_0 = 0)
+
+# serop_data$day <- 1 :nrow(serop_data)
+
+initial_params = c(Beta_2 = 0.00, Beta_3 = 0.120000368, Beta_4 = 0.6909096, Beta_3m = 0.7300368, Beta_0 = 0.7007704, 
                  gamma_a = 1/14, sigma = 0.35, death_rate = 0.79812553, hosp_rate = 0.0059967661,
-                 mu = 0.6,  xi1 = 0.15, xi2 = 0.15, xi3 = 0.15, disp = 0.95,
+                 mu = 0.6,  xi1 = 0.15, xi2 = 0.15, xi3 = 0.15, 
                  kappa1 = 1, kappa2 = 0.91, kappa3 = 0.3, eta1 = 1/5.5, eta2 = 1/5.5, eta3 = 1/5.5,
                  phi1 = 1/5, phi2 = 1/5, phi3 = 1/5, theta1 = 0.007, theta2 = 0.005, theta3 = 0.0025,
                  omega1 = 1/7, omega2 =  1/7, omega3 =  1/7, lambda1 = 0.25, lambda2 = 0.156, lambda3 = 0.150,
                  tau = 0.799, zeta = 0.75, v2 = 0.2828, v3 = 0.1359,
-                 S1_0 = 73896, E1_0 = 438, A1_0 = 10, I1_0 = 10, R1_0 = 4918, H1_0 = 0, C1_0 = 0, D1_0 = 0,
-                 V2_0 = 139266, E2_0 = 438, A2_0 = 10, I2_0 = 10, R2_0 = 4918, H2_0 = 0, C2_0 = 0, D2_0 = 0,
-                 V3_0 = 281265, E3_0 = 438, A3_0 = 10, I3_0 = 5, R3_0 = 4918, H3_0 = 0, C3_0 = 0, D3_0 = 0)
-
-serop_data$day <- 1 :nrow(serop_data)
+                 S1_0 = 73896, E1_0 = 438, A1_0 = 10, I1_0 = 10, R1_0 = 4090, H1_0 = 0, C1_0 = 0, D1_0 = 0,
+                 V2_0 = 139266, E2_0 = 438, A2_0 = 10, I2_0 = 10, R2_0 = 4090, H2_0 = 0, C2_0 = 0, D2_0 = 0,
+                 V3_0 = 281265, E3_0 = 438, A3_0 = 10, I3_0 = 5, R3_0 = 4090, H3_0 = 0, C3_0 = 0, D3_0 = 0)
 
 serop_data |>
   dplyr::select(day,est_inci_serop, hosp,death) |>
   pomp(
     times = "day",
-    t0 = -1,
-    rprocess = euler(searchid_process_step, delta.t = 1.0),
+    t0 = 1,
+    rprocess = discrete_time(searchid_process_step, delta.t = 1.0),
     rinit = searchid_init,
     params = initial_params,
     rmeasure = rmeas,
     dmeasure = dmeas,
-    accumvars = c("Recov1","Recov2","Recov3","Recov", "R_eff", "R_eff1"),
+    accumvars = c("Recov1","Recov2","Recov3","Recov"),
     obsnames = c("est_inci_serop", "hosp","death"),
     paramnames = paramnames,
     statenames = state_var
   ) -> Omicron_PMCMC
 ```
 
+
 ```{r message=FALSE, warning=FALSE, fig.height = 7, fig.width=10}
 Omicron_PMCMC |>
-  simulate(params = initial_params,nsim=1, format="data.frame", include.data=TRUE, seed = 132628330) |>
+  simulate(params = initial_params,nsim=1, format="data.frame", include.data=TRUE, seed = 1) |>
     dplyr:::select.data.frame(c(".id","day","est_inci_serop","R")) -> M
 M1 <- M[(M$.id == "data"),]
 M2 <- M[(M$.id != "data"),]
 
-M1$date <- dates <- seq.Date(from = as.Date("2021-12-01"), by = "day", length.out = nrow(M1))
-M2$date <- dates <- seq.Date(from = as.Date("2021-12-01"), by = "day", length.out = nrow(M2))
+M1$date <- dates <- seq.Date(from = as.Date("2021-11-01"), by = "day", length.out = nrow(M1))
+M2$date <- dates <- seq.Date(from = as.Date("2021-11-01"), by = "day", length.out = nrow(M2))
 M <- rbind(M1,M2)
 # M <- M[M$date > "2021-12-14",]
 rownames(M) <- NULL
@@ -489,7 +501,7 @@ Omicron_PMCMC |>
   dplyr::select(c("day","est_inci_serop","S","E","A","I","R","H","C","D", "Recov")) -> tg
 
 tg$Rpercap <- tg$R #/ total_population
-dates <- seq.Date(from = as.Date("2021-12-10"), by = "day", length.out = nrow(tg))
+dates <- seq.Date(from = as.Date("2021-11-01"), by = "day", length.out = nrow(tg))
 tg$dates <- dates
 
 tg <- tg[(tg$dates > "2021-12-14") & (tg$dates < "2022-06-03"),]
@@ -526,92 +538,111 @@ registerDoRNG(625904618)
 
 foreach(i=1:10, .combine = c) %dopar% {
   library(pomp)
-  Omicron_PMCMC |> pfilter(params= initial_params,  Np = 5000)
+  Omicron_PMCMC |> pfilter(params= initial_params,  Np = 500)
 } -> pf
 
 plot(pf)
 pf %>% logLik() %>% logmeanexp(se = TRUE, ess=TRUE)
 ```
 
+```{r warning=FALSE, message=FALSE, fig.width=12, fig.height=7}
+
+# Omicron_PMCMC |>
+#   pmcmc(
+#     Np = 5000,
+#     Nmcmc = 50,
+#     dprior = function (Beta_0, Beta_2, Beta_3, Beta_3m, Beta_4,death_rate,hosp_rate, ..., log = FALSE) {
+#       lp <- sum(dnorm(c(Beta_0, Beta_2, Beta_3, Beta_3m, Beta_4, death_rate,hosp_rate),mean = 0.35,sd = 0.01,log=TRUE))
+#       if (log) lp else exp(lp)
+#     },
+#     proposal = mvn_diag_rw(c(Beta_0 = 0.001, Beta_2 = 0.001, Beta_3 = 0.001, Beta_3m = 0.001, Beta_4 = 0.001,death_rate = 0.001, hosp_rate = 0.001))
+#   ) -> sirpm
+# 
+# sirpm |>
+#   traces(c("Beta_0","Beta_2","Beta_3", "Beta_3m","Beta_4","death_rate","hosp_rate")) |>
+#   plot()
+
+```
+
 ```{r, fig.height = 5, fig.width = 8, echo = TRUE}
-params_rw_sd = rw_sd(Beta_0 = 0.0001, Beta_2 = 0.0001, Beta_3 = 0.0001, Beta_3m = 0.0001, Beta_4 = 0.0001, death_rate = 0.0001, hosp_rate = 0.0001, disp = 0.0001)
-
-registerDoRNG(482947940)
-start_time = Sys.time()
-paste0("MIF Parameter Search Started @: ",start_time)
-
-bake(file = "MIF_WRITEUP_LOCMIFYx.rds", {
-  foreach(i = 1:4, .combine = c) %dopar% {
-    suppressPackageStartupMessages({
-      library(tidyverse)
-      library(pomp)
-    })
-    Omicron_PMCMC %>%
-      mif2(
-        params = initial_params,
-        Np = 5000, Nmif = 500,
-        cooling.fraction.50 = 0.5,
-        rw.sd = params_rw_sd
-      )
-  } -> mifs_local
-  attr(mifs_local,"ncpu") <- getDoParWorkers()
-  mifs_local
-}) -> mifs_local
-
-bake(file = "MIF_WRITEUP_LOCEVALYx.rds", {
-  foreach(mf = mifs_local, .combine = rbind) %dopar% {
-    suppressPackageStartupMessages({
-      library(tidyverse)
-      library(pomp)
-    })
-    ll = replicate(10, logLik(pfilter(mf, Np = 20000))) %>%
-         logmeanexp(se = TRUE)
-    coef(mf) %>% bind_rows() %>% bind_cols(loglik = ll[1], loglik.se = ll[2])
-  } -> mif_output
-  attr(mif_output,"ncpu") <- getDoParWorkers()
-  mif_output
-}) -> mif_output
-
-end_time = Sys.time()
-paste0("MIF Search Took ", round(difftime(end_time, start_time, units="hours"),3),"hrs", " - " , round(difftime(end_time, start_time, units="min"),3), "mins", " - ", round(difftime(end_time, start_time, units="secs"),3),"sec", " To Run.")
+# params_rw_sd = rw_sd(Beta_0 = 0.0001, Beta_2 = 0.0001, Beta_3 = 0.0001, Beta_3m = 0.0001, Beta_4 = 0.0001, death_rate = 0.0001, hosp_rate = 0.0001, disp = 0.0001)
+# 
+# registerDoRNG(482947940)
+# start_time = Sys.time()
+# paste0("MIF Parameter Search Started @: ",start_time)
+# 
+# bake(file = "MIF_WRITEUP_LOCMIFYx.rds", {
+#   foreach(i = 1:4, .combine = c) %dopar% {
+#     suppressPackageStartupMessages({
+#       library(tidyverse)
+#       library(pomp)
+#     })
+#     Omicron_PMCMC %>%
+#       mif2(
+#         params = initial_params,
+#         Np = 5000, Nmif = 500,
+#         cooling.fraction.50 = 0.5,
+#         rw.sd = params_rw_sd
+#       )
+#   } -> mifs_local
+#   attr(mifs_local,"ncpu") <- getDoParWorkers()
+#   mifs_local
+# }) -> mifs_local
+# 
+# bake(file = "MIF_WRITEUP_LOCEVALYx.rds", {
+#   foreach(mf = mifs_local, .combine = rbind) %dopar% {
+#     suppressPackageStartupMessages({
+#       library(tidyverse)
+#       library(pomp)
+#     })
+#     ll = replicate(10, logLik(pfilter(mf, Np = 20000))) %>%
+#          logmeanexp(se = TRUE)
+#     coef(mf) %>% bind_rows() %>% bind_cols(loglik = ll[1], loglik.se = ll[2])
+#   } -> mif_output
+#   attr(mif_output,"ncpu") <- getDoParWorkers()
+#   mif_output
+# }) -> mif_output
+# 
+# end_time = Sys.time()
+# paste0("MIF Search Took ", round(difftime(end_time, start_time, units="hours"),3),"hrs", " - " , round(difftime(end_time, start_time, units="min"),3), "mins", " - ", round(difftime(end_time, start_time, units="secs"),3),"sec", " To Run.")
 ```
 
 ```{r, eval = FALSE}
-mif_output %>% arrange(-loglik) %>% head %>%
-  knitr::kable(digits = 4, caption = "Local search results (in decreasing order of likelihood)")
-write.csv(mif_output,"~/Documents/nl_ba1_two_peak_pmcmc_model/data/MIFPARAMETERSFINALYx.csv",row.names = FALSE)
+# mif_output %>% arrange(-loglik) %>% head %>%
+#   knitr::kable(digits = 4, caption = "Local search results (in decreasing order of likelihood)")
+# write.csv(mif_output,"~/Documents/nl_ba1_two_peak_pmcmc_model/data/MIFPARAMETERSFINALYx.csv",row.names = FALSE)
 ```
 
 ```{r warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=7}
-mifs_local %>%
-  traces(c(parameters_to_estimate,"loglik")) %>%
-  melt() %>%
-  ggplot(aes(x = iteration, y = value, group = .L1, color = factor(.L1))) +
-  theme_bw() +
-  geom_line() +
-  guides(color = FALSE) +
-  facet_wrap(~name, scales = "free_y")
+# mifs_local %>%
+#   traces(c(parameters_to_estimate,"loglik")) %>%
+#   melt() %>%
+#   ggplot(aes(x = iteration, y = value, group = .L1, color = factor(.L1))) +
+#   theme_bw() +
+#   geom_line() +
+#   guides(color = FALSE) +
+#   facet_wrap(~name, scales = "free_y")
 ```
 
 ```{r warning=FALSE, message=FALSE, echo=FALSE, fig.width=15, fig.height=15}
-set.seed(132628335)
-Omicron_PMCMC |>
-  simulate(params = mif_output[1,],nsim=1, format="data.frame", include.data=TRUE) |>
-    dplyr:::select.data.frame(c(".id","day","est_inci_serop", "hosp","death","R")) |>
-    reshape2::melt(id = c(".id", "day")) |>
-    ggplot(aes(x=day,y=value,color=ifelse(.id=="data","data","simulation"),group=.id))+
-    scale_color_manual(labels = c("True Cases", "Model Simulation"),values = c("black","#00A087B2"))+
-    labs(color="")+
-    geom_point()+
-    geom_smooth(span = 0.15) +
-    theme_clean()+
-    scale_color_manual(values = c("red","navy")) +
-    theme(axis.text.x = element_text(size = 14), axis.title.x = element_text(size = 14,color = "black"),
-          axis.text.y = element_text(size = 14), axis.title.y = element_text(size = 14,color = "black"),
-          plot.title = element_text(size = 14, face = "bold", color = "black",hjust = 0.5))+
-    ggtitle("Simulation With Initial Guess Parameters.") +
-    theme(plot.title = element_text(hjust = 0.5)) +
-    facet_wrap(~variable,ncol=1,scales="free_y")
+# set.seed(132628335)
+# Omicron_PMCMC |>
+#   simulate(params = mif_output[1,],nsim=1, format="data.frame", include.data=TRUE) |>
+#     dplyr:::select.data.frame(c(".id","day","est_inci_serop", "hosp","death","R")) |>
+#     reshape2::melt(id = c(".id", "day")) |>
+#     ggplot(aes(x=day,y=value,color=ifelse(.id=="data","data","simulation"),group=.id))+
+#     scale_color_manual(labels = c("True Cases", "Model Simulation"),values = c("black","#00A087B2"))+
+#     labs(color="")+
+#     geom_point()+
+#     geom_smooth(span = 0.15) +
+#     theme_clean()+
+#     scale_color_manual(values = c("red","navy")) +
+#     theme(axis.text.x = element_text(size = 14), axis.title.x = element_text(size = 14,color = "black"),
+#           axis.text.y = element_text(size = 14), axis.title.y = element_text(size = 14,color = "black"),
+#           plot.title = element_text(size = 14, face = "bold", color = "black",hjust = 0.5))+
+#     ggtitle("Simulation With Initial Guess Parameters.") +
+#     theme(plot.title = element_text(hjust = 0.5)) +
+#     facet_wrap(~variable,ncol=1,scales="free_y")
 ```
 
 ```{r message=FALSE, warning=FALSE}
@@ -624,34 +655,37 @@ library(pomp)
 ############## Run and calibrate model using PMCMC ##############
 
 num_chains <- 4
-num_mcmc <- 500
-num_np <- 5000
+num_mcmc <- 100
+num_np <- 15000
 
 # Set the perturbation intensities for parameter random walk for proposals
-perturbation_intensity <- rep(0.001, length(parameters_to_estimate))
-names(perturbation_intensity) <- parameters_to_estimate
+# perturbation_intensity <- rep(0.001, length(parameters_to_estimate))
+# names(perturbation_intensity) <- parameters_to_estimate
 
 start_time = Sys.time()
 paste0("Model Training started at: ",start_time)
 
-bake(file = "~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/Serop_PmcmcMMYx.rds", {
+bake(file = "~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/Serop_PmcmcMMYxY1.rds", {
   foreach(i = 1:num_chains, .combine = c, .packages = c("pomp","tidyverse")) %dopar%{
     Omicron_PMCMC |>
       pmcmc(
-        params = mif_output[1,],
+        params = initial_params,
         Nmcmc = num_mcmc,
         Np = num_np,
-        paramnames = c("Beta_0","Beta_2","Beta_3","Beta_4","death_rate","hosp_rate"),
-        mvn_diag_rw(perturbation_intensity))
+        dprior = function (Beta_0, Beta_2, Beta_3, Beta_3m, Beta_4, death_rate, hosp_rate, ..., log = FALSE) {
+          lp <- sum(dnorm(c(Beta_0, Beta_2, Beta_3, Beta_3m, Beta_4, death_rate, hosp_rate),mean = 0.35,sd = 0.01,log=TRUE))
+          if (log) lp else exp(lp)},
+        proposal = mvn_diag_rw(c(Beta_0 = 0.001, Beta_2 = 0.001, Beta_3 = 0.001, Beta_3m = 0.001, Beta_4 = 0.001, death_rate = 0.001, hosp_rate = 0.001)),
+        paramnames = c("Beta_0","Beta_2","Beta_3","Beta_4","death_rate","hosp_rate"))
     } -> pmcmc_chains
   attr(pmcmc_chains,"ncpu") <- getDoParWorkers()
   pmcmc_chains
 }, seed = 0, kind = "L'Ecuyer") -> pmcmc_chains
 
-saveRDS(pmcmc_chains, "~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/serop_chainMMYx.rds")
+saveRDS(pmcmc_chains, "~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/serop_chainMMYxY1.rds")
   
 # likelihood estimate for search results
-bake(file = "~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/Serop_search_pmcmc_likMMYx.rds", {
+bake(file = "~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/Serop_search_pmcmc_likMMYxY1.rds", {
   foreach(pmcmc_run = pmcmc_chains, .combine = rbind) %dopar% {
     ll = replicate(10, logLik(pfilter(pmcmc_run, Np = 20000))) |>
       logmeanexp(se = TRUE)
@@ -665,7 +699,7 @@ stopCluster(num_clusters)
 
 end_time = Sys.time()
 paste0("SEARCH-ID Model took ", round(difftime(end_time, start_time, units="hours"),3),"hrs", " - " , round(difftime(end_time, start_time, units="min"),3), "mins", " - ", round(difftime(end_time, start_time, units="secs"),3),"sec", " to run and calibrate parameters.")
-write.csv(pmcmc_results,"~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/Serop_search_pmcmc_paramMMYx.csv",row.names = FALSE)
+write.csv(pmcmc_results,"~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/Serop_search_pmcmc_paramMMYxY1.csv",row.names = FALSE)
 ```
 
 ```{r}

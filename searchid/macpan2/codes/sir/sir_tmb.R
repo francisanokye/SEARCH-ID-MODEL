@@ -23,7 +23,7 @@ spec = mp_tmb_model_spec(
 )
 
 spec = mp_tmb_insert(spec
-                     , expressions = list(cases ~ R)
+                     , expressions = list(cases ~ I)
                      , at = Inf
                      , phase = "during"
                      )

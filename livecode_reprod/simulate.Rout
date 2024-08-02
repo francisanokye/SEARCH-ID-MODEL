@@ -1,0 +1,391 @@
+
+R version 4.4.1 (2024-06-14) -- "Race for Your Life"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin20
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> library(macpan2)
+> library(shellpipes)
+> library(tidyverse)
+> 
+> loadEnvironments()
+> 
+> n = 500
+> 
+> spec = rdsRead()
+> 
+> newspec <- mp_tmb_update(spec, default = list(I0 = I0, pop = pop, Rstart = Rstart))
+> 
+> time_steps = 170
+> 
+> outputs = c("I", "infection")
+> 
+> sir = mp_simulator(model = newspec, time_steps = time_steps, outputs = outputs)
+> 
+> inc_sim <- mp_trajectory(sir)
+> print(inc_sim)
+       matrix time row col  value
+1           I    1   0   0     22
+2   infection    1   0   0     21
+3           I    2   0   0    497
+4   infection    2   0   0    477
+5           I    3   0   0  10788
+6   infection    3   0   0  10326
+7           I    4   0   0 189126
+8   infection    4   0   0 179106
+9           I    5   0   0 496671
+10  infection    5   0   0 320481
+11          I    6   0   0 462418
+12  infection    6   0   0    138
+13          I    7   0   0 430253
+14  infection    7   0   0      0
+15          I    8   0   0 400400
+16  infection    8   0   0      0
+17          I    9   0   0 373013
+18  infection    9   0   0      0
+19          I   10   0   0 347049
+20  infection   10   0   0      0
+21          I   11   0   0 322901
+22  infection   11   0   0      0
+23          I   12   0   0 300554
+24  infection   12   0   0      0
+25          I   13   0   0 279762
+26  infection   13   0   0      0
+27          I   14   0   0 260569
+28  infection   14   0   0      0
+29          I   15   0   0 242636
+30  infection   15   0   0      0
+31          I   16   0   0 225942
+32  infection   16   0   0      0
+33          I   17   0   0 210244
+34  infection   17   0   0      0
+35          I   18   0   0 195799
+36  infection   18   0   0      0
+37          I   19   0   0 182335
+38  infection   19   0   0      0
+39          I   20   0   0 169609
+40  infection   20   0   0      0
+41          I   21   0   0 157918
+42  infection   21   0   0      0
+43          I   22   0   0 147039
+44  infection   22   0   0      0
+45          I   23   0   0 137019
+46  infection   23   0   0      0
+47          I   24   0   0 127819
+48  infection   24   0   0      0
+49          I   25   0   0 118891
+50  infection   25   0   0      0
+51          I   26   0   0 110576
+52  infection   26   0   0      0
+53          I   27   0   0 102914
+54  infection   27   0   0      0
+55          I   28   0   0  95908
+56  infection   28   0   0      0
+57          I   29   0   0  89163
+58  infection   29   0   0      0
+59          I   30   0   0  83076
+60  infection   30   0   0      0
+61          I   31   0   0  77283
+62  infection   31   0   0      0
+63          I   32   0   0  71972
+64  infection   32   0   0      0
+65          I   33   0   0  67028
+66  infection   33   0   0      0
+67          I   34   0   0  62444
+68  infection   34   0   0      0
+69          I   35   0   0  58164
+70  infection   35   0   0      0
+71          I   36   0   0  54042
+72  infection   36   0   0      0
+73          I   37   0   0  50331
+74  infection   37   0   0      0
+75          I   38   0   0  46868
+76  infection   38   0   0      0
+77          I   39   0   0  43613
+78  infection   39   0   0      0
+79          I   40   0   0  40646
+80  infection   40   0   0      0
+81          I   41   0   0  37808
+82  infection   41   0   0      0
+83          I   42   0   0  35178
+84  infection   42   0   0      0
+85          I   43   0   0  32849
+86  infection   43   0   0      0
+87          I   44   0   0  30593
+88  infection   44   0   0      0
+89          I   45   0   0  28459
+90  infection   45   0   0      0
+91          I   46   0   0  26412
+92  infection   46   0   0      0
+93          I   47   0   0  24642
+94  infection   47   0   0      0
+95          I   48   0   0  22930
+96  infection   48   0   0      0
+97          I   49   0   0  21322
+98  infection   49   0   0      0
+99          I   50   0   0  19868
+100 infection   50   0   0      0
+101         I   51   0   0  18482
+102 infection   51   0   0      0
+103         I   52   0   0  17116
+104 infection   52   0   0      0
+105         I   53   0   0  15926
+106 infection   53   0   0      0
+107         I   54   0   0  14854
+108 infection   54   0   0      0
+109         I   55   0   0  13841
+110 infection   55   0   0      0
+111         I   56   0   0  12841
+112 infection   56   0   0      0
+113         I   57   0   0  11931
+114 infection   57   0   0      0
+115         I   58   0   0  11139
+116 infection   58   0   0      0
+117         I   59   0   0  10330
+118 infection   59   0   0      0
+119         I   60   0   0   9631
+120 infection   60   0   0      0
+121         I   61   0   0   8981
+122 infection   61   0   0      0
+123         I   62   0   0   8400
+124 infection   62   0   0      0
+125         I   63   0   0   7816
+126 infection   63   0   0      0
+127         I   64   0   0   7301
+128 infection   64   0   0      0
+129         I   65   0   0   6814
+130 infection   65   0   0      0
+131         I   66   0   0   6341
+132 infection   66   0   0      0
+133         I   67   0   0   5901
+134 infection   67   0   0      0
+135         I   68   0   0   5457
+136 infection   68   0   0      0
+137         I   69   0   0   5059
+138 infection   69   0   0      0
+139         I   70   0   0   4741
+140 infection   70   0   0      0
+141         I   71   0   0   4415
+142 infection   71   0   0      0
+143         I   72   0   0   4118
+144 infection   72   0   0      0
+145         I   73   0   0   3833
+146 infection   73   0   0      0
+147         I   74   0   0   3577
+148 infection   74   0   0      0
+149         I   75   0   0   3343
+150 infection   75   0   0      0
+151         I   76   0   0   3095
+152 infection   76   0   0      0
+153         I   77   0   0   2902
+154 infection   77   0   0      0
+155         I   78   0   0   2706
+156 infection   78   0   0      0
+157         I   79   0   0   2515
+158 infection   79   0   0      0
+159         I   80   0   0   2346
+160 infection   80   0   0      0
+161         I   81   0   0   2185
+162 infection   81   0   0      0
+163         I   82   0   0   2020
+164 infection   82   0   0      0
+165         I   83   0   0   1880
+166 infection   83   0   0      0
+167         I   84   0   0   1764
+168 infection   84   0   0      0
+169         I   85   0   0   1640
+170 infection   85   0   0      0
+171         I   86   0   0   1535
+172 infection   86   0   0      0
+173         I   87   0   0   1429
+174 infection   87   0   0      0
+175         I   88   0   0   1323
+176 infection   88   0   0      0
+177         I   89   0   0   1237
+178 infection   89   0   0      0
+179         I   90   0   0   1147
+180 infection   90   0   0      0
+181         I   91   0   0   1063
+182 infection   91   0   0      0
+183         I   92   0   0    989
+184 infection   92   0   0      0
+185         I   93   0   0    903
+186 infection   93   0   0      0
+187         I   94   0   0    839
+188 infection   94   0   0      0
+189         I   95   0   0    786
+190 infection   95   0   0      0
+191         I   96   0   0    736
+192 infection   96   0   0      0
+193         I   97   0   0    694
+194 infection   97   0   0      0
+195         I   98   0   0    646
+196 infection   98   0   0      0
+197         I   99   0   0    601
+198 infection   99   0   0      0
+199         I  100   0   0    555
+200 infection  100   0   0      0
+201         I  101   0   0    502
+202 infection  101   0   0      0
+203         I  102   0   0    465
+204 infection  102   0   0      0
+205         I  103   0   0    428
+206 infection  103   0   0      0
+207         I  104   0   0    402
+208 infection  104   0   0      0
+209         I  105   0   0    371
+210 infection  105   0   0      0
+211         I  106   0   0    345
+212 infection  106   0   0      0
+213         I  107   0   0    324
+214 infection  107   0   0      0
+215         I  108   0   0    304
+216 infection  108   0   0      0
+217         I  109   0   0    284
+218 infection  109   0   0      0
+219         I  110   0   0    267
+220 infection  110   0   0      0
+221         I  111   0   0    248
+222 infection  111   0   0      0
+223         I  112   0   0    225
+224 infection  112   0   0      0
+225         I  113   0   0    213
+226 infection  113   0   0      0
+227         I  114   0   0    197
+228 infection  114   0   0      0
+229         I  115   0   0    182
+230 infection  115   0   0      0
+231         I  116   0   0    175
+232 infection  116   0   0      0
+233         I  117   0   0    166
+234 infection  117   0   0      0
+235         I  118   0   0    155
+236 infection  118   0   0      0
+237         I  119   0   0    145
+238 infection  119   0   0      0
+239         I  120   0   0    131
+240 infection  120   0   0      0
+241         I  121   0   0    121
+242 infection  121   0   0      0
+243         I  122   0   0    114
+244 infection  122   0   0      0
+245         I  123   0   0    108
+246 infection  123   0   0      0
+247         I  124   0   0     99
+248 infection  124   0   0      0
+249         I  125   0   0     91
+250 infection  125   0   0      0
+251         I  126   0   0     88
+252 infection  126   0   0      0
+253         I  127   0   0     86
+254 infection  127   0   0      0
+255         I  128   0   0     77
+256 infection  128   0   0      0
+257         I  129   0   0     72
+258 infection  129   0   0      0
+259         I  130   0   0     69
+260 infection  130   0   0      0
+261         I  131   0   0     64
+262 infection  131   0   0      0
+263         I  132   0   0     63
+264 infection  132   0   0      0
+265         I  133   0   0     59
+266 infection  133   0   0      0
+267         I  134   0   0     57
+268 infection  134   0   0      0
+269         I  135   0   0     53
+270 infection  135   0   0      0
+271         I  136   0   0     51
+272 infection  136   0   0      0
+273         I  137   0   0     48
+274 infection  137   0   0      0
+275         I  138   0   0     46
+276 infection  138   0   0      0
+277         I  139   0   0     44
+278 infection  139   0   0      0
+279         I  140   0   0     41
+280 infection  140   0   0      0
+281         I  141   0   0     36
+282 infection  141   0   0      0
+283         I  142   0   0     35
+284 infection  142   0   0      0
+285         I  143   0   0     32
+286 infection  143   0   0      0
+287         I  144   0   0     29
+288 infection  144   0   0      0
+289         I  145   0   0     28
+290 infection  145   0   0      0
+291         I  146   0   0     25
+292 infection  146   0   0      0
+293         I  147   0   0     23
+294 infection  147   0   0      0
+295         I  148   0   0     19
+296 infection  148   0   0      0
+297         I  149   0   0     19
+298 infection  149   0   0      0
+299         I  150   0   0     18
+300 infection  150   0   0      0
+301         I  151   0   0     18
+302 infection  151   0   0      0
+303         I  152   0   0     18
+304 infection  152   0   0      0
+305         I  153   0   0     18
+306 infection  153   0   0      0
+307         I  154   0   0     18
+308 infection  154   0   0      0
+309         I  155   0   0     17
+310 infection  155   0   0      0
+311         I  156   0   0     17
+312 infection  156   0   0      0
+313         I  157   0   0     16
+314 infection  157   0   0      0
+315         I  158   0   0     15
+316 infection  158   0   0      0
+317         I  159   0   0     13
+318 infection  159   0   0      0
+319         I  160   0   0     12
+320 infection  160   0   0      0
+321         I  161   0   0     11
+322 infection  161   0   0      0
+323         I  162   0   0     11
+324 infection  162   0   0      0
+325         I  163   0   0     10
+326 infection  163   0   0      0
+327         I  164   0   0     10
+328 infection  164   0   0      0
+329         I  165   0   0     10
+330 infection  165   0   0      0
+331         I  166   0   0      9
+332 infection  166   0   0      0
+333         I  167   0   0      9
+334 infection  167   0   0      0
+335         I  168   0   0      8
+336 infection  168   0   0      0
+337         I  169   0   0      8
+338 infection  169   0   0      0
+339         I  170   0   0      5
+340 infection  170   0   0      0
+> 
+> gg <- ggplot(data = inc_sim, aes(x = time, y = value), color = "blue")+
++ 	geom_line()+
++ 	facet_wrap(~matrix, scale = "free", nrow = 2)+
++ 	theme_bw()
+> 
+> 
+> print(gg)
+> 
+> rdsSave(inc_sim)
+> 

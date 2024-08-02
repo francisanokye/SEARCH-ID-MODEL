@@ -71,7 +71,7 @@ seir = spec
 ## Piecewise Time Variation
 
 beta_changepoints <- c(0, 10, 21, 55, 90)
-beta_values <- c(0.0779, 0.3463, 0.2203, 0.2612, 0.1021)
+beta_values <- c(0.779, 0.7463, 0.7203, 0.2612, 0.1021)
 time_steps = 170
 beta = 0.8 
 gamma = 0.2 
@@ -101,10 +101,15 @@ seir_transformed_spec = mp_tmb_insert(
 )
 
 # create simulator object
-seir_transformed_spec_simulator = (seir_transformed_spec |> 
-                                mp_euler() |> 
+seir_transformed_spec_simulator = seir_transformed_spec |> 
+                                mp_rk4() |> 
                                 mp_simulator(time_steps = 170, outputs = c(state_labels))
-                              )
+  
+## -------------------------
+## specify objective function
+## -------------------------
+
+                            
 (seir_transformed_spec_simulator
   |> mp_trajectory()
   |> mutate(state = factor(matrix, state_labels))
@@ -130,21 +135,19 @@ Now we can create an object that can be calibrated.
 
 ```{r warning=FALSE, message=FALSE}
 seir_calibrator = mp_tmb_calibrator(
-    spec = seir_transformed_spec |> mp_euler() 
+    spec = seir_transformed_spec |> mp_rk4() 
   , data = observed_data
   , traj = "cases"  
   , par = c("log_beta_values","E","I", "R")
   , default = list(gamma = gamma, beta = beta)
 )
 
-mp_optimize(seir_calibrator)
-
+mp_optimize(seir_calibrator, type = "nlminb")
 ```
 
 ```{r}
-euler_coef <- (mp_tmb_coef(seir_calibrator, conf.int=TRUE)
-       |> backtrans()
-)
+euler_coef <- mp_tmb_coef(seir_calibrator, conf.int=TRUE) |> 
+  backtrans()
 
 euler_coef
 ```
@@ -192,5 +195,4 @@ plot_fit = function(cal_object) {
 
 # Assuming searchid_calibrator is the calibration object
 plot_fit(seir_calibrator)
-
 ```

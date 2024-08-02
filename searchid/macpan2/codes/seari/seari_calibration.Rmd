@@ -118,7 +118,7 @@ transformed_spec = mp_tmb_insert(
 
 # create simulator object
 transformed_spec_simulator = (transformed_spec |> 
-                                mp_euler() |> 
+                                mp_rk4() |> 
                                 mp_simulator(time_steps = 170, outputs = c(state_labels))
                               )
 (transformed_spec_simulator
@@ -146,7 +146,7 @@ Now we can create an object that can be calibrated.
 
 ```{r warning=FALSE, message=FALSE}
 seari_calibrator = mp_tmb_calibrator(
-    spec = transformed_spec |> mp_euler() 
+    spec = transformed_spec |> mp_rk4() 
   , data = observed_data
   , traj = "cases"  
   , par = c("log_beta_values","gamma_a","mu","gamma_i", "E","A","I","R")
@@ -172,12 +172,11 @@ plot_fit = function(cal_object) {
   fitted_data = mp_trajectory(cal_object)
   fitted_data$dates <- seq.Date(from = as.Date("2021-12-01"), by = "day", length.out = nrow(fitted_data))
   fitted_data <- fitted_data[fitted_data$dates > "2021-12-14",]
-  print(fitted_data)
-  plot(fitted_data$time, fitted_data$value)
+  
   observed_data <- observed_data[observed_data$dates > "2021-12-14",]
   ggplot(observed_data, aes(x = dates, y = value, colour = "black"), na.rm = TRUE) +
     geom_point(size = 2) +
-    geom_point(aes(x = dates, y = value,colour = "red"), data = fitted_data,  size = 2) +
+    geom_line(aes(x = dates, y = value,colour = "red"), data = fitted_data,  size = 2) +
     # geom_ribbon(aes(x = dates, ymin = conf.low, ymax = conf.high), data = fitted_data, alpha = 0.2, fill = "red") +
     labs(x = "Date (Dec 2021  - June 2022)", y = "Omicron True Infections", title = "SEARCH-ID Model Fit With macpan2", color = "") +
     scale_color_manual(labels = c("true incidence", "macpan2 fit"),values = c("black","red")) +
