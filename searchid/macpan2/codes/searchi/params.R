@@ -1,6 +1,6 @@
 library(shellpipes)
 
-beta = 1.5
+beta = 0.25
 alpha = 0.001
 omega = 1/10
 theta = 0.150
@@ -11,12 +11,12 @@ gamma = 1/14
 sigma = 0.35
 
 N = 510550
-E0 = 2000
-A0 = 10
-R0 = 1000
+E0 =  250
+A0 = 1
+R0 = 0
 C0 = 0
 H0 = 0
-I0 = 1
+I0 = 25
 S0 = N - E0 - A0 -R0 - C0 - H0 - H0 - I0
 
 params = list(beta = beta
@@ -30,22 +30,14 @@ params = list(beta = beta
 	      , phi = phi
 	     )
 
-E <- E0
-A <- A0
-R <- R0
-C <- C0
-H <- H0
-I <- I0
-S <- S0
-
 states = list(N = N
-	, S = S
-	, E = E
-	, A = A
-	, R = R
-	, C = C
-	, H = H
-	, I = I
+	, S = S0
+	, E = E0
+	, A = A0
+	, R = R0
+	, C = C0
+	, H = H0
+	, I = I0
 	)
 
 saveEnvironment()

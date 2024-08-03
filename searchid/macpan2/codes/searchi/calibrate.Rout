@@ -24,6 +24,7 @@ Type 'q()' to quit R.
 > library(dplyr)
 > library(ggthemes)
 > library(broom.mixed)
+> set.seed(2024)
 > 
 > #conflicted_prefer("rdsSave", "shellpipes")
 > 
@@ -38,21 +39,17 @@ Type 'q()' to quit R.
 +   data = seroprevdata, 
 +   traj = "cases", 
 +   outputs = "cases", 
-+   par = c("beta_values",  "phi", "mu", "xi", "theta", "omega", "alpha", "E0", "A0", "I0")
++   par = c("beta_values")#,  "phi", "mu", "xi", "theta", "omega", "alpha", "E0", "A0", "I0")
 + )
 > 
 > mp_optimize(calibrator)
 outer mgc:  0 
 $par
-     params      params      params      params      params      params 
-  -2.975930   -1.877252   -1.871452   -1.884665   -1.881903    0.200000 
-     params      params      params      params      params      params 
-   0.600000    0.500000    0.150000    0.100000    0.001000 2000.000000 
-     params      params 
-  10.000000    1.000000 
+     params      params      params      params      params 
+-5.29831737  0.03922071  0.11332869  0.13976194  0.06765865 
 
 $objective
-[1] 147366.3
+[1] 8873.021
 
 $convergence
 [1] 0
@@ -100,55 +97,19 @@ outer mgc:  0
 outer mgc:  0 
 outer mgc:  0 
 outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
 > print(coeff)
-        term         mat row col     default  type    estimate std.error
-1     params beta_values   0   0   -2.975930 fixed   -2.975930       NaN
-2   params.1 beta_values   1   0   -1.877252 fixed   -1.877252       NaN
-3  params.10       alpha   0   0    0.001000 fixed    0.001000       NaN
-4  params.11          E0   0   0 2000.000000 fixed 2000.000000       NaN
-5  params.12          A0   0   0   10.000000 fixed   10.000000       NaN
-6  params.13          I0   0   0    1.000000 fixed    1.000000       NaN
-7   params.2 beta_values   2   0   -1.871452 fixed   -1.871452       NaN
-8   params.3 beta_values   3   0   -1.884665 fixed   -1.884665       NaN
-9   params.4 beta_values   4   0   -1.881903 fixed   -1.881903       NaN
-10  params.5         phi   0   0    0.200000 fixed    0.200000       NaN
-11  params.6          mu   0   0    0.600000 fixed    0.600000       NaN
-12  params.7          xi   0   0    0.500000 fixed    0.500000       NaN
-13  params.8       theta   0   0    0.150000 fixed    0.150000       NaN
-14  params.9       omega   0   0    0.100000 fixed    0.100000       NaN
-   conf.low conf.high
-1       NaN       NaN
-2       NaN       NaN
-3       NaN       NaN
-4       NaN       NaN
-5       NaN       NaN
-6       NaN       NaN
-7       NaN       NaN
-8       NaN       NaN
-9       NaN       NaN
-10      NaN       NaN
-11      NaN       NaN
-12      NaN       NaN
-13      NaN       NaN
-14      NaN       NaN
+      term         mat row col     default  type    estimate std.error conf.low
+1   params beta_values   0   0 -5.29831737 fixed -5.29831737       NaN      NaN
+2 params.1 beta_values   1   0  0.03922071 fixed  0.03922071       NaN      NaN
+3 params.2 beta_values   2   0  0.11332869 fixed  0.11332869       NaN      NaN
+4 params.3 beta_values   3   0  0.13976194 fixed  0.13976194       NaN      NaN
+5 params.4 beta_values   4   0  0.06765865 fixed  0.06765865       NaN      NaN
+  conf.high
+1       NaN
+2       NaN
+3       NaN
+4       NaN
+5       NaN
 > 
 > 
 > ############ Visualize simulation with calibrated paramters against the observed data ###########
@@ -177,8 +138,8 @@ outer mgc:  0
 +     geom_vline(xintercept = as.Date("2022-01-03"), colour = "gold4", linetype = 2, size = 1)  +
 +     geom_vline(xintercept = as.Date("2022-02-06"), colour = "gold4", linetype = 2, size = 1)  +
 +     geom_vline(xintercept = as.Date("2022-03-14"), colour = "gold4", linetype = 1, size = 1)  +
-+     annotate("text", x = as.Date("2022-03-05"), y = 2200, label = "Pre-Cancellation of Public \nHealth Emergency Declaration",size=5, hjust=1, color = "darkblue")+
-+     annotate("text", x = as.Date("2022-05-14"), y = 2200, label = "Post Cancellation of Public \nHealth Emergency Declaration",size=5, hjust=1,color = "darkblue")+
++     annotate("text", x = as.Date("2022-03-05"), y = 2200, label = "Pre-Cancellation of Public \nHealth Emergency Declaration",size=4, hjust=1, color = "darkblue")+
++     annotate("text", x = as.Date("2022-05-14"), y = 2200, label = "Post Cancellation of Public \nHealth Emergency Declaration",size=4, hjust=1,color = "darkblue")+
 +     theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
 +           axis.title.x = element_text(size = 20, color = "black", face = "bold"),
 +           axis.text.y = element_text(size = 20),
@@ -194,24 +155,6 @@ outer mgc:  0
 + }
 > 
 > plot_fit(calibrator)
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
-outer mgc:  0 
 outer mgc:  0 
 outer mgc:  0 
 outer mgc:  0 

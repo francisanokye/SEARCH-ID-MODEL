@@ -31,14 +31,12 @@ nspec <- mp_tmb_insert(newspec
                         )
 
 ## time-varying parameters
-
 beta_changepoints <- c(0, 10, 21, 55, 90)
-beta_values <- c(0.051, 0.15301, 0.15390, 0.15188, 0.15230)
+beta_values <- c(0.005, 1.04, 1.12, 1.15, 1.070)
 
 expr = list(beta ~ time_var(beta_values, beta_changepoints))
 
 ## update  model specification with piece-wise transmission rates
-
 timevar_spec <- mp_tmb_insert(nspec
                          , expression = expr
                          , phase = "during"

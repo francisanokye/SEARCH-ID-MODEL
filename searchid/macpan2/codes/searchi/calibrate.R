@@ -5,6 +5,7 @@ library(tidyverse)
 library(dplyr)
 library(ggthemes)
 library(broom.mixed)
+set.seed(2024)
 
 #conflicted_prefer("rdsSave", "shellpipes")
 
@@ -19,7 +20,7 @@ calibrator <- mp_tmb_calibrator(
   data = seroprevdata, 
   traj = "cases", 
   outputs = "cases", 
-  par = c("beta_values",  "phi", "mu", "xi", "theta", "omega", "alpha", "E0", "A0", "I0")
+  par = c("beta_values")#,  "phi", "mu", "xi", "theta", "omega", "alpha", "E0", "A0", "I0")
 )
 
 mp_optimize(calibrator)
@@ -73,8 +74,8 @@ plot_fit = function(cal_object) {
     geom_vline(xintercept = as.Date("2022-01-03"), colour = "gold4", linetype = 2, size = 1)  +
     geom_vline(xintercept = as.Date("2022-02-06"), colour = "gold4", linetype = 2, size = 1)  +
     geom_vline(xintercept = as.Date("2022-03-14"), colour = "gold4", linetype = 1, size = 1)  +
-    annotate("text", x = as.Date("2022-03-05"), y = 2200, label = "Pre-Cancellation of Public \nHealth Emergency Declaration",size=5, hjust=1, color = "darkblue")+
-    annotate("text", x = as.Date("2022-05-14"), y = 2200, label = "Post Cancellation of Public \nHealth Emergency Declaration",size=5, hjust=1,color = "darkblue")+
+    annotate("text", x = as.Date("2022-03-05"), y = 2200, label = "Pre-Cancellation of Public \nHealth Emergency Declaration",size=4, hjust=1, color = "darkblue")+
+    annotate("text", x = as.Date("2022-05-14"), y = 2200, label = "Post Cancellation of Public \nHealth Emergency Declaration",size=4, hjust=1,color = "darkblue")+
     theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
           axis.title.x = element_text(size = 20, color = "black", face = "bold"),
           axis.text.y = element_text(size = 20),

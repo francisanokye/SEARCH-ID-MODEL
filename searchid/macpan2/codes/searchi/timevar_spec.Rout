@@ -52,7 +52,8 @@ Type 'q()' to quit R.
 > ## time-varying parameters
 > 
 > beta_changepoints <- c(0, 10, 21, 55, 90)
-> beta_values <- c(0.051, 0.15301, 0.15390, 0.15188, 0.15230)
+> beta_values <- c(0.005, 1.04, 1.12, 1.15, 1.070)
+> #beta_values <- c(0.050, 1.04, 1.12, 1.15, 1.070)
 > 
 > expr = list(beta ~ time_var(beta_values, beta_changepoints))
 > 
