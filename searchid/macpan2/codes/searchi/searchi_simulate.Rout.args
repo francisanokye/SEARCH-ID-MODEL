@@ -1,2 +1,0 @@
-rpcall("searchi_simulate.Rout .pipestar searchi_simulate.R searchi_spec.rds searchi_params.rda")
-

@@ -78,9 +78,7 @@ beta_changepoints <- c(0, 10, 21, 55, 90)
 beta_values <- c(0.051, 0.15301, 0.15390, 0.15188, 0.15230) # c(0.010, 0.0357, 0.073, 0.095, 0.095)
 
 # see ?time_var for arguments
-expr = list(
- beta ~ time_var(beta_values, beta_changepoints)
-)
+expr = list(beta ~ time_var(beta_values, beta_changepoints))
 
 state_labels = c("S", "E", "A", "R", "C","H","I")
 

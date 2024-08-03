@@ -15,20 +15,25 @@ vim_session:
 
 Sources += Makefile
 
-current:searchi_params.Rout searchi_flows.Rout searchi_spec.Rout searchi_simulate.Rout
+current:params.Rout flows.Rout timevar_spec.Rout simulate.Rout calibrate.Rout
 
-searchi_params.Rout: searchi_params.R
+params.Rout: params.R
 	$(pipeR)
 
-searchi_flows.Rout: searchi_flows.R searchi_params.rda
+flows.Rout: flows.R params.rda
 	$(pipeR)
 
-searchi_spec.Rout: searchi_spec.R searchi_flows.rda searchi_params.rda
+timevar_spec.Rout: timevar_spec.R flows.rda params.rda
 	$(pipeR)
 
-searchi_simulate.Rout: searchi_simulate.R searchi_spec.rds searchi_params.rda
+simulate.Rout: simulate.R timevar_spec.rds params.rda
 	$(pipeR)
 
+seroprevdata.Rout: seroprevdata.R  
+	$(pipeR)
+
+calibrate.Rout: calibrate.R timevar_spec.rds seroprevdata.rds
+	$(pipeR)
 
 Ignore += makestuff
 msrepo = https://github.com/dushoff
