@@ -22,16 +22,16 @@ flows.Rout: flows.R params.rda
 	$(pipeR)
 
 timevar_spec.Rout: timevar_spec.R flows.rda params.rda
-	$(pipeR)
+	$(pipeRcall)
 
 simulate.Rout: simulate.R timevar_spec.rds params.rda
-	$(pipeR)
+	$(pipeRcall)
 
 seroprevdata.Rout: seroprevdata.R ../../data/omicron_estimated_serop.csv
-	$(pipeR)
+	$(pipeRcall)
 
 calibrate.Rout: calibrate.R timevar_spec.rds seroprevdata.rds
-	$(pipeR)
+	$(pipeRcall)
 
 Ignore += makestuff
 msrepo = https://github.com/dushoff
