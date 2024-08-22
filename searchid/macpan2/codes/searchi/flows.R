@@ -1,25 +1,17 @@
+library(macpan2)
 library(shellpipes)
 
-flow_rates = list(
-  foi ~ reulermultinom(S, clamp(beta * (A + I)/N))
-  , expo_asymp ~ reulermultinom(E, clamp(sigma * mu))
-  ,expo_symp ~ reulermultinom(E, clamp(sigma * (1-mu )))
-  , asymp_recov ~ reulermultinom(A, clamp(gamma))
-  , symp_hosp ~  reulermultinom(I, clamp(phi * xi))
-  , symp_recov ~  reulermultinom(I, clamp(phi * (1-xi)))
-  , hosp_recov ~ reulermultinom(H, clamp(omega * theta))
-  , hosp_icu ~ reulermultinom(H, clamp(omega * (1-theta)))
-  , icu_recov ~ reulermultinom(C, clamp(alpha))
+flows = list(
+    foi ~ beta * (A + I) / N
+  , mp_per_capita_flow("S", "E", "foi", "infection")
+  , mp_per_capita_flow("E", "A", "sigma * mu", "expo_asymp")
+  , mp_per_capita_flow("E", "I", "sigma * (1 - mu)", "expo_symp")
+  , mp_per_capita_flow("A", "R", "gamma", "asymp_recov")
+  , mp_per_capita_flow("I", "H", "phi * xi", "symp_hosp")
+  , mp_per_capita_flow("I", "R", "phi * (1-xi)", "symp_recov")
+  , mp_per_capita_flow("H", "R", "omega * theta", "hosp_recov")
+  , mp_per_capita_flow("H", "C", "omega * (1-theta)", "hosp_icu")
+  , mp_per_capita_flow("C", "R", "alpha", "icu_recov")
 )
 
-update_states = list(
-  S ~ S - foi
-  , E ~ E + foi - expo_asymp - expo_symp
-  , A ~ A + expo_asymp - asymp_recov
-  , R ~ R + asymp_recov + symp_recov + hosp_recov + icu_recov
-  , C ~ C + hosp_icu - icu_recov
-  , H ~ H + symp_hosp - hosp_icu - hosp_recov
-  , I ~ I + expo_symp - symp_hosp - symp_recov
-)
-
-saveVars(flow_rates, update_states)
+saveVars(flows)

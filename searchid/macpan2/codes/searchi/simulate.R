@@ -1,5 +1,6 @@
 library(macpan2)
 library(shellpipes)
+rpcall("simulate.Rout simulate.R timevar_spec.rds params.rda")
 library(tidyverse)
 library(ggthemes)
 
