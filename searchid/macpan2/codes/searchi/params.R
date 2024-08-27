@@ -11,12 +11,12 @@ gamma = 1/14
 sigma = 0.35
 
 N = 510550
-E0 =  250
+E0 =  2000
 A0 = 1
 R0 = 0
 C0 = 0
 H0 = 0
-I0 = 25
+I0 = 24
 S0 = N - E0 - A0 -R0 - C0 - H0 - H0 - I0
 
 params = list(beta = beta

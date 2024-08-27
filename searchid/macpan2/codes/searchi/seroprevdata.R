@@ -1,4 +1,5 @@
 library(shellpipes)
+rpcall("seroprevdata.Rout seroprevdata.R ../../data/omicron_estimated_serop.csv")
 library(tidyverse)
 
 est_infect_from_seroprevalence <- csvRead()
