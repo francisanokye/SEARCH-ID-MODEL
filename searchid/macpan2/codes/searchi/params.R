@@ -6,7 +6,7 @@ omega = 1/10
 theta = 0.150
 xi = 0.5
 phi = 1/5
-mu = 0.6
+mu = 0.60
 gamma = 1/14
 sigma = 0.35
 

@@ -20,7 +20,7 @@ calibrator <- mp_tmb_calibrator(
   data = seroprevdata,
   traj = "cases",
   outputs = "cases",
-  par = c("beta_values", "gamma", "phi","mu", "xi")#, "theta", "omega", "alpha") 
+  par = c("beta_values", "gamma")#, "phi","mu", "xi", "theta", "omega", "alpha")
 )
 
 mp_optimize(calibrator)
