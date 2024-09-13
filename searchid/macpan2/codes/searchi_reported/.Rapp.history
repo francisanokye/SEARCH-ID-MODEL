@@ -1,0 +1,2 @@
+load("/Users/fanokye/Documents/MUN/SEARCH-ID-MODEL/searchid/macpan2/codes/searchi_reported/calibrate.rds")
+load("/Users/fanokye/Documents/MUN/SEARCH-ID-MODEL/searchid/macpan2/codes/searchi_reported/flows.rda")

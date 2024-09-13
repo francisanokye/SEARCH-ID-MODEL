@@ -1,2 +1,0 @@
-rpcall("reporteddata.Rout .pipestar reporteddata.R ../../data/IM215194_NL_COVID_CASESHOSPDEATH.csv")
-
