@@ -33,8 +33,8 @@ seroprevdata.Rout: seroprevdata.R ../../data/omicron_estimated_serop.csv
 calibrate.Rout: calibrate.R timevar_spec.rds seroprevdata.rds
 	$(pipeRcall)
 
-cal_sims.Rout: cal_sims.R calibrate.rds 
-	$(pipeR)
+cal_sims.Rout: cal_sims.R calibrate.rds seroprevdata.rds 
+	$(pipeR) 
 
 Ignore += makestuff
 msrepo = https://github.com/dushoff

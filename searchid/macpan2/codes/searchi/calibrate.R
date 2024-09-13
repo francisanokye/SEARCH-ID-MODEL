@@ -15,11 +15,16 @@ loadEnvironments()
 timevar_spec <- rdsRead("timevar_spec.rds")
 
 seroprevdata <- rdsRead("seroprevdata.rds")
+
+outputs =c("S", "E", "A", "R", "C", "H", "I")
+
+population = 510550
+
 calibrator <- mp_tmb_calibrator(
   spec = timevar_spec,
   data = seroprevdata,
   traj = "cases",
-  outputs = "cases",
+  outputs = c("cases",outputs),
   par = c("beta_values", "gamma", "phi","mu", "xi")#, "theta", "omega", "alpha") 
 )
 
@@ -88,11 +93,47 @@ plot_fit = function(cal_object) {
           legend.margin = margin(0, 0, 0, 0),
           plot.background = element_blank()) +
           theme(plot.title = element_text(hjust = 0.5))
-}
+	}
+
+plot_seroprevalence = function(cal_object) {
+  fitted_data = mp_trajectory_sd(cal_object)
+  fitted_data$dates <- seq.Date(from = as.Date("2021-12-15"), by = "day", length.out = nrow(fitted_data))
+  fitted_data <- fitted_data[fitted_data$matrix == "R",]
+  print(fitted_data)
+  #fitted_data$R <- fitted_data$R / population
+  fitted_data <- fitted_data[(fitted_data$dates > "2021-12-14")& (fitted_data$dates < "2022-06-04"),]
+  seroprevdata <- seroprevdata[(seroprevdata$dates > "2021-12-14") &(seroprevdata$dates < "2022-06-04"),]
+  ggplot(seroprevdata, aes(x = date, y = daily_serop, colour = "CITF Seroprevalence"), na.rm = TRUE) +
+  	geom_point(data = fitted_data, aes(x = dates, y = value, color = "Recovery Per Capita"), size = 1) +
+  	scale_color_manual(name = NULL,values = c("Recovery Per Capita" = "darkgreen","CITF Seroprevalence" = "brown")) +
+  	labs(x = "Date", y = "Seroprevalence", title = "Recovery Per Capita and CITF Seroprevalence", color = "") +
+  	geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 1)  +
+        geom_vline(xintercept = as.Date("2021-12-23"), colour = "gold4", linetype = 2, size = 1)  +
+        geom_vline(xintercept = as.Date("2022-01-03"), colour = "gold4", linetype = 2, size = 1)  +
+        geom_vline(xintercept = as.Date("2022-02-06"), colour = "gold4", linetype = 2, size = 1)  +
+        geom_vline(xintercept = as.Date("2022-03-14"), colour = "gold4", linetype = 1, size = 1)  +
+        annotate("text", x = as.Date("2022-03-05"), y = 0.8, label = "Pre-Cancellation of Public \nHealth Emergency Declaration",size=4, hjust=1, color = "darkblue")+
+        annotate("text", x = as.Date("2022-05-20"), y = 0.8, label = "Post Cancellation of Public \nHealth Emergency Declaration",size=4, hjust=1,color = "darkblue")+
+	theme_clean() +
+  	theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        	axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        	axis.text.y = element_text(size = 20),
+        	axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        	plot.title = element_text(size = 20, face = "bold", color = "black", hjust = 0.5),
+        	legend.position = c(0.25, 0.75),
+        	legend.title = element_text(size = 20),
+        	legend.text = element_text(size = 20),
+        	legend.background = element_rect(color = NA),
+        	legend.margin = margin(0, 0, 0, 0),
+        	plot.background = element_blank()) +
+        theme(plot.title = element_text(hjust = 0.5))	
+	}
 
 plot_fit(calibrator)
 
+plot_seroprevalence(calibrator)
 
+rdsSave(calibrator)
 
 
 
