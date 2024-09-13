@@ -1,0 +1,54 @@
+
+R version 4.4.1 (2024-06-14) -- "Race for Your Life"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin20
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> library(shellpipes)
+> rpcall("seroprevdata.Rout seroprevdata.R ../../data/omicron_estimated_serop.csv")
+> library(tidyverse)
+> 
+> est_infect_from_seroprevalence <- csvRead()
+> est_infect_from_seroprevalence$date <- as.Date(est_infect_from_seroprevalence$date, format = "%Y-%m-%d")
+> est_infect_from_seroprevalence <- est_infect_from_seroprevalence |>
++   rename_at("date",~"dates")
+> 
+> seroprevdata = est_infect_from_seroprevalence |>
++                    select(dates, est_inci_serop) |>
++                    mutate(matrix = "cases") |>
++                    rename_at("est_inci_serop" , ~ "value") |>
++                    mutate(time = seq_along(dates))
+> 
+> print(seroprevdata)
+# A tibble: 184 × 4
+   dates      value matrix  time
+   <date>     <dbl> <chr>  <int>
+ 1 2021-12-01    73 cases      1
+ 2 2021-12-02    76 cases      2
+ 3 2021-12-03    79 cases      3
+ 4 2021-12-04    82 cases      4
+ 5 2021-12-05    85 cases      5
+ 6 2021-12-06    88 cases      6
+ 7 2021-12-07    91 cases      7
+ 8 2021-12-08    95 cases      8
+ 9 2021-12-09    98 cases      9
+10 2021-12-10   102 cases     10
+# ℹ 174 more rows
+> 
+> rdsSave(seroprevdata)
+> #saveEnvironment()
+> 
+> 
