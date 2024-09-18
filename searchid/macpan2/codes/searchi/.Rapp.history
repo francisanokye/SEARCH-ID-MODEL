@@ -1,2 +1,3 @@
 load("/Users/fanokye/Documents/MUN/SEARCH-ID-MODEL/searchid/macpan2/codes/searchi/params.rda")
 load("/Users/fanokye/Documents/MUN/SEARCH-ID-MODEL/searchid/macpan2/codes/searchi/seroprevdata.rds")
+load("/Users/fanokye/Documents/MUN/SEARCH-ID-MODEL/searchid/macpan2/codes/searchi/calibrate.rds")

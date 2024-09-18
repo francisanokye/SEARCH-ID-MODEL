@@ -30,11 +30,17 @@ simulate.Rout: simulate.R timevar_spec.rds params.rda
 reporteddata.Rout: reporteddata.R ../../data/IM215194_NL_COVID_CASESHOSPDEATH.csv
 	$(pipeRcall)
 
+serodata.Rout: serodata.R ../../data/omicron_estimated_serop.csv
+	$(pipeRcall)
+
 calibrate.Rout: calibrate.R timevar_spec.rds reporteddata.rds
 	$(pipeRcall)
 
 cal_sims.Rout: cal_sims.R calibrate.rds reporteddata.rds 
 	$(pipeR) 
+
+RR_vrs_serop.Rout: RR_vrs_serop.R calibrate.rds serodata.rds
+	$(pipeR)
 
 Ignore += makestuff
 msrepo = https://github.com/dushoff

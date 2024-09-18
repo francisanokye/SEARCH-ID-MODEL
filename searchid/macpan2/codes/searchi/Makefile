@@ -1,4 +1,4 @@
-## This is [project.Makefile] …
+e:Q This is [project.Makefile] …
 
 current: target
 -include target.mk
@@ -30,11 +30,17 @@ simulate.Rout: simulate.R timevar_spec.rds params.rda
 seroprevdata.Rout: seroprevdata.R ../../data/omicron_estimated_serop.csv
 	$(pipeRcall)
 
+serodata.Rout: serodata.R ../../data/omicron_estimated_serop.csv
+	$(pipeRcall)
+
 calibrate.Rout: calibrate.R timevar_spec.rds seroprevdata.rds
 	$(pipeRcall)
 
 cal_sims.Rout: cal_sims.R calibrate.rds seroprevdata.rds 
 	$(pipeR) 
+
+R_vrs_serop.Rout: R_vrs_serop.R calibrate.rds serodata.rds
+	$(pipeR)
 
 Ignore += makestuff
 msrepo = https://github.com/dushoff
