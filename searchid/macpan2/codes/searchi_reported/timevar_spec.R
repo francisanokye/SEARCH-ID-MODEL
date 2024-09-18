@@ -20,7 +20,7 @@ before = list(N ~ N
 
 newspec <- mp_tmb_update(spec,
                          default = list(
-      beta = beta, alpha = alpha, omega = omega, theta = theta
+      beta = beta, eta = eta, omega = omega, theta = theta
     , xi = xi, phi = phi, mu = mu, gamma = gamma, sigma = sigma
     , N = N, E0 = E0, A0 = A0, R0 = R0, C0 = C0, H0 = H0, I0 = I0
 ))

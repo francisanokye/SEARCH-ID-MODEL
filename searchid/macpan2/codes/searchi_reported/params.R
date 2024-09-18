@@ -1,19 +1,19 @@
 library(shellpipes)
 
 beta = 0.25
-alpha = 0.001
-omega = 1/10
-theta = 0.000284
-xi = 0.5
-phi = 1/5
+eta = 0.99
+omega = 1/3
+theta = 0.006
+xi = 0.009
+phi = 1/3
 mu = 0.35
 gamma = 1/10
 sigma = 0.60
 
 N = 510550
-E0 =  10
+E0 =  0
 A0 = 0
-R0 = 0
+R0 = 100
 C0 = 0
 H0 = 0
 I0 = 25
@@ -23,7 +23,7 @@ params = list(beta = beta
 	      , gamma = gamma
 	      , sigma = sigma
 	      , mu = mu
-	      , alpha = alpha
+	      , eta = eta
 	      , omega = omega
 	      , theta = theta
 	      , xi = xi
