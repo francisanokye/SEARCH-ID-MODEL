@@ -18,7 +18,7 @@ beta_changepoints = c(0, 10, 21, 55, 90)
 
 pp <- (ggplot(data = inc_sim, aes(x = time, y= value))
         + geom_line(aes(color = matrix))
-	+ geom_point(data = reporteddata, aes(x = time, y = value, color = matrix))
+	+ geom_point(data = reporteddata, aes(x = time, y = value, color = "data"))
         + geom_vline(aes(xintercept = x), linetype = "dashed", alpha = 0.5, data = data.frame(x = beta_changepoints))
         + labs(x = "Date (Dec 2021 - June 2022)", y = "Incidence", title = "SEARCHI Model: Incidence Trajectory with Calibrated Params (macpan2)", color = "")
         + facet_wrap(~matrix, scales = "free")

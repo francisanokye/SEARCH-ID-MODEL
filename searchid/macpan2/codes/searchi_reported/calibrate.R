@@ -23,7 +23,7 @@ calibrator <- mp_tmb_calibrator(
   data = reporteddata,
   traj = "cases",
   outputs = c("cases",outputs),
-  par = c("beta_values", "gamma", "phi")#,"mu", "xi", "theta", "omega", "alpha") 
+  par = c("beta_values", "gamma")#, "phi")#,"xi", "mu", "theta", "omega", "eta") 
 )
 
 mp_optimize(calibrator)
@@ -103,7 +103,7 @@ plot_fit = function(cal_object) {
     p <- p + theme(legend.position = c(0.85, 0.35))
   } else {
     p <- p + scale_color_manual(labels = c("A", "C", "fit", "E", "H", "I", "R", "S", "data"),
-                                values = c("#008080", "blue", "red", "magenta", "brown", "orange", "green", "#2192FF", "black"))
+                                values = c("#008080", "blue", "red", "black", "brown", "orange", "green", "#2192FF", "magenta"))
   }
   
   print(p)
