@@ -23,6 +23,9 @@ beta_changepoints <- c(0, 10, 21, 55, 90)
 #beta_values <- c(0.150, 0.30, 0.35, 0.45, 0.25)
 beta_values = c(0.71, 0.34, 0.34,0.33,0.33)
 
+beta_changepoints <- c(0)
+beta_values <- c(0.7)
+
 ## why?!?
 spec <- mp_tmb_model_spec(
   before = list(
@@ -50,9 +53,12 @@ newspec <- mp_tmb_update(spec
 
 ## accumulate infections
 nspec <- mp_tmb_insert(newspec
-  , expression = list(cases ~ infection, serop ~ R/510550)
+  , expression = list(cases ~ S*foi * report_prob
+  	, serop ~ R/510550
+	)
   , at = Inf
   , phase = "during"
+  , default = list(report_prob = 1)
 )
 
 ## update  model specification with piece-wise transmission rates

@@ -33,7 +33,7 @@ seroprevdata.Rout: seroprevdata.R ../../data/seroprevalence_adjusted_cases.csv
 serodata.Rout: serodata.R ../../data/seroprevalence_adjusted_cases.csv
 	$(pipeRcall)
 
-calibrate.Rout: calibrate.R timevar_spec.rds seroprevdata.rds
+calibrate.Rout: calibrate.R timevar_spec.rds seroprevdata.rds timevar_spec.R
 	$(pipeRcall)
 
 cal_sims.Rout: cal_sims.R calibrate.rds seroprevdata.rds 
