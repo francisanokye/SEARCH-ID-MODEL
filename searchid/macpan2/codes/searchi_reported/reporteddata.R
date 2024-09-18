@@ -1,19 +1,18 @@
 library(shellpipes)
-rpcall("reporteddata.Rout reporteddata.R ../../data/IM215194_NL_COVID_CASESHOSPDEATH.csv")
+rpcall("reporteddata.Rout reporteddata.R ../../data/seroprevalence_adjusted_cases.csv")
 library(tidyverse)
 
 reported_cases <- csvRead()
-reported_cases$DATE <- as.Date(reported_cases$DATE, format = "%Y-%m-%d")
-reported_cases <- reported_cases[(reported_cases$DATE >= "2021-12-15") & (reported_cases$DATE < "2022-03-18"),]
-rownames(reported_cases) <- NULL
+reported_cases$DATE <- as.Date(reported_cases$date, format = "%Y-%m-%d")
 reported_cases <- reported_cases |>
-  rename(dates = DATE, cases = CASES)
+  rename_at("date",~"dates")
 
 reporteddata = reported_cases |>
-                   select(dates, cases) |>
-                   mutate(matrix = "cases") |>
-                   rename_at("cases" , ~ "value") |>
-                   mutate(time = seq_along(dates))
+                   select(dates, cases, seroprevalence) |>
+                   mutate(time = seq_along(dates)) |>
+		   pivot_longer(cols = c(cases, seroprevalence), names_to = "matrix", values_to = "value") |>
+		   mutate(matrix = recode(matrix, "cases" = "cases", "seroprevalence" = "serop")) |>
+		   arrange(matrix)
 
 print(reporteddata)
 

@@ -27,10 +27,10 @@ timevar_spec.Rout: timevar_spec.R flows.rda params.rda
 simulate.Rout: simulate.R timevar_spec.rds params.rda
 	$(pipeRcall)
 
-reporteddata.Rout: reporteddata.R ../../data/IM215194_NL_COVID_CASESHOSPDEATH.csv
+reporteddata.Rout: reporteddata.R ../../data/seroprevalence_adjusted_cases.csv
 	$(pipeRcall)
 
-serodata.Rout: serodata.R ../../data/omicron_estimated_serop.csv
+serodata.Rout: serodata.R ../../data/seroprevalence_adjusted_cases.csv
 	$(pipeRcall)
 
 calibrate.Rout: calibrate.R timevar_spec.rds reporteddata.rds
