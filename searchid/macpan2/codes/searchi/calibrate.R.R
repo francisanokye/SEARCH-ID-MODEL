@@ -96,10 +96,10 @@ plot_fit = function(cal_object) {
   
   # Conditionally apply scale_color_manual based on the number of unique values in 'matrix'
   if (unique_values_matrix == 1) {
-    p <- p + scale_color_manual(labels = c("fit", "data"), values = c("red", "black"))
+    p <- p + scale_color_manual(labels = c("cases", "data"), values = c("red", "black"))
     p <- p + theme(legend.position = c(0.85, 0.35))
   } else {
-    p <- p + scale_color_manual(labels = c("A", "C", "fit", "E", "H", "I", "R", "S", "data"),
+    p <- p + scale_color_manual(labels = c("A", "C", "cases", "E", "H", "I", "R", "S", "data"),
                                 values = c("#008080", "blue", "red", "magenta", "brown", "orange", "green", "#2192FF", "black"))
   }
   

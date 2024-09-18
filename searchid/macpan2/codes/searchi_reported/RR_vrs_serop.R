@@ -8,11 +8,9 @@ loadEnvironments()
 n = 170
 
 calobj = rdsRead("calibrate.rds")
-
+# reporteddata = rdsRead("reporteddata.rds")
 serodata <- rdsRead("serodata.rds")
 serodata <- serodata[(serodata$dates > "2021-12-14") &(serodata$dates <= "2022-06-02"),]
-print(head(serodata$daily_serop,15))
-print(tail(serodata$daily_serop, 15))
 
 population = 510550
 
@@ -20,14 +18,14 @@ plot_seroprevalence = function(cal_object) {
   fitted_data = mp_trajectory_sd(cal_object)
   start_date <- as.Date("2021-12-15")
   fitted_data$dates <- start_date + fitted_data$time - 1
-  
+
   fitted_data <- fitted_data[fitted_data$matrix == "R",]
   fitted_data <- fitted_data[(fitted_data$dates > "2021-12-14")& (fitted_data$dates <= "2022-06-02"),]
   print(head(fitted_data$value,15))
   print(tail(fitted_data$value,15))
   ggplot() +
         geom_line(data = serodata, aes(x = dates, y = daily_serop, color = "CITF Seroprevalence"), linewidth = 1.5) +
-	geom_line(data = fitted_data, aes(x = dates, y = value/510550, color = "Recovery Per Capita"), linewidth = 1.5) +
+        geom_line(data = fitted_data, aes(x = dates, y = value/510550, color = "Recovery Per Capita"), linewidth = 1.5) +
         scale_color_manual(labels = c("Recovery Per Capita","CITF Seroprevalence"), values =c("darkgreen","brown")) +
         labs(x = "Date", y = "Seroprevalence", title = "Recovery Per Capita and CITF Seroprevalence", color = "") +
         geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 1)  +
@@ -50,10 +48,8 @@ plot_seroprevalence = function(cal_object) {
         theme(plot.title = element_text(hjust = 0.5))
         }
 
-pdf("R_vrs_serop.Rout.pdf")
+pdf("RR_vrs_serop.Rout.pdf")
 plot_seroprevalence(calobj)
 dev.off()
-
-#plot_seroprevalence(calobj)
 
 

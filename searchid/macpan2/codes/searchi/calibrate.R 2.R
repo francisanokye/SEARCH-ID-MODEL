@@ -24,8 +24,8 @@ calibrator <- mp_tmb_calibrator(
   spec = timevar_spec,
   data = seroprevdata,
   traj = "cases",
-  outputs = c("cases"),#outputs),
-  par = c("beta_values","gamma","phi")#, "phi","mu", "xi", "theta", "omega", "eta") 
+  outputs = c("cases",outputs),
+  par = c("beta_values","mu")#,"gamma","mu")#, "phi","mu", "xi", "theta", "omega", "eta") 
 )
 
 mp_optimize(calibrator)
@@ -56,18 +56,19 @@ print(coeff)
 
 plot_fit = function(cal_object) {
   fitted_data = mp_trajectory_sd(cal_object)
+  # Define the start date
   start_date <- as.Date("2021-12-15")
+  # Generate a sequence of dates based on the 'time' column
   fitted_data$dates <- start_date + fitted_data$time - 1
-  
-  seroprevdata <- seroprevdata[(seroprevdata$dates >= "2021-12-15") & (seroprevdata$dates <= "2022-06-02"),]
-
+  print(head(fitted_data,20))
+  # Check the number of unique values in the 'matrix' column
   unique_values_matrix <- length(unique(fitted_data$matrix))
   
   p <- ggplot(data = fitted_data, aes(x = dates, y = value)) +
-    geom_line(aes(color = as.factor(matrix)), linewidth = 1.1) +  # Ensure 'matrix' is a valid factor
-    geom_point(data = seroprevdata, aes(x = dates, y = value, color = "data"), linewidth = 1.1) +
+    geom_line(aes(color = factor(matrix)), linewidth = 1.5) +  # Ensure 'matrix' is a valid factor
+    geom_point(data = seroprevdata, aes(x = dates, y = value, color = "data"), size = 2) +
     #geom_vline(aes(xintercept = x), linetype = "dashed",color = "gold4", alpha = 0.95,size = 1.1, data = data.frame(x = beta_changepoints)) +
-    labs(x = "Date (Dec 2021 – June 2022)", y = "Incidence", title = "SEARCHI Model Fit: Incidence Trajectory (macpan2)", color = "")+
+    labs(x = "Date (Dec 2021 – June 2022)", y = "Incidence", title = "SEARCHI Model Fit: Incidence Trajectory (macpan2)", color = "") +
     theme_clean()+
     facet_wrap(~matrix, scales = "free") +
     #annotate("text", x = as.Date("2021-12-18"), y = 200, label = expression(beta[2] == 0.20),size = 1,angle = 90, hjust = 1, color = "black")+
@@ -99,8 +100,8 @@ plot_fit = function(cal_object) {
     p <- p + scale_color_manual(labels = c("fit", "data"), values = c("red", "black"))
     p <- p + theme(legend.position = c(0.85, 0.35))
   } else {
-    p <- p + scale_color_manual(labels = c("A", "C", "fit", "E", "H", "I", "R", "S", "data"),
-                                values = c("#008080", "blue", "red", "magenta", "brown", "orange", "green", "#2192FF", "black"))
+    p <- p + scale_color_manual(labels = c("A", "C", "fit", "data", "E", "H", "I", "R", "S"),
+                                values = c("#008080", "blue", "red", "black", "purple", "orange", "navy", "green", "brown"))
   }
   
   print(p)

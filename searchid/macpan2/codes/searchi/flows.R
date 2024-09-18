@@ -11,7 +11,7 @@ flows = list(
   , mp_per_capita_flow("I", "R", symp_recov ~ phi * (1-xi))
   , mp_per_capita_flow("H", "R", hosp_recov ~ omega * theta)
   , mp_per_capita_flow("H", "C", hosp_icu ~ omega * (1-theta))
-  , mp_per_capita_flow("C", "R", icu_recov ~ alpha)
+  , mp_per_capita_flow("C", "R", icu_recov ~ eta)
 )
 
 saveVars(flows)

@@ -20,7 +20,7 @@ before = list(N ~ N
 
 newspec <- mp_tmb_update(spec,
                          default = list(
-      beta = beta, eta = eta, omega = omega, theta = theta
+      beta = beta, alpha = alpha, omega = omega, theta = theta
     , xi = xi, phi = phi, mu = mu, gamma = gamma, sigma = sigma
     , N = N, E0 = E0, A0 = A0, R0 = R0, C0 = C0, H0 = H0, I0 = I0
 ))
@@ -34,8 +34,8 @@ nspec <- mp_tmb_insert(newspec
 
 ## time-varying parameters
 beta_changepoints <- c(0, 10, 21, 55, 90)
-#beta_values <- c(0.150, 0.30, 0.35, 0.45, 0.25)
-beta_values <- c(0.78,0.72,0.16,0.22,0.14)
+beta_values <- c(0.150, 0.30, 0.35, 0.45, 0.25)
+#beta_values <- c(0.1011336641,0.2975372314,0.3590898014,0.3617067444,0.3703970017)
 ## update  model specification with piece-wise transmission rates
 timevar_spec <- mp_tmb_insert(nspec
    , expression = list(beta ~ time_var(beta_values, beta_changepoints))

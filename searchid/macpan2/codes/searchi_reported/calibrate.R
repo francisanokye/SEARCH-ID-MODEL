@@ -22,7 +22,7 @@ calibrator <- mp_tmb_calibrator(
   spec = timevar_spec,
   data = reporteddata,
   traj = "cases",
-  outputs = c("cases"),#outputs),
+  outputs = c("cases",outputs),
   par = c("beta_values", "gamma", "phi")#,"mu", "xi", "theta", "omega", "alpha") 
 )
 
@@ -78,8 +78,8 @@ plot_fit = function(cal_object) {
     geom_vline(xintercept = as.Date("2022-01-03"), colour = "gold4", linetype = 2, size = 1)  +
     geom_vline(xintercept = as.Date("2022-02-06"), colour = "gold4", linetype = 2, size = 1)  +
     geom_vline(xintercept = as.Date("2022-03-14"), colour = "gold4", linetype = 1, size = 1)  +
-    annotate("text", x = as.Date("2022-03-05"), y = 1200, label = "Pre-Cancellation of Public \nHealth Emergency Declaration",size=4, hjust=1, color = "darkblue")+
-    annotate("text", x = as.Date("2022-05-20"), y = 1200, label = "Post Cancellation of Public \nHealth Emergency Declaration",size=4, hjust=1,color = "darkblue")+
+    #annotate("text", x = as.Date("2022-03-05"), y = 1200, label = "Pre-Cancellation of Public \nHealth Emergency Declaration",size=4, hjust=1, color = "darkblue")+
+    #annotate("text", x = as.Date("2022-05-20"), y = 1200, label = "Post Cancellation of Public \nHealth Emergency Declaration",size=4, hjust=1,color = "darkblue")+
     #facet_wrap(~matrix, scales = "free")+
     theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
           axis.title.x = element_text(size = 20, color = "black", face = "bold"),
@@ -96,9 +96,6 @@ plot_fit = function(cal_object) {
 }
 
 plot_fit(calibrator)
-
-
-
 
 
 rdsSave(calibrator)

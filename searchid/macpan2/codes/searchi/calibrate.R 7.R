@@ -24,8 +24,8 @@ calibrator <- mp_tmb_calibrator(
   spec = timevar_spec,
   data = seroprevdata,
   traj = "cases",
-  outputs = c("cases"),#outputs),
-  par = c("beta_values","gamma","phi")#, "phi","mu", "xi", "theta", "omega", "eta") 
+  outputs = c("cases",outputs),
+  par = c("beta_values","mu")#,"gamma","mu")#, "phi","mu", "xi", "theta", "omega", "eta") 
 )
 
 mp_optimize(calibrator)
@@ -99,8 +99,8 @@ plot_fit = function(cal_object) {
     p <- p + scale_color_manual(labels = c("fit", "data"), values = c("red", "black"))
     p <- p + theme(legend.position = c(0.85, 0.35))
   } else {
-    p <- p + scale_color_manual(labels = c("A", "C", "fit", "E", "H", "I", "R", "S", "data"),
-                                values = c("#008080", "blue", "red", "magenta", "brown", "orange", "green", "#2192FF", "black"))
+    p <- p + scale_color_manual(labels = c("A", "C", "cases", "S", "E", "H", "I", "R", "data"),
+                                values = c("#008080", "blue", "red", "brown", "purple", "orange", "navy", "green", "black"))
   }
   
   print(p)
