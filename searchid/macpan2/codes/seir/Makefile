@@ -42,11 +42,6 @@ calibrate_summary.Rout: calibrate_summary.R calibrate.rds
 calibrate_plot.Rout: calibrate_plot.R calibrate.rds seroprevdata.rds params.R
 	$(pipeR)
 
-cal_sims.Rout: cal_sims.R calibrate.rds seroprevdata.rds 
-	$(pipeR) 
-
-R_vrs_serop.Rout: R_vrs_serop.R calibrate.rds serodata.rds
-	$(pipeR)
 
 Ignore += makestuff
 msrepo = https://github.com/dushoff
