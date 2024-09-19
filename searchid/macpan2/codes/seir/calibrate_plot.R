@@ -29,6 +29,7 @@ gg <- (ggplot(ff,aes(x=time,y=value))
 print(gg)
 
 
+print(gg + xlim(c(90,200)))
 
 
 

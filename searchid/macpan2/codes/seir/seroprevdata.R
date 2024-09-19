@@ -16,7 +16,21 @@ seroprevdata <- est_infect_from_seroprevalence %>%
   arrange(matrix)
 		   
 print(seroprevdata)
+seroprevdata0 <- seroprevdata
+warmupdat <- data.frame(dates = seq.Date(as.Date("2021-09-15"),as.Date("2021-12-14"),by=1)
+	, time = -90:0
+	, matrix = "cases"
+	, value = seq(0,400,length.out=91) 
+#	, value = NA 
+)
 
+seroprevdata <- (bind_rows(warmupdat, seroprevdata)
+	|> mutate(time = time + 90)
+)
+
+print(seroprevdata)
+
+seroprevdata <- seroprevdata0
 rdsSave(seroprevdata)
 #saveEnvironment()
 

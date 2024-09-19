@@ -8,9 +8,9 @@ loadEnvironments()
 spec <- mp_tmb_model_spec(
   before = list(
     N ~ N,
-    E ~ E0,
-    I ~ I0,
-    R ~ R0,
+    E ~ exp(log_E0),
+    I ~ exp(log_I0),
+    R ~ exp(log_R0),
     S ~ N - E - I - R
   ),
   during = flows,  
@@ -22,9 +22,9 @@ newspec <- mp_tmb_update(spec
 		, beta = beta
 		, gamma = gamma
     	, N = N
-		, E0 = E0
-		, I0 = I0
-		, R0 = R0
+		, log_E0 = log(E0)
+		, log_I0 = log(I0)
+		, log_R0 = log(R0)
 	)
 )
 
@@ -36,14 +36,12 @@ nspec <- mp_tmb_insert(newspec
 	)
   , at = Inf
   , phase = "during"
-  , default = list(report_prob = 1)
 )
 
 ## update  model specification with piece-wise transmission rates
 timevar_spec <- mp_tmb_insert(nspec
    , phase = "during"
    , at = 1L
-   , default = list(beta = beta)
 )
 
 rdsSave(timevar_spec)
