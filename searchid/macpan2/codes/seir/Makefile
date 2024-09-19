@@ -39,7 +39,7 @@ calibrate.Rout: calibrate.R timevar_spec.rds seroprevdata.rds timevar_spec.R
 calibrate_summary.Rout: calibrate_summary.R calibrate.rds
 	$(pipeR)
 
-calibrate_plot.Rout: calibrate_plot.R calibrate.rds seroprevdata.rds timevar_spec.R
+calibrate_plot.Rout: calibrate_plot.R calibrate.rds seroprevdata.rds params.R
 	$(pipeR)
 
 cal_sims.Rout: cal_sims.R calibrate.rds seroprevdata.rds 
