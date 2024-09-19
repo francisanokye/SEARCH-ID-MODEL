@@ -4,28 +4,6 @@ rpcall("timevar_spec.Rout timevar_spec.R flows.rda params.rda")
 
 loadEnvironments()
 
-spec = mp_tmb_model_spec(
-before = list(N ~ N
-	      , E ~ E0
-	      , I ~ I0
-	      , R ~ R0
-	      , S ~ N - E - I - R
-	     )
-	, during = flows
-	, default = c(params)
-	)
-
-
-## ------------------------------------
-# time-varying transmission parameters
-## ------------------------------------
-beta_changepoints <- c(0, 10, 21, 55, 90)
-#beta_values <- c(0.150, 0.30, 0.35, 0.45, 0.25)
-beta_values = c(0.71, 0.34, 0.34,0.33,0.33)
-
-beta_changepoints <- c(0)
-beta_values <- c(0.7)
-
 ## why?!?
 spec <- mp_tmb_model_spec(
   before = list(
@@ -54,7 +32,7 @@ newspec <- mp_tmb_update(spec
 ## accumulate infections
 nspec <- mp_tmb_insert(newspec
   , expression = list(cases ~ S*foi * report_prob
-  	, serop ~ R/510550
+  	, serop ~ R/N # 510550
 	)
   , at = Inf
   , phase = "during"
@@ -63,11 +41,9 @@ nspec <- mp_tmb_insert(newspec
 
 ## update  model specification with piece-wise transmission rates
 timevar_spec <- mp_tmb_insert(nspec
-   , expression = list(beta ~ time_var(beta_values, beta_changepoints))
    , phase = "during"
    , at = 1L
-   , default = list(beta_values = beta_values)
-   , integers = list(beta_changepoints = beta_changepoints)
+   , default = list(beta = beta)
 )
 
 rdsSave(timevar_spec)

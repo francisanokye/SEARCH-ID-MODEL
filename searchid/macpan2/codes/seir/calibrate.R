@@ -25,105 +25,14 @@ calibrator <- mp_tmb_calibrator(
   data = seroprevdata,
   traj = c("cases", "serop"),
   outputs = c("cases","serop",outputs),
-  par = c("beta_values") # "gamma","alpha")# ,"report_prob")
-  # par = c("beta_values","gamma","mu" ,"eta", "xi", "phi", "omega", "theta")
-  #,tv = mp_rbf("eta", dimension = 2, seed = 1024)
-
+  par = c("beta") # "gamma","alpha")# ,"report_prob")
 )
 
 mp_optimize(calibrator)
 
-
-##########################################################################################
-# see here, https://github.com/canmod/macpan2/issues/179
-backtrans <- function(x) {
-  vars1 <- intersect(c("default", "estimate", "conf.low", "conf.high"), names(x))
-  prefix <- stringr::str_extract(x[["mat"]], "^log(it)?_")  |> tidyr::replace_na("none")
-  sx <- split(x, prefix)
-  for (ptype in setdiff(names(sx), "none")) {
-    link <- make.link(stringr::str_remove(ptype, "_"))
-    sx[[ptype]] <- (sx[[ptype]]
-                    |> mutate(across(std.error, ~link$mu.eta(estimate)*.))
-                    |> mutate(across(any_of(vars1), link$linkinv))
-                    |> mutate(across(mat, ~stringr::str_remove(., paste0("^", ptype))))
-    )
-  }
-  bind_rows(sx)
-}
-##########################################################################################
-
-coeff <- mp_tmb_coef(calibrator, conf.int = TRUE) |> backtrans()
-print(coeff)
-############ Visualize simulation with calibrated paramters against the observed data ###########
-
-
-ff <- mp_trajectory_sd(calibrator)
-
-print(ff)
-
-gg <- (ggplot(ff,aes(x=time,y=value))
-	+ facet_wrap(~matrix,scale="free")
-   + geom_point(data = seroprevdata, aes(x = time, y = value, color = "data"))
-	+ geom_line()
-	+ theme_bw()
-)
-
-print(gg)
-
-quit()
-
-plot_fit = function(cal_object) {
-  set.seed(2024)
-  fitted_data = mp_trajectory_sd(cal_object)
-  start_date <- as.Date("2021-12-15")
-  fitted_data$dates <- start_date + fitted_data$time - 1
-  print(head(fitted_data,20)) 
-  seroprevdata <- seroprevdata[(seroprevdata$dates >= "2021-12-15") & (seroprevdata$dates <= "2022-06-02"),]
-
-  unique_values_matrix <- length(unique(fitted_data$matrix))
-  beta_changepoints = c(0, 10, 21, 55, 90)
-
-  pp <- (ggplot(data = fitted_data, aes(x = time, y= value))
-        + geom_line(aes(color = matrix),linewidth = 1.5)
-        + geom_point(data = seroprevdata, aes(x = time, y = value, color = "data"))
-        + geom_vline(aes(xintercept = x), linetype = "dashed",color = "gold4" , alpha = 0.5, data = data.frame(x = beta_changepoints))
-        #+ geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 4, size = 1)
-        #+ geom_vline(xintercept = as.Date("2021-12-23"), colour = "gold4", linetype = 4, size = 1)
-        #+ geom_vline(xintercept = as.Date("2022-01-03"), colour = "gold4", linetype = 4, size = 1)
-        #+ geom_vline(xintercept = as.Date("2022-02-06"), colour = "gold4", linetype = 4, size = 1)
-        #+ geom_vline(xintercept = as.Date("2022-03-14"), colour = "gold4", linetype = 1, size = 1)
-        + labs(x = "Date (Dec 2021 - June 2022)", y = "Incidence", title = "SEARCHI Model Fit", color = "")
-        + facet_wrap(~matrix, scales = "free")
-        + theme_clean()
-        + theme(axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
-          axis.title.x = element_text(size = 15, color = "black", face = "bold"),
-          axis.text.y = element_text(size = 10),
-          axis.title.y = element_text(size = 15, color = "black", face = "bold"),
-          plot.title = element_text(size = 18, face = "bold", color = "black", hjust = 0.5),
-          legend.position = "right",
-          legend.title = element_text(size = 15),
-          legend.text = element_text(size = 10),
-          legend.background = element_rect(color = NA),
-          legend.margin = margin(0, 0, 0, 0),
-          plot.background = element_blank()) +
-          theme(plot.title = element_text(hjust = 0.5))
-       )
-
-  if (unique_values_matrix == 2) {
-    pp <- pp + scale_color_manual(labels = c("fit", "data"), values = c("red", "black"))
-    pp <- pp + theme(legend.position = c(0.85, 0.35))
-  } else {
-    pp <- pp + scale_color_manual(labels = c("cases","fit", "data", "E", "I", "R","S","serop","serodata"),
-                                values = c("#008080", "blue", "red", "black", "brown", "orange", "green", "#2192FF", "magenta","yellow4","maroon"))
-  }
-
-  print(pp + xlim(c(0,100)))
-}
-
-plot_fit(calibrator)
-
-
 rdsSave(calibrator)
+
+
 
 
 

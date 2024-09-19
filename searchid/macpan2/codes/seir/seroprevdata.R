@@ -7,12 +7,6 @@ est_infect_from_seroprevalence$date <- as.Date(est_infect_from_seroprevalence$da
 est_infect_from_seroprevalence <- est_infect_from_seroprevalence |>
   rename_at("date",~"dates")
 
-#seroprevdata = est_infect_from_seroprevalence |>
-#                   select(dates, est_inci_serop) |>
-#                   mutate(matrix = "cases") |>
-#                   rename_at("est_inci_serop" , ~ "value") |>
-#                   mutate(time = seq_along(dates))
-
 
 seroprevdata <- est_infect_from_seroprevalence %>%
   select(dates, adjusted_serop_cases, seroprevalence) %>%
