@@ -1,2 +1,7 @@
 *.icloud
-
+*.Rlog 
+*.Rout 
+*.Rout.args 
+*.Rout.pdf 
+*.R.oldfile 
+*.rda
