@@ -24,7 +24,7 @@ calibrator <- mp_tmb_calibrator(
   spec = timevar_spec,
   data = seroprevdata,
   traj = "cases",
-  outputs = c("cases",outputs),
+  outputs = c("cases"),#outputs),
   par = c("beta_values","gamma")#,"mu")#,"phi")#, "phi","gamma", "xi", "theta", "omega", "eta") 
 )
 

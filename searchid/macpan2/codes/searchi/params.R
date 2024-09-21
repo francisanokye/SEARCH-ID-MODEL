@@ -2,18 +2,18 @@ library(shellpipes)
 
 beta = 0.25
 eta = 0.99
-omega = 1/2
-theta = 0.01
-xi = 0.004
+omega = 1/3
+theta = 0.006#0.01
+xi = 0.009
 phi = 1/3
-mu = 1/3
+mu = 0.35
 gamma = 1/10
 sigma = 0.60
 
 N = 510550
-E0 =  10
-A0 = 0
-R0 = 0
+E0 = 0 #500
+A0 = 0 #10
+R0 = 14000
 C0 = 0
 H0 = 0
 I0 = 25

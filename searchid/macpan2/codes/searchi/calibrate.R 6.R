@@ -59,14 +59,14 @@ plot_fit = function(cal_object) {
   start_date <- as.Date("2021-12-15")
   fitted_data$dates <- start_date + fitted_data$time - 1
   
-  seroprevdata <- seroprevdata[(seroprevdata$dates >= "2021-12-15") & (seroprevdata$dates <= "2022-06-02"),]
+  reporteddata <- reporteddata[(reporteddata$dates >= "2021-12-15") & (seroprevdata$dates <= "2022-06-02"),]
 
   unique_values_matrix <- length(unique(fitted_data$matrix))
   beta_changepoints = c(0, 10, 21, 55, 90)
 
   pp <- (ggplot(data = fitted_data, aes(x = time, y= value))
         + geom_line(aes(color = matrix),linewidth = 1.5)
-        + geom_point(data = seroprevdata, aes(x = time, y = value, color = "data"))
+        + geom_point(data = reporteddata, aes(x = time, y = value, color = "data"))
         + geom_vline(aes(xintercept = x), linetype = "dashed",color = "gold4" , alpha = 0.5, data = data.frame(x = beta_changepoints))
         #+ geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 4, size = 1)
         #+ geom_vline(xintercept = as.Date("2021-12-23"), colour = "gold4", linetype = 4, size = 1)
