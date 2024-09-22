@@ -13,6 +13,8 @@ Warning messages:
   NA/NaN function evaluation
 4: In (function (start, objective, gradient = NULL, hessian = NULL,  :
   NA/NaN function evaluation
+5: In (function (start, objective, gradient = NULL, hessian = NULL,  :
+  NA/NaN function evaluation
 Warning messages:
 1: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
 ℹ Please use `linewidth` instead. 

@@ -40,13 +40,13 @@ Type 'q()' to quit R.
 > newspec <- mp_tmb_update(spec,
 +                          default = list(
 +       beta = beta, eta = eta, omega = omega, theta = theta
-+     , xi = xi, phi = phi, mu = mu, gamma = gamma, sigma = sigma
++     , xi = xi, phi = phi, mu = mu, gamma = gamma, sigma = sigma, zeta = zeta, reporting_frac = reporting_frac
 +     , N = N, E0 = E0, A0 = A0, R0 = R0, C0 = C0, H0 = H0, I0 = I0
 + ))
 > 
 > ## accumulate infections
 > nspec <- mp_tmb_insert(newspec
-+   , expression = list(cases ~ infection)
++   , expression = list(cases ~ infection * reporting_frac)
 +   , at = Inf
 +   , phase = "during"
 + )

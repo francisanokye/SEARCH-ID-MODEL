@@ -22,7 +22,7 @@ calibrator <- mp_tmb_calibrator(
   spec = timevar_spec,
   data = reporteddata,
   traj = "cases",
-  tv = mp_rbf("beta", dimension = 70,initial_weights = rep(1,70), seed = 2024),
+  tv = mp_rbf("beta_values", dimension = 7, initial_weights = c(1, 1, 1, 1, 1, 1, 1)),
   outputs = c("cases",outputs),
   par = c("beta_values","reporting_frac", "gamma")#, "phi")#,"xi", "mu", "theta", "omega", "eta") 
 )

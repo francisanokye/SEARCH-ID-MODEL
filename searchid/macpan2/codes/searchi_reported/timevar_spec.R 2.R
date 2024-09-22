@@ -21,13 +21,13 @@ before = list(N ~ N
 newspec <- mp_tmb_update(spec,
                          default = list(
       beta = beta, eta = eta, omega = omega, theta = theta
-    , xi = xi, phi = phi, mu = mu, gamma = gamma, sigma = sigma, zeta = zeta, reporting_frac = reporting_frac
+    , xi = xi, phi = phi, mu = mu, gamma = gamma, sigma = sigma
     , N = N, E0 = E0, A0 = A0, R0 = R0, C0 = C0, H0 = H0, I0 = I0
 ))
 
 ## accumulate infections
 nspec <- mp_tmb_insert(newspec
-  , expression = list(cases ~ infection * reporting_frac)
+  , expression = list(cases ~ infection)
   , at = Inf
   , phase = "during"
 )

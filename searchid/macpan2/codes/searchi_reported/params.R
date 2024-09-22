@@ -9,6 +9,8 @@ phi = 1/3
 mu = 0.35
 gamma = 1/10
 sigma = 0.60
+reporting_frac = 0.7
+zeta = 0.75
 
 N = 510550
 E0 =  0
@@ -28,6 +30,8 @@ params = list(beta = beta
 	      , theta = theta
 	      , xi = xi
 	      , phi = phi
+	      , zeta = zeta
+	      , reporting_frac = reporting_frac
 	     )
 
 states = list(N = N
