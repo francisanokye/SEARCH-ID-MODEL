@@ -18,14 +18,26 @@ reporteddata <- rdsRead("reporteddata.rds")
 
 outputs = c("S", "E", "A", "R", "C", "H", "I")
 
+# Define the calibrator with transformed parameters and time-varying beta_values
 calibrator <- mp_tmb_calibrator(
   spec = timevar_spec,
   data = reporteddata,
-  traj = "cases",
-  tv = mp_rbf("beta", dimension = 70,initial_weights = rep(1,70), seed = 2024),
-  outputs = c("cases",outputs),
-  par = c("beta_values","reporting_frac", "gamma")#, "phi")#,"xi", "mu", "theta", "omega", "eta") 
+  traj = "cases",# list(cases = mp_pois()),
+  outputs = c("cases", outputs),
+  par = c("log_beta_values", "logit_reporting_frac", "log_gamma"),
+  #default = list(mu = 0.35, gamma = 1/10, eta = 0.5, theta = 0.005, xi = 0.009)
+  #tv = mp_rbf("log_beta_values", dimension = 1, seed = 1024)
 )
+
+#calibrator <- mp_tmb_calibrator(
+#  spec = timevar_spec,
+#  data = reporteddata,
+#  traj = "cases",
+#  tv = mp_rbf("beta", dimension = 7,initial_weights = rep(1,7), seed = 2024),
+#  outputs = c("cases",outputs),
+#  par = c("log_beta", "logit_reporting_frac")#, "log_gamma")
+#  #par = c("beta_values","reporting_frac", "gamma")#, "phi")#,"xi", "mu", "theta", "omega", "eta") 
+#)
 
 mp_optimize(calibrator)
 
@@ -54,7 +66,7 @@ print(coeff)
 ############ Visualize simulation with calibrated paramters against the observed data ###########
 
 plot_fit = function(cal_object) {
-  fitted_data = mp_trajectory_sd(cal_object)
+  fitted_data = mp_trajectory_sd(cal_object, conf.int = TRUE)
   start_date <- as.Date("2021-12-15")
   fitted_data$dates <- start_date + fitted_data$time -1
 
@@ -64,9 +76,9 @@ plot_fit = function(cal_object) {
   unique_values_matrix <- length(unique(fitted_data$matrix))
 
   p <- ggplot() +
-    geom_point(data = reporteddata, aes(x = dates, y = value, color = "data"), size = 1.5) +
-    geom_line(data = fitted_data, aes(x = dates, y = value, color = matrix), size = 1.5) +
-    # geom_ribbon(aes(x = dates, ymin = conf.low, ymax = conf.high), data = fitted_data, alpha = 0.2, fill = "red") +
+    geom_point(data = reporteddata, aes(x = dates, y = value, color = "data"), size = 1) +
+    geom_line(data = fitted_data, aes(x = dates, y = value, color = matrix), size = 1) +
+    geom_ribbon(aes(x = dates, ymin = conf.low, ymax = conf.high), data = fitted_data, alpha = 0.3, fill = "gray") +
     labs(x = "Date (Dec 2021  - June 2022)", y = "Omicron True Infections", title = "SEARCHI Model Fit With macpan2", color = "") +
     #annotate("text", x = as.Date("2021-12-18"), y = 700, label = expression(beta[2] == 0.20),size = 6,angle = 90, hjust = 1, color = "black")+
   #annotate("text", x = as.Date("2021-12-28"), y = 700, label = expression(beta[3] == 5.21),size = 6,angle = 90, hjust = 1,color = "black")+

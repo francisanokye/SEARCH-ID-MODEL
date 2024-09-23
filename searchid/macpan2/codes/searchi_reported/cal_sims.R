@@ -11,17 +11,17 @@ calobj = rdsRead("calibrate.rds")
 
 reporteddata <- rdsRead("reporteddata.rds")
 
-inc_sim <- mp_trajectory(calobj)
+inc_sim <- mp_trajectory_sd(calobj, conf.int = TRUE)
 start_date <- as.Date("2021-12-15")
 inc_sim$dates <- start_date + inc_sim$time - 1
 
 beta_changepoints = c(0, 10, 21, 55, 90)
 unique_values_matrix <- length(unique(inc_sim$matrix))
 
-pp <- (ggplot(data = inc_sim, aes(x = dates, y= value))
-        + geom_line(aes(color = matrix),linewidth = 1.5)
+pp <- (ggplot(data = inc_sim, aes(x = dates, y= value), linewidth = 1)
+        + geom_line(aes(color = matrix), linewidth =1)
 	+ geom_point(data = reporteddata, aes(x = dates, y = value, color = "data"))
-	+ geom_vline(aes(xintercept = x), linetype = "dashed",color = "gold4" , alpha = 0.5, data = data.frame(x = beta_changepoints))
+	+ geom_ribbon(aes(x = dates, ymin = conf.low, ymax = conf.high), data = inc_sim, alpha = 0.3, fill = "gray") 
         + geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 4, size = 1)
 	+ geom_vline(xintercept = as.Date("2021-12-23"), colour = "gold4", linetype = 4, size = 1)
 	+ geom_vline(xintercept = as.Date("2022-01-03"), colour = "gold4", linetype = 4, size = 1)

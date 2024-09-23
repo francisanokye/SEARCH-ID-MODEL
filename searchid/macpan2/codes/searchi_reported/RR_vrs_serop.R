@@ -30,7 +30,7 @@ plot_seroprevalence = function(cal_object) {
   # Bind the original data with the new 'serrow' rows
   #combined_data <- bind_rows(fitted_data, serrow_data)
 
-  # Optionally sort by dates, time, etc. to maintain order
+  # Optionally sort by dates, time, etc. to maintain orderz
   #combined_data <- combined_data %>%
   #  arrange(dates, time, row, col)
 
@@ -40,7 +40,7 @@ plot_seroprevalence = function(cal_object) {
   
   ggplot() +
         geom_line(data = serodata, aes(x = dates, y = daily_serop, color = "CITF Seroprevalence"), linewidth = 1.5) +
-        geom_line(data = fitted_data, aes(x = dates, y = value/510550, color = "Recovery Per Capita"), linewidth = 1.5) +
+        geom_line(data = fitted_data, aes(x = dates, y = value/population, color = "Recovery Per Capita"), linewidth = 1.5) +
         scale_color_manual(labels = c("CITF Seroprevalence", "Recovery Per Capita"), values =c("maroon","darkgreen")) +
         labs(x = "Date", y = "Seroprevalence", title = "Recovery Per Capita and CITF Seroprevalence", color = "") +
         geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 1)  +
