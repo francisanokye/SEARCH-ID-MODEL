@@ -23,9 +23,11 @@ population = 510550
 calibrator <- mp_tmb_calibrator(
   spec = timevar_spec,
   data = seroprevdata,
-  traj = "cases",
-  outputs = c("cases",outputs),
-  par = c("beta_values","gamma")#,"mu")#,"phi")#, "phi","gamma", "xi", "theta", "omega", "eta") 
+  traj = c("cases", "serop"),
+  outputs = c("cases","serop",outputs),
+  par = c("beta_values","gamma","mu","phi", "xi", "theta", "omega", "eta")
+ # tv = mp_rbf("beta_values", dimension = 1, seed = 1024)
+
 )
 
 mp_optimize(calibrator)
@@ -58,7 +60,7 @@ plot_fit = function(cal_object) {
   fitted_data = mp_trajectory_sd(cal_object)
   start_date <- as.Date("2021-12-15")
   fitted_data$dates <- start_date + fitted_data$time - 1
-  
+  print(head(fitted_data,20)) 
   seroprevdata <- seroprevdata[(seroprevdata$dates >= "2021-12-15") & (seroprevdata$dates <= "2022-06-02"),]
 
   unique_values_matrix <- length(unique(fitted_data$matrix))
@@ -75,13 +77,13 @@ plot_fit = function(cal_object) {
         #+ geom_vline(xintercept = as.Date("2022-03-14"), colour = "gold4", linetype = 1, size = 1)
         + labs(x = "Date (Dec 2021 - June 2022)", y = "Incidence", title = "SEARCHI Model Fit", color = "")
         + facet_wrap(~matrix, scales = "free")
-        + theme_clean()
+        + theme_bw()
         + theme(axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
           axis.title.x = element_text(size = 15, color = "black", face = "bold"),
           axis.text.y = element_text(size = 10),
           axis.title.y = element_text(size = 15, color = "black", face = "bold"),
           plot.title = element_text(size = 18, face = "bold", color = "black", hjust = 0.5),
-          legend.position = c(0.85, 0.10),
+          legend.position = c(0.85, 0.20),
           legend.title = element_text(size = 15),
           legend.text = element_text(size = 10),
           legend.background = element_rect(color = NA),
@@ -90,12 +92,12 @@ plot_fit = function(cal_object) {
           theme(plot.title = element_text(hjust = 0.5))
        )
 
-  if (unique_values_matrix == 1) {
+  if (unique_values_matrix == 2) {
     pp <- pp + scale_color_manual(labels = c("fit", "data"), values = c("red", "black"))
     pp <- pp + theme(legend.position = c(0.85, 0.35))
   } else {
-    pp <- pp + scale_color_manual(labels = c("A", "C", "fit", "data", "E", "H", "I", "R", "S"),
-                                values = c("#008080", "blue", "red", "black", "brown", "orange", "green", "#2192FF", "magenta"))
+    pp <- pp + scale_color_manual(labels = c("A", "C", "fit", "data", "E", "H", "I", "R","RSerop","S"),
+                                values = c("#008080", "blue", "red", "black", "brown", "orange", "green", "#2192FF", "magenta","yellow4"))
   }
 
   print(pp)

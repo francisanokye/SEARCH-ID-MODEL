@@ -2,7 +2,7 @@ library(macpan2)
 library(shellpipes)
 
 flows = list(
-    foi ~ beta * (A + I) / N
+    foi ~ beta * (zeta * A + I) / N
   , mp_per_capita_flow("S", "E", infection ~ foi)
   , mp_per_capita_flow("E", "A", expo_asymp ~ sigma * mu)
   , mp_per_capita_flow("E", "I", expo_symp ~ sigma * (1 - mu))

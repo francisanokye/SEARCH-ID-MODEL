@@ -48,8 +48,8 @@ if (unique_values_matrix == 1) {
     pp <- pp + scale_color_manual(labels = c("fit", "data"), values = c("red", "black"))
     pp <- pp + theme(legend.position = c(0.85, 0.35))
   } else {
-    pp <- pp + scale_color_manual(labels = c("A", "C", "fit", "data", "E", "H", "I", "R", "S"),
-                                values = c("#008080", "blue", "red", "black", "brown", "orange", "green", "#2192FF", "magenta"))
+    pp <- pp + scale_color_manual(labels = c("A", "C", "fit", "data", "E", "H", "I", "R", "S","serop"),
+                                values = c("#008080", "blue", "red", "black", "brown", "orange", "green", "#2192FF", "magenta", "yellow4"))
   }
 
 print(pp)
