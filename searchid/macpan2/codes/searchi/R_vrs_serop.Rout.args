@@ -1,2 +1,0 @@
-rpcall("R_vrs_serop.Rout .pipestar R_vrs_serop.R calibrate.rds serodata.rds")
-

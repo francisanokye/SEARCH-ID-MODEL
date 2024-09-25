@@ -27,7 +27,7 @@ newspec <- mp_tmb_update(spec,
 
 ## accumulate infections
 nspec <- mp_tmb_insert(newspec
-  , expression = list(cases ~ infection, serop ~ R/510550)
+  , expression = list(cases ~ infection, serop ~ (R+A+I)/510550)
   , at = Inf
   , phase = "during"
 )

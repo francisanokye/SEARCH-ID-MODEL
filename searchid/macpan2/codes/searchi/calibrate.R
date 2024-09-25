@@ -77,13 +77,13 @@ plot_fit = function(cal_object) {
         #+ geom_vline(xintercept = as.Date("2022-03-14"), colour = "gold4", linetype = 1, size = 1)
         + labs(x = "Date (Dec 2021 - June 2022)", y = "Incidence", title = "SEARCHI Model Fit", color = "")
         + facet_wrap(~matrix, scales = "free")
-        + theme_bw()
+        + theme_clean()
         + theme(axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
           axis.title.x = element_text(size = 15, color = "black", face = "bold"),
           axis.text.y = element_text(size = 10),
           axis.title.y = element_text(size = 15, color = "black", face = "bold"),
           plot.title = element_text(size = 18, face = "bold", color = "black", hjust = 0.5),
-          legend.position = c(0.85, 0.20),
+          legend.position = "right",
           legend.title = element_text(size = 15),
           legend.text = element_text(size = 10),
           legend.background = element_rect(color = NA),
@@ -96,8 +96,8 @@ plot_fit = function(cal_object) {
     pp <- pp + scale_color_manual(labels = c("fit", "data"), values = c("red", "black"))
     pp <- pp + theme(legend.position = c(0.85, 0.35))
   } else {
-    pp <- pp + scale_color_manual(labels = c("A", "C", "fit", "data", "E", "H", "I", "R","RSerop","S"),
-                                values = c("#008080", "blue", "red", "black", "brown", "orange", "green", "#2192FF", "magenta","yellow4"))
+    pp <- pp + scale_color_manual(labels = c("A", "C", "fit", "data", "E", "H", "I", "R","S","serop","serodata"),
+                                values = c("#008080", "blue", "red", "black", "brown", "orange", "green", "#2192FF", "magenta","yellow4","maroon"))
   }
 
   print(pp)

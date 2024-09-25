@@ -1,2 +1,0 @@
-rpcall("serodata.Rout .pipestar serodata.R ../../data/omicron_estimated_serop.csv")
-

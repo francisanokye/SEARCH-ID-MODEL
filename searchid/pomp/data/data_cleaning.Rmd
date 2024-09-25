@@ -1,0 +1,331 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r warning=FALSE, message=FALSE}
+#rm(list = ls(all.names = TRUE))
+set.seed(132628335)
+suppressPackageStartupMessages({
+pacman::p_load(tidyverse, reshape2, ggplot2, coda, gtools, gridExtra,
+                foreach, doParallel, doRNG, tidyr,plyr, pomp, doMC, zoo, 
+                devtools, readxl, viridis, tibbletime, tidyquant, lubridate,
+                grid, ggthemes, ggh4x, ggsci, ggnewscale, repr, magrittr, 
+               coda, xtable, gghighcontrast, superdiag,ggpubr,cowplot)})
+
+base_colors <- scales::hue_pal()(18)
+dark_colors <- colorspace::darken(base_colors, 0.3)
+lite_colors <- colorspace::lighten(base_colors, 0.3)
+
+library(doParallel)
+registerDoParallel(cores = detectCores())
+options(scipen = 100, digits = 4)
+```
+
+```{r warning=FALSE, message=FALSE}
+set.seed(132628335)
+library(tidyverse)
+library(here)
+library(pomp)
+library(foreach)
+library(doFuture)
+library(parallel)
+library(doParallel)
+library(doRNG)
+library(coda)
+library(ggthemes)
+library(coda)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(ggthemes)
+library(cowplot)
+library(minpack.lm)
+library(coda)
+library(xtable)
+library(mgcv)
+library(zoo)
+
+colors = c("#000000","#31E1F7","#F99417","#E11299","#002B5B","#379237","#D2001A","#6F38C5","#8D7B68","#BFDB38","#820000","#367E18","#2192FF","#C58940")
+options(scipen = 100, digits = 8)
+
+#####################
+# SEROPREVALENCE DATA 
+#####################
+
+weekly_seroprevalence <- read.csv("~/Documents/MUN/SEARCH-ID-MODEL/searchid/pomp/data/estimated_seroprevalence.csv")
+weekly_seroprevalence$week_end <- as.Date(weekly_seroprevalence$week_end, format = "%Y-%m-%d")
+
+# Make copy data and format the date
+original_est_SERP <- weekly_seroprevalence[(weekly_seroprevalence$geo == "NL"),]
+original_est_SERP <- original_est_SERP %>%
+  mutate(week_end = as.Date(week_end, format = "%Y-%m-%d"),est_infection_date = week_end)
+
+# Subset the Anti-N 
+weekly_seroprevalence <- weekly_seroprevalence[(weekly_seroprevalence$geo == "NL")  & (weekly_seroprevalence$ab_estimate == "Anti-N estimate"),] #
+
+# Rename date column
+weekly_seroprevalence <- weekly_seroprevalence %>%
+  rename_at("week_end", ~"date")
+
+# Format date column
+weekly_seroprevalence$date <- as.Date(weekly_seroprevalence$date, format = "%Y-%m-%d")
+
+# Total population
+total_population <- 510550
+
+# Create a copy of data
+est_SERP <- weekly_seroprevalence
+
+# Create the daily seroprevalence 
+est_SERP <- est_SERP %>%
+  mutate(daily_pct = c(0,diff(pct_mean)))
+
+# Subset only the study period
+est_SERP <- est_SERP[(est_SERP$date >= "2021-12-09") & (est_SERP$date < "2022-09-09"),] #"2022-06-09"
+rownames(est_SERP) <- NULL
+
+# est_SERP <- est_SERP %>%
+#   select(-c(geo,ab_estimate,pct_q25,pct_q75))
+
+# Create the count index
+est_SERP$day <- 1:nrow(est_SERP) * 7
+rownames(est_SERP) <- NULL
+
+# create a new dummy dataframe in the daily scale
+cum_daily_seroprev <- data.frame(day = 1:(nrow(est_SERP) * 7)) 
+
+# Create a sequence of dates
+dates <- seq.Date(from = as.Date("2021-12-11"), by = "day", length.out = nrow(cum_daily_seroprev))
+
+#-----------------------------------------------------------------------------------
+# Fit a logistic model to convert weekly estimated seroprevalence to daily estimates
+#-----------------------------------------------------------------------------------
+
+# Define the logistic function
+# logistic_model <- function(t, K, r, t0) {
+#   K / (1 + exp(-r * (t - t0)))
+#   }
+# # median(est_SERP$day)
+# # Fit the serology data on the weekly scale
+# logit_model <- nlsLM(pct_mean ~ logistic_model(day, K, r, t0), data = est_SERP,
+#              start = list(K = max(est_SERP$pct_mean), r = 0.05, t0 = est_SERP$day[1]),
+#              control = nls.lm.control(maxiter = 2000000))
+# 
+# # Predict cumulative seroprevalence on daily scale
+# cum_daily_seroprev$cum_daily_serop <- predict(logit_model, type = "response", newdata = cum_daily_seroprev)
+
+#-----------------------------------------------------------------------------------
+# Fit a Gompertz model to convert weekly estimated seroprevalence to daily estimates
+#-----------------------------------------------------------------------------------
+
+gompertz_func = function(a,b,c,K, t) {
+  a + (c * exp(-exp(-b * (t - K))))
+  }
+#
+gombertz_mod <- nlsLM(pct_mean ~ gompertz_func(a,b,c, K, day), data = est_SERP,
+                      start = list(a = 0.5, b = 0.05, c = 1, K = max(est_SERP$pct_mean)),
+                      control = nls.lm.control(maxiter = 20000))
+
+y_pred_gomb <- predict(gombertz_mod, newdata = cum_daily_seroprev, type = "response")
+
+cum_daily_seroprev$cum_daily_serop <- y_pred_gomb
+#-----------------------------------------------------------------------------------
+
+# Add dates
+cum_daily_seroprev$date <- dates
+
+cum_daily_seroprev <- cum_daily_seroprev[(cum_daily_seroprev$date >= "2021-12-15"), ] #& (cum_daily_seroprev$date < "2022-06-03"),
+cum_daily_seroprev$day <- 1:nrow(cum_daily_seroprev)
+#rownames(cum_daily_seroprev) <- NULL
+
+# After exposure to the COVID-19, it generally takes about two to three weeks for a person to recover and develop antibodies that can be measured in 
+# blood tests (Long et al., 2022). We will adjust the seroprevalence data (daily_serop) by shifting the data backward by the average recovery and antibody development period (i.e., 14 days). Implying that cases reported on 2021-12-15 will be detected through antibodies around 2021-12-29. Hence, the seroprevalence will be subsetted from this date and reassigned the date to correspond to the reported cases' date.  
+
+# the lag period in days
+lag_days <- 14
+
+# calculate seroprevalence by shifting the daily seroprevalence backward by lag_days
+cum_daily_seroprev <- cum_daily_seroprev %>%
+  mutate(seroprevalence = lag(cum_daily_serop, lag_days))
+
+# Replace NA values (resulting from the lag) with 0 for visualization purposes
+cum_daily_seroprev$seroprevalence[is.na(cum_daily_seroprev$seroprevalence)] <- 0
+
+# subset seroprevalence after shifting forward by 14- days and reassign date to reflect the forward shift
+seroprevalence <- cum_daily_seroprev[(cum_daily_seroprev$date >= "2021-12-29"),] #& (cum_daily_seroprev$date < "2022-06-03"),] #"2022-06-09"
+
+#rownames(seroprevalence) <- NULL
+# reassign date to reflect the forward shift
+date <- seq.Date(from = as.Date("2021-12-15"), by = "day", length.out = nrow(seroprevalence))
+seroprevalence$date <- date
+seroprevalence <- seroprevalence[(seroprevalence$date < "2022-06-03"),] #"2022-06-09"
+
+seroprevalence$day <- 1:nrow(seroprevalence)
+seroprevalence <- subset(seroprevalence, select = c("day","date","seroprevalence"))
+rownames(seroprevalence) <- NULL
+
+# ensure date is ordered and derive the daily seroprevalence increment
+seroprevalence <- seroprevalence %>%
+  arrange(date) %>%
+  mutate(daily_serop_increment = c(NA, diff(seroprevalence)))
+
+seroprevalence$daily_serop_increment <- na.approx(seroprevalence$daily_serop_increment)
+seroprevalence
+```
+#-----------------------------------------------------------------------------------
+# Add confidence interval (CI) to daily seroprevalence estimates
+#-----------------------------------------------------------------------------------
+n <- nrow(seroprevalence)
+sero_mean_y <- seroprevalence$seroprevalence
+sero_sd_y <- sd(seroprevalence$seroprevalence)  # Sample standard deviation
+
+# Z-score for 95% confidence; qnorm(0.975) gives 1.96
+z <- qnorm(0.975)
+#
+# # Calculate confidence interval
+sero_ci_width <- z * (sero_sd_y / sqrt(n))
+sero_lower_ci <- sero_mean_y - sero_ci_width
+sero_upper_ci <- sero_mean_y + sero_ci_width
+#
+# Add calculated CI to daily seroprevalence estimates
+seroprevalence$cum_daily_serop_q025 <- sero_lower_ci
+seroprevalence$cum_daily_serop_q975 <- sero_upper_ci
+
+#################
+# REPORTED DATA 
+#################
+# recovered <- read.csv("~/Documents/nl_ba1_two_peak_pmcmc_model/data/covid19-download.csv")
+# recovered$date <- as.Date(recovered$date, format = "%Y-%m-%d")
+# recovered <- recovered[(recovered$prname == "Newfoundland and Labrador"),] #
+# recovered <- recovered[,c("date","numrecover")]
+# rownames(recovered) <- NULL
+# recovered <- recovered[(recovered$date >= "2021-12-15") & (recovered$date < "2022-06-03"),]
+# recovered$daily_recovery <- c(0,diff(recovered$numrecover))
+# recovered$recovery <- cumsum(recovered$daily_recovery) / total_population
+
+#################
+# REPORTED DATA 
+#################
+
+# load reported data
+reported_data <- read.csv("~/Documents/MUN/SEARCH-ID-MODEL/searchid/pomp/data/IM215194_NL_COVID_CASESHOSPDEATH.csv")
+
+# format date column
+reported_data$DATE <- as.Date(reported_data$DATE, format = "%Y-%m-%d")
+
+# rename columns
+colnames(reported_data) <- c("date", "cases", "hosp", "death")
+
+# reassign row indices
+rownames(reported_data) <- 1:nrow(reported_data)
+
+# select only date and cases columns
+reported_data <- reported_data[c("date", "cases")]
+
+# Calculate daily cumulative cases
+reported_data$cum_cases <- cumsum(reported_data$cases)
+
+# Calculate total cases, last date, weekly cumulative sum, and overall cumulative sum
+reported_data$cum_case_per_capita <- reported_data$cum_cases / total_population
+
+# rearrange data according to date in ascending order
+reported_data <- reported_data %>%
+  arrange(date)
+
+# Calculate total cases, last date, weekly cumulative sum, and overall cumulative sum
+reported_data$daily_case_increment = c(NA, diff(reported_data$cum_case_per_capita))
+
+# Calculate total cases, last date, weekly cumulative sum, and overall cumulative sum
+# Subset data for study period
+reported_data <- reported_data[(reported_data$date >= "2021-12-04") & (reported_data$date < "2022-06-03"),]
+
+# create a new column to count days
+reported_data$day <- 1:nrow(reported_data)
+
+# remove row indices
+rownames(reported_data) <- NULL
+# plot(reported_data$day,reported_data$daily_case_increment)
+# plot(cum_daily_seroprev$day,cum_daily_seroprev$daily_serop_increment)
+
+#-----------------------------------------------------------------------------------
+# Add confidence interval (CI) to daily case per capita estimates
+#-----------------------------------------------------------------------------------
+
+n <- nrow(reported_data)
+case_mean_y <- reported_data$cum_case_per_capita
+case_sd_y <- sd(reported_data$cum_case_per_capita)  # Sample standard deviation
+
+# Z-score for 95% confidence; qnorm(0.975) gives 1.96
+z <- qnorm(0.975)
+
+# Calculate confidence interval
+case_ci_width <- z * (case_sd_y / sqrt(n))
+case_lower_ci <- case_mean_y - case_ci_width
+case_upper_ci <- case_mean_y + case_ci_width
+# 
+# Add calculated CI to daily seroprevalence estimates
+#daily_reported_cases$daily_mean_case_capita <- case_mean_y
+reported_data$cum_case_per_capita_q025 <- case_lower_ci
+reported_data$cum_case_per_capita_q975 <- case_upper_ci
+
+# subset the data from 2021-12-15 to 2022-06-02 and with only required columns
+reported_data <- reported_data[(reported_data$date >= "2021-12-15") & (reported_data$date < "2022-06-03"),] #"2022-06-09"
+reported_data <- subset(reported_data, select = c("day", "date", "cases"))
+reported_data$day <- 1: nrow(reported_data)
+rownames(reported_data) <- NULL
+seroprevalence
+reported_data
+```
+# cbind only selected columns from seroprevalence
+merged_data <- cbind(reported_data, seroprevalence[c("seroprevalence","daily_serop_increment")])
+
+# now we are ready to create the adjusted cases column using the daily seroprevalence and total population
+merged_data$adjusted_serop_cases <- as.integer(merged_data$daily_serop_increment * 510550)
+
+plot(merged_data$adjusted_serop_cases)
+```
+# Create a full join and merge together using the new weekly dates
+# merged_data <- seroprevalence %>%
+#   full_join(reported_data, by = c("date","day"))
+
+# merged_data <- merged_data %>%
+#   full_join(recovered[,c("date","recovery")], by = "date")
+
+# # Estimate underreporting factor
+merged_data$underreporting_factor <- merged_data$daily_serop_increment / merged_data$daily_case_increment
+# plot(merged_data$day,merged_data$cum_daily_serop / merged_data$cum_case_per_capita)
+
+#-----------------------------------------------------------------------------------
+# Add confidence interval (CI) to underreporting estimate
+#-----------------------------------------------------------------------------------
+
+n <- nrow(merged_data)
+underrep_mean_y <- merged_data$underreporting_factor
+underrep_sd_y <- sd(merged_data$underreporting_factor)  # Sample standard deviation
+
+# Z-score for 95% confidence; qnorm(0.975) gives 1.96
+z <- qnorm(0.975)
+
+# Calculate confidence interval
+underrep_ci_width <- z * (underrep_sd_y / sqrt(n))
+underrep_lower_ci <- underrep_mean_y - underrep_ci_width
+underrep_upper_ci <- underrep_mean_y + underrep_ci_width
+# 
+# Add calculated CI to daily seroprevalence estimates
+# merged_data$daily_mean_underrep <- underrep_mean_y
+merged_data$daily_underrep_q025 <- underrep_lower_ci
+merged_data$daily_underrep_q975 <- underrep_upper_ci
+
+# Convert underreporting rates to actual numbers to estimate the true infections in the population
+merged_data$estimated_true_infections <- as.integer(merged_data$cases * merged_data$underreporting_factor)
+rownames(merged_data) <- NULL 
+
+# write.csv(merged_data, file = "~/Documents/nl_ba1_two_peak_pmcmc_model/data/omicron_sero_case_estimated_infections.csv", row.names = FALSE)
+merged_data
+
+plot(merged_data$daily_serop_increment * 510550)
+plot(merged_data$cases)
+plot(merged_data$cum_daily_serop)
+
+```

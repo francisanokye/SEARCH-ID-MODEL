@@ -1,5 +1,5 @@
 library(shellpipes)
-rpcall("seroprevdata.Rout seroprevdata.R ../../data/omicron_estimated_serop.csv")
+rpcall("seroprevdata.Rout seroprevdata.R ../../data/seroprevalence_adjusted_cases.csv")
 library(tidyverse)
 
 est_infect_from_seroprevalence <- csvRead()
@@ -15,10 +15,10 @@ est_infect_from_seroprevalence <- est_infect_from_seroprevalence |>
 
 
 seroprevdata <- est_infect_from_seroprevalence %>%
-  select(dates, est_inci_serop, daily_serop) %>%
+  select(dates, adjusted_serop_cases, seroprevalence) %>%
   mutate(time = seq_along(dates)) %>%
-  pivot_longer(cols = c(est_inci_serop, daily_serop),names_to = "matrix",values_to = "value") %>%
-  mutate(matrix = recode(matrix,"est_inci_serop" = "cases","daily_serop" = "serop")) %>%
+  pivot_longer(cols = c(adjusted_serop_cases, seroprevalence),names_to = "matrix",values_to = "value") %>%
+  mutate(matrix = recode(matrix,"adjusted_serop_cases" = "cases","seroprevalence" = "serop")) %>%
   arrange(matrix)
 		   
 print(seroprevdata)

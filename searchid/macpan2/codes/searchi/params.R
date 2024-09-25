@@ -3,10 +3,10 @@ library(shellpipes)
 beta = 5.25
 eta = 0.99
 omega = 1/3
-theta = 0.05#0.01
-xi = 0.09
+theta = 0.005#0.01
+xi = 0.009
 phi = 1/3
-mu = 1/10
+mu = 1/3
 gamma = 1/10
 sigma = 0.60
 zeta = 0.75
@@ -17,7 +17,7 @@ A0 = 0
 R0 = 0
 C0 = 0
 H0 = 0
-I0 = 15
+I0 = 250
 S0 = N - E0 - A0 -R0 - C0 - H0 - H0 - I0
 
 params = list(beta = beta

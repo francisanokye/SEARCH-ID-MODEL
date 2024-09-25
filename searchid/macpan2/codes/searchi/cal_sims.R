@@ -35,7 +35,7 @@ pp <- (ggplot(data = inc_sim, aes(x = time, y= value))
           axis.text.y = element_text(size = 10),
           axis.title.y = element_text(size = 15, color = "black", face = "bold"),
           plot.title = element_text(size = 18, face = "bold", color = "black", hjust = 0.5),
-          legend.position = c(0.85, 0.10),
+          legend.position = "right",
           legend.title = element_text(size = 15),
           legend.text = element_text(size = 10),
           legend.background = element_rect(color = NA),
