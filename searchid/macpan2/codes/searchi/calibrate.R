@@ -25,8 +25,10 @@ calibrator <- mp_tmb_calibrator(
   data = seroprevdata,
   traj = c("cases", "serop"),
   outputs = c("cases","serop",outputs),
-  par = c("beta_values","gamma","mu","phi", "xi", "theta", "omega", "eta")
- # tv = mp_rbf("beta_values", dimension = 1, seed = 1024)
+  par = c("beta_values","gamma","mu","eta","phi")#, "xi", "theta", "omega", "eta")
+
+  # par = c("beta_values","gamma","mu" ,"eta", "xi", "phi", "omega", "theta")
+  #,tv = mp_rbf("eta", dimension = 2, seed = 1024)
 
 )
 
@@ -57,6 +59,7 @@ print(coeff)
 
 
 plot_fit = function(cal_object) {
+  set.seed(2024)
   fitted_data = mp_trajectory_sd(cal_object)
   start_date <- as.Date("2021-12-15")
   fitted_data$dates <- start_date + fitted_data$time - 1
