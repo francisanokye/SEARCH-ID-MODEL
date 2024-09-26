@@ -170,9 +170,9 @@ seroprevalence <- seroprevalence %>%
   arrange(date) %>%
   mutate(daily_serop_increment = c(NA, diff(seroprevalence)))
 
-seroprevalence$daily_serop_increment <- na.approx(seroprevalence$daily_serop_increment)
-seroprevalence
-```
+# replace the NA values by carrying forward the next observation backward
+seroprevalence$daily_serop_increment <- na.locf(seroprevalence$daily_serop_increment, fromLast = TRUE, na.rm = FALSE)
+
 #-----------------------------------------------------------------------------------
 # Add confidence interval (CI) to daily seroprevalence estimates
 #-----------------------------------------------------------------------------------
@@ -274,17 +274,13 @@ reported_data <- reported_data[(reported_data$date >= "2021-12-15") & (reported_
 reported_data <- subset(reported_data, select = c("day", "date", "cases"))
 reported_data$day <- 1: nrow(reported_data)
 rownames(reported_data) <- NULL
-seroprevalence
-reported_data
-```
+
 # cbind only selected columns from seroprevalence
 merged_data <- cbind(reported_data, seroprevalence[c("seroprevalence","daily_serop_increment")])
 
 # now we are ready to create the adjusted cases column using the daily seroprevalence and total population
 merged_data$adjusted_serop_cases <- as.integer(merged_data$daily_serop_increment * 510550)
-
-plot(merged_data$adjusted_serop_cases)
-```
+merged_data
 # Create a full join and merge together using the new weekly dates
 # merged_data <- seroprevalence %>%
 #   full_join(reported_data, by = c("date","day"))
@@ -293,39 +289,77 @@ plot(merged_data$adjusted_serop_cases)
 #   full_join(recovered[,c("date","recovery")], by = "date")
 
 # # Estimate underreporting factor
-merged_data$underreporting_factor <- merged_data$daily_serop_increment / merged_data$daily_case_increment
+#merged_data$underreporting_factor <- merged_data$daily_serop_increment / merged_data$daily_case_increment
 # plot(merged_data$day,merged_data$cum_daily_serop / merged_data$cum_case_per_capita)
 
 #-----------------------------------------------------------------------------------
 # Add confidence interval (CI) to underreporting estimate
 #-----------------------------------------------------------------------------------
 
-n <- nrow(merged_data)
-underrep_mean_y <- merged_data$underreporting_factor
-underrep_sd_y <- sd(merged_data$underreporting_factor)  # Sample standard deviation
+# n <- nrow(merged_data)
+# underrep_mean_y <- merged_data$underreporting_factor
+# underrep_sd_y <- sd(merged_data$underreporting_factor)  # Sample standard deviation
 
 # Z-score for 95% confidence; qnorm(0.975) gives 1.96
-z <- qnorm(0.975)
+# z <- qnorm(0.975)
 
 # Calculate confidence interval
-underrep_ci_width <- z * (underrep_sd_y / sqrt(n))
-underrep_lower_ci <- underrep_mean_y - underrep_ci_width
-underrep_upper_ci <- underrep_mean_y + underrep_ci_width
+# underrep_ci_width <- z * (underrep_sd_y / sqrt(n))
+# underrep_lower_ci <- underrep_mean_y - underrep_ci_width
+# underrep_upper_ci <- underrep_mean_y + underrep_ci_width
 # 
 # Add calculated CI to daily seroprevalence estimates
 # merged_data$daily_mean_underrep <- underrep_mean_y
-merged_data$daily_underrep_q025 <- underrep_lower_ci
-merged_data$daily_underrep_q975 <- underrep_upper_ci
+# merged_data$daily_underrep_q025 <- underrep_lower_ci
+# merged_data$daily_underrep_q975 <- underrep_upper_ci
 
 # Convert underreporting rates to actual numbers to estimate the true infections in the population
-merged_data$estimated_true_infections <- as.integer(merged_data$cases * merged_data$underreporting_factor)
-rownames(merged_data) <- NULL 
+# merged_data$estimated_true_infections <- as.integer(merged_data$cases * merged_data$underreporting_factor)
+# rownames(merged_data) <- NULL 
 
-# write.csv(merged_data, file = "~/Documents/nl_ba1_two_peak_pmcmc_model/data/omicron_sero_case_estimated_infections.csv", row.names = FALSE)
-merged_data
-
-plot(merged_data$daily_serop_increment * 510550)
-plot(merged_data$cases)
-plot(merged_data$cum_daily_serop)
-
+#write.csv(merged_data, file = "~/Documents/MUN/SEARCH-ID-MODEL/searchid/pomp/data/seroprevalence_adjusted_cases.csv", row.names = FALSE)
 ```
+
+
+```{r}
+serop_data <- read_csv("~/Documents/MUN/SEARCH-ID-MODEL/searchid/macpan2/data/omicron_estimated_serop.csv")
+serop_data <- serop_data[(serop_data$date >= "2021-12-15"),]
+serop_data$day = 1:nrow(serop_data)
+serop_data
+```
+
+```{r}
+pp <- ggplot() +
+  geom_point(data = serop_data, aes(x = date, y = est_inci_serop, color = "unshifted")) +
+  geom_point(data = merged_data, aes(x = date, y = adjusted_serop_cases, color = "shifted")) +
+  geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 4, size = 1) +
+  geom_vline(xintercept = as.Date("2021-12-23"), colour = "gold4", linetype = 4, size = 1) +
+  geom_vline(xintercept = as.Date("2022-01-03"), colour = "gold4", linetype = 4, size = 1) +
+  geom_vline(xintercept = as.Date("2022-02-06"), colour = "gold4", linetype = 4, size = 1) +
+  geom_vline(xintercept = as.Date("2022-03-14"), colour = "gold4", linetype = 1, size = 1) +
+  labs(
+    x = "Date (Dec 15, 2021 - June 03, 2022)",
+    y = "Incidence",
+    title = "Serology-Derived Daily Incidence of Infections",
+    color = ""
+  ) +
+  scale_color_manual(labels = c("shifted", "unShifted"), values = c("red",  "black")) +
+  theme_clean() +
+  theme(
+    axis.text.x = element_text(size = 12, angle = 45, hjust = 1),
+    axis.title.x = element_text(size = 15, color = "black", face = "bold"),
+    axis.text.y = element_text(size = 12),
+    axis.title.y = element_text(size = 15, color = "black", face = "bold"),
+    plot.title = element_text(size = 15, face = "bold", color = "black", hjust = 0.5),
+    legend.position = "right",
+    legend.title = element_text(size = 15),
+    legend.text = element_text(size = 12),
+    legend.background = element_rect(color = NA),
+    legend.margin = margin(0, 0, 0, 0),
+    plot.background = element_blank()
+  )
+
+# Print the plot
+print(pp)
+```
+

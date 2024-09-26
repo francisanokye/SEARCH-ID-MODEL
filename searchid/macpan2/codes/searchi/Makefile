@@ -39,7 +39,10 @@ calibrate.Rout: calibrate.R timevar_spec.rds seroprevdata.rds
 cal_sims.Rout: cal_sims.R calibrate.rds seroprevdata.rds 
 	$(pipeR) 
 
-R_vrs_serop.Rout: R_vrs_serop.R calibrate.rds serodata.rds
+R_vrs_serop.Rout: R_vrs_serop.R calibrate.rds serodata.rds 
+	$(pipeR)
+
+case_fit.Rout: case_fit.R calibrate.rds seroprevdata.rds
 	$(pipeR)
 
 Ignore += makestuff
