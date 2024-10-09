@@ -1,8 +1,8 @@
 library(shellpipes)
 set.seed(2024)
-alpha = 0.4
+alpha = 0.1
 beta = 0.1
-gamma = 1/10
+gamma = 1/21
 report_prob <- 1
 
 N = 510550

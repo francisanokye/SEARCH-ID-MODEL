@@ -31,7 +31,7 @@ calibrator <- mp_tmb_calibrator(
   , traj = c("cases")
   , outputs = c(outputs)
   , par = c("beta","log_I0") # "gamma","alpha")# ,"report_prob")
-  , time = mp_sim_bounds(-40, 432, 'daily')
+  , time = mp_sim_bounds(-60, 432, 'daily')
 )
 
 mp_optimize(calibrator)
