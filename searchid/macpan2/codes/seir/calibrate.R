@@ -34,7 +34,8 @@ calibrator <- mp_tmb_calibrator(
   , data = seroprevdata
   , traj = c("cases", "serop")
   , outputs = c(outputs)
-  , par = c("beta","report_prob","serop_frac","log_I0")#,"log_R0")
+  , par = c("beta","log_I0")#,"report_prob") ## ,"serop_frac")#,"log_R0")
+  , time = mp_sim_bounds(-60, 432, "daily")
 )
 
 mp_optimize(calibrator)

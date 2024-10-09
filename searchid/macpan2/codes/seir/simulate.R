@@ -10,7 +10,7 @@ n = 100
 
 timevar_spec = rdsRead()
 
-time_steps = 170
+time_steps = 300
 
 outputs = c("S", "E", "I", "R","cases","foi")
 
