@@ -8,6 +8,8 @@ est_infect_from_seroprevalence <- est_infect_from_seroprevalence |>
   rename_at("date",~"dates")
 
 
+print(tail(est_infect_from_seroprevalence))
+
 seroprevdata <- est_infect_from_seroprevalence %>%
   select(dates, adjusted_serop_cases, seroprevalence) %>%
   mutate(time = seq_along(dates)) %>%

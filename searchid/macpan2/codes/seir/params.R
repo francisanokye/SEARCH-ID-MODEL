@@ -1,6 +1,6 @@
 library(shellpipes)
 set.seed(2024)
-sigma = 1/3
+sigma = 1/5
 beta = 0.27
 gamma = 1/14
 report_prob <- 1.0
