@@ -20,18 +20,21 @@ outputs = c("S", "E", "I", "R", "cases", "serop")
 
 population = 510550
 
-print(head(seroprevdata))
-print(dim(seroprevdata))
+
+#prior_distributions = list(
+#      beta = beta
+#    , logit_report_prob = qlogis(1.0)
+#    , logit_serop_frac = qlogis(0.95)
+#    #, "log_E0","log_I0","log_R0"
+#)
 
 
 calibrator <- mp_tmb_calibrator(
-  spec = timevar_spec
+  spec = timevar_spec #|> mp_rk4()
   , data = seroprevdata
-# , traj = c("cases", "serop")
-  , traj = c("cases")
+  , traj = c("cases", "serop")
   , outputs = c(outputs)
-  , par = c("beta","log_I0") # "gamma","alpha")# ,"report_prob")
-  , time = mp_sim_bounds(-60, 432, 'daily')
+  , par = c("beta","report_prob","serop_frac","log_I0")#,"log_R0")
 )
 
 mp_optimize(calibrator)

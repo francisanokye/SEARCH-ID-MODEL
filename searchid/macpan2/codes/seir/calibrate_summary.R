@@ -13,6 +13,7 @@ loadEnvironments()
 
 calibrator <- rdsRead()
 
+print(calibrator)
 ##########################################################################################
 # see here, https://github.com/canmod/macpan2/issues/179
 backtrans <- function(x) {
