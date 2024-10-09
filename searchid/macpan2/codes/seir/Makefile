@@ -13,7 +13,7 @@ vim_session:
 
 ### Makestuff
 
-Sources += Makefile
+Sources += Makefile $(wildcard *.R)
 
 params.Rout: params.R
 	$(pipeR)
