@@ -16,7 +16,7 @@ timevar_spec <- rdsRead("timevar_spec.rds")
 
 seroprevdata <- rdsRead("seroprevdata.rds")
 
-outputs = c("S", "E", "I", "R", "cases", "serop")
+outputs = c("S", "E", "I", "R", "cases","sero_cases","serop")
 
 population = 510550
 
@@ -32,10 +32,14 @@ population = 510550
 calibrator <- mp_tmb_calibrator(
   spec = timevar_spec #|> mp_rk4()
   , data = seroprevdata
-  , traj = c("cases", "serop")
+#  , traj = c("cases", "serop","sero_cases")
+  , traj = c("cases","serop")# ,"sero_cases")
   , outputs = c(outputs)
-  , par = c("beta","log_I0")#,"report_prob") ## ,"serop_frac")#,"log_R0")
-  , time = mp_sim_bounds(-60, 432, "daily")
+# , par = c("beta","log_I0")#,"report_prob") ## ,"serop_frac")#,"log_R0")
+ , par = c("beta_values","log_I0","report_prob") ## ,"serop_frac")#,"log_R0")
+#  , par = c("beta_values","log_I0") # ,"report_prob") ## ,"serop_frac")#,"log_R0")
+#  , time = mp_sim_bounds(-60, 432, "daily")
+  , time = mp_sim_bounds(0, 432, "daily")
 )
 
 mp_optimize(calibrator)

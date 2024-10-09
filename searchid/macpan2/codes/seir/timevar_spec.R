@@ -4,7 +4,10 @@ rpcall("timevar_spec.Rout timevar_spec.R flows.rda params.rda")
 
 loadEnvironments()
 
-## why?!?
+beta_changepoints <- c(0, 27, 55, 90)
+beta_values = c(0.3, 0.34, 0.34,0.33)
+
+
 spec <- mp_tmb_model_spec(
 	before = list(N ~ N
 		, E ~ exp(log_E0)
@@ -30,14 +33,21 @@ newspec <- mp_tmb_update(spec
 
 ## accumulate infections
 nspec <- mp_tmb_insert(newspec
-  , expression = list(cases ~ S * foi * report_prob
-		    , serop ~ (R/N) # * serop_frac
+  , expression = list(
+  			 cases ~ S * foi * report_prob
+  			 , sero_cases ~ S * foi * report_prob ## Just leaving here, we are not going to calibrate to this, so it is harmless
+		    , serop ~ (R/N) 
   		     )
   , at = Inf
   , phase = "during"
 )
 
 ## update  model specification with piece-wise transmission rates
-timevar_spec <- mp_tmb_insert(nspec, phase = "during", at = 1L)
+timevar_spec <- mp_tmb_insert(nspec
+	, expression = list(beta ~ time_var(beta_values, beta_changepoints))
+	, phase = "during", at = 1L
+	, default = list(beta_values = beta_values)
+   , integers = list(beta_changepoints = beta_changepoints)
+)
 
 rdsSave(timevar_spec)

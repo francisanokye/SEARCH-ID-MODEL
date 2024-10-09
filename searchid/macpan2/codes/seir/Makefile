@@ -31,9 +31,6 @@ simulate.Rout: simulate.R timevar_spec.rds params.rda
 seroprevdata.Rout: seroprevdata.R ../../data/seroprevalence_adjusted_cases.csv
 	$(pipeRcall)
 
-serodata.Rout: serodata.R ../../data/seroprevalence_adjusted_cases.csv
-	$(pipeRcall)
-
 calibrate.Rout: calibrate.R timevar_spec.rds seroprevdata.rds timevar_spec.R
 	$(pipeRcall)
 

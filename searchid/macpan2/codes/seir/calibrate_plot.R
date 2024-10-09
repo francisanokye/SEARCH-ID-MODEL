@@ -26,10 +26,10 @@ gg <- (ggplot(ff,aes(x=time,y=value))
 	+ theme_bw()
 )
 
-print(gg)
+print(gg + xlim(c(0,170)))
 
 
-print(gg + xlim(c(90,200)))
+# print(gg + xlim(c(90,200)))
 
 
 

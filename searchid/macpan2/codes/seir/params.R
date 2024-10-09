@@ -3,13 +3,13 @@ set.seed(2024)
 sigma = 1/5
 beta = 0.27
 gamma = 1/14
-report_prob <- 1.0
+report_prob <- 0.3
 serop_frac <- 1.0
 
 N = 510550
-E0 = 750
-R0 = 549
-I0 = 400
+E0 = 1
+R0 = 1
+I0 = 1
 S0 = N - E0 - I0 - R0
 
 params = list(sigma = sigma
