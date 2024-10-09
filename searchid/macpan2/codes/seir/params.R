@@ -1,20 +1,22 @@
 library(shellpipes)
 set.seed(2024)
-alpha = 0.1
-beta = 0.1
-gamma = 1/21
-report_prob <- 1
+sigma = 1/3
+beta = 0.27
+gamma = 1/14
+report_prob <- 1.0
+serop_frac <- 1.0
 
 N = 510550
-E0 = 1 #650
-R0 = 1#5000
-I0 = 1#550
+E0 = 750
+R0 = 549
+I0 = 400
 S0 = N - E0 - I0 - R0
 
-params = list(alpha = alpha
+params = list(sigma = sigma
 	, beta = beta
 	, gamma = gamma
 	, report_prob = report_prob
+	, serop_frac = serop_frac
 )
 
 states = list(N = N
