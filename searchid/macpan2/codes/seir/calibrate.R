@@ -1,6 +1,6 @@
 library(macpan2)
 library(shellpipes)
-rpcall("calibrate.Rout calibrate.R timevar_spec.rds seroprevdata.rds timevar_spec.R")
+rpcall("calibrate.Rout calibrate.R timevar_spec.rds seroprevdata.rds params.rda timevar_spec.R")
 library(conflicted)
 library(tidyverse)
 library(dplyr)
@@ -20,22 +20,26 @@ outputs = c("S", "E", "I", "R", "cases","sero_cases","serop")
 
 population = 510550
 
-
+head(seroprevdata)
 calibrator <- mp_tmb_calibrator(
-  spec = timevar_spec 
+  spec = timevar_spec
   , data = seroprevdata
-  , traj = c("cases","serop")
+  , traj = list(
+      cases = mp_neg_bin(disp = mp_fit(1))
+    , serop = mp_log_normal(sd = mp_nofit(1))
+  )
   , outputs = c(outputs)
-  , par = c("beta_values","log_I0") 
+  , par = list(
+       beta_values = mp_log_normal(params$beta, 1)
+     , gamma = mp_log_normal(params$gamma, 1)
+     , sigma = mp_log_normal(params$sigma, 1)
+     , log_I0 = mp_normal(10, 1)
+     , log_E0 = mp_normal(10, 1)
+     , report_prob = mp_log_normal(params$report_prob, 1)
+  )
   , time = mp_sim_bounds(0, 432, "daily")
 )
 
 mp_optimize(calibrator)
 
 rdsSave(calibrator)
-
-
-
-
-
-

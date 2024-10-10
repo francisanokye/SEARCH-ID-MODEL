@@ -34,9 +34,9 @@ newspec <- mp_tmb_update(spec
 ## accumulate infections
 nspec <- mp_tmb_insert(newspec
   , expression = list(
-  			 cases ~ S * foi * report_prob
-  			 , sero_cases ~ S * foi * report_prob ## Just leaving here, we are not going to calibrate to this, so it is harmless
-		    , serop ~ (R/N) 
+  			 #cases ~ S * foi * report_prob
+  			 sero_cases ~ S * foi * report_prob ## Just leaving here, we are not going to calibrate to this, so it is harmless
+		    , serop ~ (R/N)
   		     )
   , at = Inf
   , phase = "during"
@@ -48,6 +48,15 @@ timevar_spec <- mp_tmb_insert(nspec
 	, phase = "during", at = 1L
 	, default = list(beta_values = beta_values)
    , integers = list(beta_changepoints = beta_changepoints)
+)
+
+timevar_spec = mp_tmb_insert_reports(timevar_spec
+  , incidence_name = "exposure"
+  , report_prob = 0.1
+  , mean_delay = 11
+  , cv_delay = 0.25
+  , reports_name = "cases"
+  , report_prob_name = "report_prob"
 )
 
 rdsSave(timevar_spec)
