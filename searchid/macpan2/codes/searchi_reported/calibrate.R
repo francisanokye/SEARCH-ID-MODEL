@@ -26,7 +26,7 @@ calibrator <- mp_tmb_calibrator(
   data = reporteddata,
   traj = c("cases", "serop"),
   outputs = c("cases","serop",outputs),
-  par = c("beta_values","reporting_frac", "zeta","gamma","mu","sigma","phi", "xi", "theta", "omega", "eta")
+  par = c("beta_values","reporting_frac", "serop_frac")
   #,tv = mp_rbf("reporting_frac", dimension = 2, seed = 2024)
 )
 

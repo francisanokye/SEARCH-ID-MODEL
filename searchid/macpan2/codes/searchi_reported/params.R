@@ -15,7 +15,8 @@ mu <- 1/3#0.35            # Rate from exposed to symptomatic/asymptomatic
 gamma <- 1/10         # Recovery rate for asymptomatic individuals
 sigma <- 0.6#0.60         # Proportion progressing to asymptomatic infection
 zeta <- 0.75          # Phenomenological heterogeneity parameter
-reporting_frac <- 0.70 # Reporting fraction
+reporting_frac <- 1.0 # Reporting fraction
+serop_frac = 1.0
 
 # Initial conditions
 N <- 510550
@@ -37,7 +38,8 @@ params = list(beta = beta
 	      , xi = xi
 	      , phi = phi
 	      , zeta = zeta
-	      , reporting_frac
+	      , reporting_frac = reporting_frac
+	      , serop_frac = serop_frac
 	     )
 
 states = list(N = N

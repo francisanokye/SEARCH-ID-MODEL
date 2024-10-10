@@ -32,8 +32,8 @@ beta_values = c(0.71, 0.34, 0.34,0.33,0.33)
 newspec <- mp_tmb_update(spec,
                          default = list(
       beta = beta, eta = eta, omega = omega, theta = theta, zeta = zeta
-    , xi = xi, phi = phi, mu = mu, gamma = gamma, sigma = sigma, reporting_frac = reporting_frac
-    , N = N, E0 = E0, A0 = A0, R0 = R0, C0 = C0, H0 = H0, I0 = I0))
+    , xi = xi, phi = phi, mu = mu, gamma = gamma, sigma = sigma, reporting_frac = reporting_frac, serop_frac = serop_frac,
+     N = N, E0 = E0, A0 = A0, R0 = R0, C0 = C0, H0 = H0, I0 = I0))
 
 
 ##----------------------------
@@ -42,7 +42,7 @@ newspec <- mp_tmb_update(spec,
 
 nspec <- mp_tmb_insert(
   newspec,
-  expressions = list(cases ~ incidence * reporting_frac, serop ~ R/510550),
+  expressions = list(cases ~ incidence * reporting_frac, serop ~ (R/510550) * serop_frac),
   at = Inf,
   phase = "during"
 )
