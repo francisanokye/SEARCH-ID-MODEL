@@ -7,6 +7,8 @@ loadEnvironments()
 beta_changepoints <- c(0, 10, 25, 55, 90)
 beta_values = c(0.3, 0.30, 0.34, 0.34, 0.33)
 
+reporting_changepoints <- c(0, 10, 25, 55, 90)
+reporting_values = c(0.3, 0.30, 0.34, 0.34, 0.33)
 
 spec <- mp_tmb_model_spec(
 	before = list(N ~ N
@@ -49,6 +51,14 @@ timevar_spec <- mp_tmb_insert(nspec
 	, default = list(beta_values = beta_values)
    , integers = list(beta_changepoints = beta_changepoints)
 )
+
+#timevar_spec <- mp_tmb_insert(timevar_spec
+#   , expression = list(report_prob ~ time_var(reporting_values, reporting_changepoints))
+#   , phase = "during", at = 1L
+#   , default = list(reporting_values = reporting_values)
+#   , integers = list(reporting_changepoints = reporting_changepoints)
+#)
+
 
 timevar_spec = mp_tmb_insert_reports(timevar_spec
   , incidence_name = "exposure"

@@ -31,6 +31,7 @@ calibrator <- mp_tmb_calibrator(
   , outputs = c(outputs)
   , par = list(
        beta_values = mp_log_normal(params$beta, 1)
+#      , reporting_values = mp_log_normal(params$report_prob, 1)
      #, gamma = mp_log_normal(params$gamma, 0.1)
      #, sigma = mp_log_normal(params$sigma, 0.1)
 #     , log_I0 = mp_normal(10, 1)
@@ -38,6 +39,7 @@ calibrator <- mp_tmb_calibrator(
      #, report_prob = mp_log_normal(params$report_prob, 1)
   )
   , tv = mp_rbf("report_prob", 10)
+#  , tv = mp_rbf("beta", 10)
   , time = mp_sim_bounds(-30, 432, "daily")
 )
 
