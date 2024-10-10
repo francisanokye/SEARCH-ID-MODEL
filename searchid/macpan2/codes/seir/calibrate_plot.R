@@ -24,11 +24,11 @@ fitted_data <- fitted_data[(fitted_data$dates > "2021-12-14")& (fitted_data$date
 gg <- (ggplot(fitted_data, aes(x = dates, y = value))
    + geom_point(data = seroprevdata, aes(x = dates, y = value, color = "data"))
    + geom_line(aes(color = matrix),linewidth = 1)
-   + geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 1)
-   + geom_vline(xintercept = as.Date("2021-12-23"), colour = "gold4", linetype = 2, size = 1)
-   + geom_vline(xintercept = as.Date("2022-01-03"), colour = "gold4", linetype = 2, size = 1)
-   + geom_vline(xintercept = as.Date("2022-02-06"), colour = "gold4", linetype = 2, size = 1)
-   + geom_vline(xintercept = as.Date("2022-03-14"), colour = "gold4", linetype = 1, size = 1)
+#   + geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 1)
+#   + geom_vline(xintercept = as.Date("2021-12-23"), colour = "gold4", linetype = 2, size = 1)
+#   + geom_vline(xintercept = as.Date("2022-01-03"), colour = "gold4", linetype = 2, size = 1)
+#   + geom_vline(xintercept = as.Date("2022-02-06"), colour = "gold4", linetype = 2, size = 1)
+#   + geom_vline(xintercept = as.Date("2022-03-14"), colour = "gold4", linetype = 1, size = 1)
    #+ scale_color_manual(labels = c("fit_cases", "data", "E", "I", "R","report_prob","S","serop_cases","fit_serop"),
   #                      values = c("red","black","#008080", "blue", "green", "orange", "#2192FF", "magenta","red"))# "#2192FF"))
    + facet_wrap(~matrix, scales = "free")
@@ -38,7 +38,7 @@ gg <- (ggplot(fitted_data, aes(x = dates, y = value))
                 axis.text.y = element_text(size = 12),
                 axis.title.y = element_text(size = 12, color = "black", face = "bold"),
                 plot.title = element_text(size = 12, face = "bold", color = "black", hjust = 0.5),
-                legend.position = c(0.85, 0.10),
+                legend.position = "bottom",
                 legend.title = element_text(size = 0),
                 legend.text = element_text(size = 10),
                 legend.background = element_rect(color = NA),
