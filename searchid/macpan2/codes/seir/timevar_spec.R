@@ -4,8 +4,8 @@ rpcall("timevar_spec.Rout timevar_spec.R flows.rda params.rda")
 
 loadEnvironments()
 
-beta_changepoints <- c(0, 27, 55, 90)
-beta_values = c(0.3, 0.34, 0.34,0.33)
+beta_changepoints <- c(0, 10, 25, 55, 90)
+beta_values = c(0.3, 0.30, 0.34, 0.34, 0.33)
 
 
 spec <- mp_tmb_model_spec(
@@ -52,9 +52,9 @@ timevar_spec <- mp_tmb_insert(nspec
 
 timevar_spec = mp_tmb_insert_reports(timevar_spec
   , incidence_name = "exposure"
-  , report_prob = 0.1
+  , report_prob = 0.5#0.1
   , mean_delay = 11
-  , cv_delay = 0.25
+  , cv_delay = 0.95#0.25
   , reports_name = "cases"
   , report_prob_name = "report_prob"
 )
