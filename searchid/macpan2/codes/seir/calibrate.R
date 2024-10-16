@@ -37,8 +37,8 @@ calibrator <- mp_tmb_calibrator(
      , log_E0 = mp_normal(10, 1)
      #, report_prob = mp_log_normal(params$report_prob, 1)
   )
-  , tv = mp_rbf("report_prob", 4)
-  , time = mp_sim_bounds(0, 432, "daily")
+  , tv = mp_rbf("report_prob", 10)
+  #, time = mp_sim_bounds(0, 432, "daily")
 )
 
 mp_optimize(calibrator)

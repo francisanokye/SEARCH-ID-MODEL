@@ -34,7 +34,7 @@ newspec <- mp_tmb_update(spec
 ## accumulate infections
 nspec <- mp_tmb_insert(newspec
   , expression = list(
-  			 #cases ~ S * foi * report_prob
+  			# cases ~ S * foi * report_prob
   			 sero_cases ~ S * foi * report_prob ## Just leaving here, we are not going to calibrate to this, so it is harmless
 		    , serop ~ (R/N)
   		     )
