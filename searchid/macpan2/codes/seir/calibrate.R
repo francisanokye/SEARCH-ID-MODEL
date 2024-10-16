@@ -19,11 +19,11 @@ seroprevdata <- rdsRead("seroprevdata.rds")
 outputs = c("S", "E", "I", "R", "cases","beta","serop", "report_prob")
 
 population = 510550
-if (interactive()) debug(mp_tmb_calibrator)
 head(seroprevdata)
 calibrator <- mp_tmb_calibrator(
-  spec = timevar_spec |> mp_hazard()
-  , data = dplyr::filter(seroprevdata, time < 201)
+    spec = timevar_spec |> mp_hazard()
+  , data = seroprevdata
+  #, data = dplyr::filter(seroprevdata, time < 201)
   , traj = list(
       cases = mp_neg_bin(disp = mp_fit(1))
     , serop = mp_log_normal(sd = mp_nofit(0.5))
@@ -40,7 +40,7 @@ calibrator <- mp_tmb_calibrator(
      #, report_prob = mp_log_normal(params$report_prob, 1)
   #)
   #, tv = mp_rbf("report_prob", 10)
-  , tv = mp_rbf("beta", 15, fit_prior_sd = FALSE, prior_sd = 1)
+  , tv = mp_rbf("beta", 9, sparse_tol = 0)
   , time = mp_sim_bounds(-30, 200, "daily")
 )
 
