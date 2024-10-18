@@ -11,10 +11,13 @@ est_infect_from_seroprevalence <- est_infect_from_seroprevalence |>
 print(tail(est_infect_from_seroprevalence))
 
 seroprevdata <- (est_infect_from_seroprevalence 
-	%>% select(dates, adjusted_serop_cases, seroprevalence, cases) 
-	%>% mutate(time = seq_along(dates)) 
-	%>% pivot_longer(cols = c(adjusted_serop_cases, seroprevalence,cases),names_to = "matrix",values_to = "value") 
-	%>% mutate(matrix = recode(matrix,"adjusted_serop_cases" = "sero_cases","seroprevalence" = "serop")) 
+	#%>% select(dates, adjusted_serop_cases, seroprevalence, cases)
+        %>% select(dates, seroprevalence, cases)	
+	%>% mutate(time = seq_along(dates))
+       %>% pivot_longer(cols = c( seroprevalence,cases),names_to = "matrix",values_to = "value")
+        %>% mutate(matrix = recode(matrix,"seroprevalence" = "serop"))
+	#%>% pivot_longer(cols = c(adjusted_serop_cases, seroprevalence,cases),names_to = "matrix",values_to = "value") 
+	#%>% mutate(matrix = recode(matrix,"adjusted_serop_cases" = "sero_cases","seroprevalence" = "serop")) 
 	%>% arrange(matrix)
 )
 		   

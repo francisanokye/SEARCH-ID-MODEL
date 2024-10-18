@@ -21,7 +21,6 @@ R0 = 4000
 C0 = 0 
 H0 = 0 
 I0 = 550
-
 S0 = N - E0 - A0 -R0 - C0 - H0 - H0 - I0
 
 params = list(beta = beta
@@ -47,5 +46,6 @@ states = list(N = N
 	, H = H0
 	, I = I0
 	)
+
 
 saveEnvironment()

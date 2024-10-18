@@ -16,7 +16,7 @@ timevar_spec <- rdsRead("timevar_spec.rds")
 
 seroprevdata <- rdsRead("seroprevdata.rds")
 
-outputs = c("S", "E", "I", "R", "cases","sero_cases","serop", "report_prob")
+outputs = c("S", "E", "I", "R", "cases","beta","serop", "report_prob")
 
 population = 510550
 
@@ -29,18 +29,14 @@ calibrator <- mp_tmb_calibrator(
     , serop = mp_log_normal(sd = mp_nofit(0.5))
   )
   , outputs = c(outputs)
-  , par = list(
-       beta_values = mp_log_normal(params$beta, 1)
-     #, gamma = mp_log_normal(params$gamma, 0.1)
-     #, sigma = mp_log_normal(params$sigma, 0.1)
-     , log_I0 = mp_normal(10, 1)
-     , log_E0 = mp_normal(10, 1)
-     #, report_prob = mp_log_normal(params$report_prob, 1)
-  )
-  , tv = mp_rbf("report_prob", 10)
-  #, time = mp_sim_bounds(0, 432, "daily")
+  , par = "beta"
+  , tv = mp_rbf("beta", 9, sparse_tol = 0)
+  , time = mp_sim_bounds(-30, 200, "daily")
 )
 
 mp_optimize(calibrator)
+
+# we generate the time series for the report probabilities and use them 
+# report_prob_ts = mp_trajectory(calibrator) |> dplyr::filter(matrix == "report_prob")|> pull(value) |>dput()
 
 rdsSave(calibrator)
