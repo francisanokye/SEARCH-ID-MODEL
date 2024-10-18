@@ -26,7 +26,7 @@ fitted_data_report_prob <- dplyr::filter(fitted_data, matrix == "report_prob")
 # subset data without "report_prob"
 fitted_data_others <- dplyr::filter(fitted_data, matrix != "report_prob")
 
-# Plot setup
+# plot setup
 pp <- (ggplot(data = fitted_data, aes(x = dates, y = value))
        + geom_point(data = seroprevdata, aes(x = dates, y = value, color = "data"))
        + geom_line(aes(color = matrix), linewidth = 1.0)
@@ -73,7 +73,5 @@ pp <- pp + geom_vline(data = fitted_data_others,
                       aes(xintercept = as.Date("2022-03-18")), colour = "purple", linetype = 6, linewidth = 0.5)
 
 	   
-	   
-	  
 print(pp)
 

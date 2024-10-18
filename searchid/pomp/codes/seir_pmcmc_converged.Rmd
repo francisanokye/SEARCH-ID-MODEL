@@ -1,0 +1,1225 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r warning=FALSE, message=FALSE}
+#rm(list = ls(all.names = TRUE))
+set.seed(132628335)
+suppressPackageStartupMessages({
+pacman::p_load(tidyverse, reshape2, ggplot2, coda, gtools, gridExtra,
+                foreach, doParallel, doRNG, tidyr,plyr, pomp, doMC, zoo, 
+                devtools, readxl, viridis, tibbletime, tidyquant, lubridate,
+                grid, ggthemes, ggh4x, ggsci, ggnewscale, repr, magrittr, 
+               coda, xtable, gghighcontrast, superdiag,ggpubr,cowplot)})
+
+base_colors <- scales::hue_pal()(18)
+dark_colors <- colorspace::darken(base_colors, 0.3)
+lite_colors <- colorspace::lighten(base_colors, 0.3)
+
+library(doParallel)
+registerDoParallel(cores = detectCores())
+options(scipen = 100, digits = 4)
+```
+
+```{r warning=FALSE, message=FALSE}
+set.seed(132628335)
+library(tidyverse)
+library(here)
+library(pomp)
+library(foreach)
+library(doFuture)
+library(parallel)
+library(doParallel)
+library(doRNG)
+library(coda)
+library(ggthemes)
+library(coda)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(ggthemes)
+library(cowplot)
+library(minpack.lm)
+library(coda)
+library(xtable)
+library(mgcv)
+
+colors = c("#000000","#31E1F7","#F99417","#E11299","#002B5B","#379237","#D2001A","#6F38C5","#8D7B68","#BFDB38","#820000","#367E18","#2192FF","#C58940")
+options(scipen = 100, digits = 8)
+
+#####################
+# SEROPREVALENCE DATA 
+#####################
+
+weekly_seroprevalence <- read.csv("~/Documents/MUN/SEARCH-ID-MODEL/searchid/pomp/data/estimated_seroprevalence.csv")
+weekly_seroprevalence$week_end <- as.Date(weekly_seroprevalence$week_end, format = "%Y-%m-%d")
+
+# Make copy data and format the date
+original_est_SERP <- weekly_seroprevalence[(weekly_seroprevalence$geo == "NL"),]
+original_est_SERP <- original_est_SERP %>%
+  mutate(week_end = as.Date(week_end, format = "%Y-%m-%d"),est_infection_date = week_end)
+
+# Subset the Anti-N 
+weekly_seroprevalence <- weekly_seroprevalence[(weekly_seroprevalence$geo == "NL")  & (weekly_seroprevalence$ab_estimate == "Anti-N estimate"),] #
+
+# Rename date column
+weekly_seroprevalence <- weekly_seroprevalence %>%
+  rename_at("week_end", ~"date")
+
+# Format date column
+weekly_seroprevalence$date <- as.Date(weekly_seroprevalence$date, format = "%Y-%m-%d")
+
+# Total population
+total_population <- 510550
+
+# Create a copy of data
+est_SERP <- weekly_seroprevalence
+
+# Create the daily seroprevalence 
+est_SERP <- est_SERP %>%
+  mutate(daily_pct = c(0,diff(pct_mean)))
+
+# Subset only the study period
+est_SERP <- est_SERP[(est_SERP$date >= "2021-12-09") & (est_SERP$date < "2022-06-09"),]
+rownames(est_SERP) <- NULL
+
+# est_SERP <- est_SERP %>%
+#   select(-c(geo,ab_estimate,pct_q25,pct_q75))
+
+# Create the count index
+est_SERP$day <- 1:nrow(est_SERP) * 7
+rownames(est_SERP) <- NULL
+
+# create a new dummy dataframe in the daily scale
+cum_daily_seroprev <- data.frame(day = 1:(nrow(est_SERP) * 7)) 
+
+# Create a sequence of dates
+dates <- seq.Date(from = as.Date("2021-12-03"), by = "day", length.out = nrow(cum_daily_seroprev))
+
+#-----------------------------------------------------------------------------------
+# Fit a logistic model to convert weekly estimated seroprevalence to daily estimates
+#-----------------------------------------------------------------------------------
+
+# Define the logistic function
+# logistic_model <- function(t, K, r, t0) {
+#   K / (1 + exp(-r * (t - t0)))
+#   }
+# # median(est_SERP$day)
+# # Fit the serology data on the weekly scale
+# logit_model <- nlsLM(pct_mean ~ logistic_model(day, K, r, t0), data = est_SERP,
+#              start = list(K = max(est_SERP$pct_mean), r = 0.05, t0 = est_SERP$day[1]),
+#              control = nls.lm.control(maxiter = 2000000))
+# 
+# # Predict cumulative seroprevalence on daily scale
+# cum_daily_seroprev$cum_daily_serop <- predict(logit_model, type = "response", newdata = cum_daily_seroprev)
+
+#-----------------------------------------------------------------------------------
+# Fit a Gompertz model to convert weekly estimated seroprevalence to daily estimates
+#-----------------------------------------------------------------------------------
+
+gompertz_func = function(a,b,c,K, t) {
+  a + (c * exp(-exp(-b * (t - K))))
+  }
+#
+gombertz_mod <- nlsLM(pct_mean ~ gompertz_func(a,b,c, K, day), data = est_SERP,
+                      start = list(a = 0.5, b = 0.05, c = 1, K = max(est_SERP$pct_mean)),
+                      control = nls.lm.control(maxiter = 20000))
+
+y_pred_gomb <- predict(gombertz_mod, newdata = cum_daily_seroprev, type = "response")
+
+cum_daily_seroprev$cum_daily_serop <- y_pred_gomb
+#-----------------------------------------------------------------------------------
+
+# Add dates
+cum_daily_seroprev$date <- dates
+
+cum_daily_seroprev <- cum_daily_seroprev %>%
+  arrange(date) %>%
+  mutate(daily_serop_increment = c(NA, diff(cum_daily_serop)))
+
+#-----------------------------------------------------------------------------------
+# Add confidence interval (CI) to daily seroprevalence estimates
+#-----------------------------------------------------------------------------------
+n <- nrow(cum_daily_seroprev)
+sero_mean_y <- cum_daily_seroprev$cum_daily_serop
+sero_sd_y <- sd(cum_daily_seroprev$cum_daily_serop)  # Sample standard deviation
+
+# Z-score for 95% confidence; qnorm(0.975) gives 1.96
+z <- qnorm(0.975)
+#
+# # Calculate confidence interval
+sero_ci_width <- z * (sero_sd_y / sqrt(n))
+sero_lower_ci <- sero_mean_y - sero_ci_width
+sero_upper_ci <- sero_mean_y + sero_ci_width
+#
+# Add calculated CI to daily seroprevalence estimates
+cum_daily_seroprev$cum_daily_serop_q025 <- sero_lower_ci
+cum_daily_seroprev$cum_daily_serop_q975 <- sero_upper_ci
+
+cum_daily_seroprev <- cum_daily_seroprev[(cum_daily_seroprev$date >= "2021-12-15") & (cum_daily_seroprev$date < "2022-06-03"),]
+cum_daily_seroprev$day <- 1:nrow(cum_daily_seroprev)
+rownames(cum_daily_seroprev) <- NULL
+
+#################
+# REPORTED DATA 
+#################
+# recovered <- read.csv("~/Documents/nl_ba1_two_peak_pmcmc_model/data/covid19-download.csv")
+# recovered$date <- as.Date(recovered$date, format = "%Y-%m-%d")
+# recovered <- recovered[(recovered$prname == "Newfoundland and Labrador"),] #
+# recovered <- recovered[,c("date","numrecover")]
+# rownames(recovered) <- NULL
+# recovered <- recovered[(recovered$date >= "2021-12-15") & (recovered$date < "2022-06-03"),]
+# recovered$daily_recovery <- c(0,diff(recovered$numrecover))
+# recovered$recovery <- cumsum(recovered$daily_recovery) / total_population
+
+#################
+# REPORTED DATA 
+#################
+
+# load reported data
+reported_data <- read.csv("~/Documents/MUN/SEARCH-ID-MODEL/searchid/pomp/data/IM215194_NL_COVID_CASESHOSPDEATH.csv")
+
+# format date column
+reported_data$DATE <- as.Date(reported_data$DATE, format = "%Y-%m-%d")
+
+# rename columns
+colnames(reported_data) <- c("date", "cases", "hosp", "death")
+
+# reassign row indices
+rownames(reported_data) <- 1:nrow(reported_data)
+
+# select only date and cases columns
+reported_data <- reported_data[c("date", "cases")]
+
+# Calculate daily cumulative cases
+reported_data$cum_cases <- cumsum(reported_data$cases)
+
+# Calculate total cases, last date, weekly cumulative sum, and overall cumulative sum
+reported_data$cum_case_per_capita <- reported_data$cum_cases / total_population
+
+# rearrange data according to date in ascending order
+reported_data <- reported_data %>%
+  arrange(date)
+
+# Calculate total cases, last date, weekly cumulative sum, and overall cumulative sum
+reported_data$daily_case_increment = c(NA, diff(reported_data$cum_case_per_capita))
+
+# Calculate total cases, last date, weekly cumulative sum, and overall cumulative sum
+# Subset data for study period
+reported_data <- reported_data[(reported_data$date >= "2021-12-15") & (reported_data$date < "2022-06-03"),]
+
+# create a new column to count days
+reported_data$day <- 1:nrow(reported_data)
+
+# remove row indices
+rownames(reported_data) <- NULL
+# plot(reported_data$day,reported_data$daily_case_increment)
+# plot(cum_daily_seroprev$day,cum_daily_seroprev$daily_serop_increment)
+
+#-----------------------------------------------------------------------------------
+# Add confidence interval (CI) to daily case per capita estimates
+#-----------------------------------------------------------------------------------
+
+n <- nrow(reported_data)
+case_mean_y <- reported_data$cum_case_per_capita
+case_sd_y <- sd(reported_data$cum_case_per_capita)  # Sample standard deviation
+
+# Z-score for 95% confidence; qnorm(0.975) gives 1.96
+z <- qnorm(0.975)
+
+# Calculate confidence interval
+case_ci_width <- z * (case_sd_y / sqrt(n))
+case_lower_ci <- case_mean_y - case_ci_width
+case_upper_ci <- case_mean_y + case_ci_width
+# 
+# Add calculated CI to daily seroprevalence estimates
+#daily_reported_cases$daily_mean_case_capita <- case_mean_y
+reported_data$cum_case_per_capita_q025 <- case_lower_ci
+reported_data$cum_case_per_capita_q975 <- case_upper_ci
+
+# Create a full join and merge together using the new weekly dates
+merged_data <- cum_daily_seroprev %>%
+  full_join(reported_data, by = c("date","day"))
+
+# merged_data <- merged_data %>%
+#   full_join(recovered[,c("date","recovery")], by = "date")
+
+# # Estimate underreporting factor
+merged_data$underreporting_factor <- merged_data$cum_daily_serop / merged_data$cum_case_per_capita
+# plot(merged_data$day,merged_data$cum_daily_serop / merged_data$cum_case_per_capita)
+
+#-----------------------------------------------------------------------------------
+# Add confidence interval (CI) to underreporting estimate
+#-----------------------------------------------------------------------------------
+
+n <- nrow(merged_data)
+underrep_mean_y <- merged_data$underreporting_factor
+underrep_sd_y <- sd(merged_data$underreporting_factor)  # Sample standard deviation
+
+# Z-score for 95% confidence; qnorm(0.975) gives 1.96
+z <- qnorm(0.975)
+
+# Calculate confidence interval
+underrep_ci_width <- z * (underrep_sd_y / sqrt(n))
+underrep_lower_ci <- underrep_mean_y - underrep_ci_width
+underrep_upper_ci <- underrep_mean_y + underrep_ci_width
+# 
+# Add calculated CI to daily seroprevalence estimates
+# merged_data$daily_mean_underrep <- underrep_mean_y
+merged_data$daily_underrep_q025 <- underrep_lower_ci
+merged_data$daily_underrep_q975 <- underrep_upper_ci
+
+# Convert underreporting rates to actual numbers to estimate the true infections in the population
+merged_data$estimated_true_infections <- as.integer(merged_data$cases * merged_data$underreporting_factor)
+rownames(merged_data) <- NULL 
+
+# write.csv(merged_data, file = "~/Documents/nl_ba1_two_peak_pmcmc_model/data/omicron_sero_case_estimated_infections.csv", row.names = FALSE)
+```
+
+```{r}
+ggplot() +
+  geom_point(data = cum_daily_seroprev, aes(x = day, y = daily_serop_increment, color = "Weekly Seroprevalence Increment"), size = 1) +
+  # geom_point(data = est_SERP, aes(x = date, y = pct_mean, color = "Weekly Seroprevalence Increment"), size = 1) +
+  geom_point(data = reported_data, aes(x = day, y = daily_case_increment, color = "Daily Seroprevalence Increment"), size = 1.5, alpha = 0.95) +
+  scale_color_manual(values = c("Weekly Seroprevalence Increment" = "blue", "Daily Seroprevalence Increment" = "brown")) +
+  labs(x = "Date", y = "Seroprevalence(%)", title = "Weekly and Daily Seroprevalence Increments") +
+  theme_clean() +
+  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        plot.title = element_text(size = 20, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.25, 0.75),
+        legend.title = element_blank(),
+        legend.background = element_rect(color = NA),
+        legend.text = element_text(size = 20),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# plot(merged_data$day, merged_data$daily_serop_increment / merged_data$daily_case_increment)
+
+ggplot() +
+  geom_point(data = merged_data, aes(x = date, y = 1/(merged_data$daily_serop_increment / merged_data$daily_case_increment), color = "Weekly Seroprevalence Increment"), size = 1) +
+  ylim(0,10)
+ 
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=7}
+
+gg1 <- ggplot() +
+  geom_line(data = original_est_SERP, aes(x = est_infection_date, y = pct_mean, color = ab_estimate), size = 4) +
+  geom_point(data = original_est_SERP, aes(x = est_infection_date, y = pct_mean, color = ab_estimate), size = 4)+
+  geom_smooth(se = TRUE, span = 0.5) +
+  labs(x = "Date", y = "Seroprevalence(%)", title = "SARS-CoV-2 Seroprevalence in Newfoundland & Labrador",
+       color = "") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        plot.title = element_text(size = 20, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.25, 0.75),
+        legend.title = element_text(size = 20),
+        legend.background = element_rect(color = NA),
+        legend.text = element_text(size = 20),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+  geom_rect(aes(xmin = ymd('2021-12-15'), xmax = ymd('2022-06-02'), ymin = -Inf, ymax = Inf), fill = "#c7c7c7", alpha = 0.35, inherit.aes = FALSE) +
+  annotate("text", x = ymd('2022-03-05'), y = 0.75, label = "Omicron Wave\n(Study Period)", vjust = 1, size = 5, color = "blue") +
+  ggtitle("SARS-CoV-2 Seroprevalence in Newfoundland & Labrador") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+gg2 <- ggplot() +
+  geom_ribbon(data = merged_data, aes(x = date, ymin = cum_daily_serop_q025, ymax = cum_daily_serop_q975), alpha = 0.35, fill = "gold4") +
+  geom_ribbon(data = merged_data, aes(x = date, ymin = cum_case_per_capita_q025, ymax = cum_case_per_capita_q975), alpha = 1, fill = "gray") +
+  geom_line(data = merged_data, aes(x = date, y = cum_case_per_capita, color = "Cum. Case Per Capita"), size = 2) +
+  geom_line(data = merged_data, aes(x = date, y = cum_daily_serop, color = "Cum. Seroprevalence Estimate"), size = 2) +
+  # geom_smooth(data = daily_reported_cases, aes(x = date, y = cum_case_per_capita, color = "Daily Case Per Capita"), se = TRUE, size = 2, linetype = 1) +
+  scale_color_manual(values = c("Cum. Case Per Capita" = "darkblue", "Cum. Seroprevalence Estimate" = "brown")) +
+  labs(x = "Date", y = "Infection Prevalence (%)", title = "Cum. Cases Per Capita & Cum. Seroprevalence (Anti-N) Estimate", color = "Indicator") +
+  theme_clean() +
+  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        plot.title = element_text(size = 20, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.25, 0.75),
+        legend.title = element_blank(),
+        legend.background = element_rect(color = NA),
+        legend.text = element_text(size = 20),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r warning=FALSE, message=FALSE, fig.height= 15 ,fig.width=25}
+gg1_gg2 <- plot_grid(gg1, gg2, ncol = 2, labels=c("gg1", "gg2"),align = "hv")
+# C_D <- plot_grid(C, D, ncol = 2, labels=c("C", "D"),align = "hv")
+gg1_gg2 <- plot_grid(gg1_gg2, nrow = 2, rel_heights = c(1, 1, 1),labels=c("", "C"))
+gg1_gg2
+```
+
+```{r warning=FALSE, message=FALSE, fig.height= 6 ,fig.width=12}
+ggplot() +
+  geom_point(data = est_SERP, aes(x = date, y = daily_pct, color = "Weekly Seroprevalence Increment"), size = 1) +
+  # geom_point(data = est_SERP, aes(x = date, y = pct_mean, color = "Weekly Seroprevalence Increment"), size = 1) +
+  geom_point(data = cum_daily_seroprev, aes(x = date, y = daily_serop_increment, color = "Daily Seroprevalence Increment"), size = 1.5, alpha = 0.95) +
+  scale_color_manual(values = c("Weekly Seroprevalence Increment" = "blue", "Daily Seroprevalence Increment" = "brown")) +
+  labs(x = "Date", y = "Seroprevalence(%)", title = "Weekly and Daily Seroprevalence Increments") +
+  theme_clean() +
+  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        plot.title = element_text(size = 20, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.25, 0.75),
+        legend.title = element_blank(),
+        legend.background = element_rect(color = NA),
+        legend.text = element_text(size = 20),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r warning=FALSE, message=FALSE}
+A <- ggplot() +
+  geom_line(data = est_SERP, aes(x = date, y = pct_mean, color = "Weekly Seroprevalence Estimate"), size = 1) +
+  geom_point(data = est_SERP, aes(x = date, y = pct_mean, color = "Weekly Seroprevalence Estimate"), size = 1) +
+  geom_line(data = cum_daily_seroprev, aes(x = date, y = cum_daily_serop, color = "Daily Seroprevalence Estimate"), size = 1.5, alpha = 0.95) +
+  geom_point(data = cum_daily_seroprev, aes(x = date, y = cum_daily_serop, color = "Daily Seroprevalence Estimate"), size = 1) +
+
+  scale_color_manual(values = c("Weekly Seroprevalence Estimate" = "blue", "Daily Seroprevalence Estimate" = "brown")) +
+  labs(x = "Date", y = "Seroprevalence(%)", title = "Modified Gompertz Model Fit Estimating Daily Seroprevalence From Weekly Data") +
+  theme_clean() +
+  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        plot.title = element_text(size = 20, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.25, 0.75),
+        legend.title = element_blank(),
+        legend.background = element_rect(color = NA),
+        legend.text = element_text(size = 20),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+##############################################
+# Make same plot using the study's time period
+##############################################
+
+B <- ggplot() +
+  geom_ribbon(data = merged_data, aes(x = date, ymin = cum_daily_serop_q025, ymax = cum_daily_serop_q975), alpha = 0.25, fill = "gold4") +
+  geom_ribbon(data = merged_data, aes(x = date, ymin = cum_case_per_capita_q025, ymax = cum_case_per_capita_q975), alpha = 1, fill = "gray") +
+  geom_line(data = merged_data, aes(x = date, y = cum_case_per_capita, color = "Daily Cum. Case Per Capita"), size = 2) +
+  geom_line(data = merged_data, aes(x = date, y = cum_daily_serop, color = "Daily Seroprevalence Estimate"), size = 2) +
+  # geom_smooth(data = daily_reported_cases, aes(x = date, y = cum_case_per_capita, color = "Daily Case Per Capita"), se = TRUE, size = 2, linetype = 1) +
+  scale_color_manual(values = c("Daily Cum. Case Per Capita" = "darkblue", "Daily Seroprevalence Estimate" = "brown")) +
+  labs(x = "Date", y = "Infection Prevalence (%)", title = "Daily Cum. Case Per Capita & Seroprevalence Estimate") +
+  theme_clean() +
+  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        plot.title = element_text(size = 20, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.35, 0.75),
+        legend.title = element_blank(),
+        legend.background = element_rect(color = NA),
+        legend.text = element_text(size = 20),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+#############
+# (4) Make a third plot that is (b)/(a) for the dates this is defined.
+#############
+
+C <- ggplot() +
+  geom_ribbon(data = merged_data, aes(x = date, ymin = daily_underrep_q025, ymax = daily_underrep_q975), alpha = 0.35, fill = "darkgreen") +
+  geom_line(data = merged_data, aes(x = date, y =  underreporting_factor, color = "Underreporting Factor"), size = 1) +
+  # geom_point(data = merged_data, aes(x = date, y = underreporting_factor), color = "blue",size = 1) +
+  scale_color_manual(values = c("underreporting factor" = "black")) +
+  labs(x = "Date", y = "Underreporting Factor", title = "Underreporting Factor - Seroprevalence To Reported Case Per Capita", color = "") +
+  # scale_y_continuous(limits = c(0,NA))+
+  annotate("text", x = as.Date("2021-12-18"), y = 4, label = "Alert Level 2",size = 6,angle = 90, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2021-12-28"), y = 3, label = "Alert Level 3",size = 6,angle = 90, hjust = 1,color = "black")+
+  annotate("text", x = as.Date("2022-02-02"), y = 3, label = "Alert Level 4",size = 6,angle = 0, hjust = 1, color = "black")+
+  # annotate("text", x = as.Date("2022-02-05"), y = 3, label = "Alert Level 3",size = 5,angle = 10, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-03-04"), y = 3, label = "Alert Level 3",size = 6,angle = 0, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-04-29"), y = 4, label = "Alert Level 1",size = 6, hjust = 1, color = "black")+
+  theme_clean() +
+  geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 2)  +
+  geom_vline(xintercept = as.Date("2021-12-23"), colour = "black", linetype = 2, size = 1.5)  +
+  geom_vline(xintercept = as.Date("2022-01-03"), colour = "black", linetype = 2, size = 1.5)  +
+  geom_vline(xintercept = as.Date("2022-02-06"), colour = "black", linetype = 2, size = 1.5)  +
+  geom_vline(xintercept = as.Date("2022-03-14"), colour = "black", linetype = 2, size = 1.5)  +
+  annotate("text", x = as.Date("2022-03-05"), y = 5, label = "Pre-Cancellation of Public \nHealth Emergency Declaration",size=6, hjust=1, color = "darkblue")+
+  annotate("text", x = as.Date("2022-05-14"), y = 5, label = "Post Cancellation of Public \nHealth Emergency Declaration",size=6, hjust=1,color = "darkblue")+
+  # scale_x_date(date_breaks = "1 weeks", date_labels =  "%d-%b-%Y", limits = c(as.Date("2021-12-15"), as.Date("2022-06-02"))) +
+  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        plot.title = element_text(size = 20, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.25, 0.85),
+        legend.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.background = element_rect(color = NA),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+D <- ggplot() +
+  # geom_line(data = merged_data, aes(x = date, y = cases, color = "Reported Cases"), size = 1, linetype = 6) +
+  geom_point(data = merged_data, aes(x = date, y = cases, color = "Reported Cases"), size = 2) +
+  geom_smooth(data = merged_data, aes(x = date, y = cases), span = 0.1, color = "darkgreen", se = FALSE) +
+  # geom_line(data = merged_data, aes(x = date, y = estimated_true_infections, color = "Estimated True Infections"), size = 1, linetype = 6) +
+  geom_point(data = merged_data, aes(x = date, y = estimated_true_infections, color = "Estimated True Infections"), size = 2) +
+  geom_smooth(data = merged_data, aes(x = date, y = estimated_true_infections),  span = 0.1, color = "brown", , linetype = 6, se = FALSE) +
+  scale_color_manual(values = c("Reported Cases" = "darkgreen", "Estimated True Infections" = "brown")) +
+  labs(x = "Date", y = "Number of Cases", title = "Reported Cases and  Estimated True Infections", color = "") +
+  theme_clean() +
+  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        plot.title = element_text(size = 18, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.75, 0.95),
+        legend.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.background = element_rect(color = NA),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+        theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r warning=FALSE, message=FALSE, fig.height= 15 ,fig.width=25}
+A_B <- plot_grid(A, B, ncol = 2, labels=c("A", "B"),align = "hv")
+C_D <- plot_grid(C, D, ncol = 2, labels=c("C", "D"),align = "hv")
+AB_CD <- plot_grid(A_B, C_D, nrow = 2, rel_heights = c(1, 1, 1),labels=c("", "C"))
+AB_CD
+```
+
+```{r warning=FALSE, message=FALSE}
+merged_data|>
+    ggplot(aes(x=date,y = estimated_true_infections))+
+    scale_color_manual(labels = "Corrected Cases")+
+    labs(color="")+
+    geom_point()+
+    geom_smooth(span = 0.1, color = "red") +
+    theme_clean()+
+    scale_color_manual(values = c("red","navy")) +
+    labs(x = "Date", y = "Number of Weekly Cases", title = "Estimated True Infections", color = "") +
+    theme(axis.text.x = element_text(size = 18, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 18, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 18),
+        axis.title.y = element_text(size = 18, color = "black", face = "bold"),
+        plot.title = element_text(size = 18, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.5, 0.75),
+        legend.title = element_text(size = 14),
+        legend.text = element_text(size = 18),
+        legend.background = element_rect(color = NA),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+  theme(plot.title = element_text(hjust = 0.5));
+```
+
+```{r}
+library(pomp)
+seir_step <- Csnippet("
+  
+  // #####################################
+  // Compute the transition rates
+  // #####################################
+  
+  double dN_SE = rbinom(S,1-exp(-Beta * I/N * dt));
+  double dN_EI = rbinom(E,1-exp(- sigma * dt));
+  double dN_IR = rbinom(I,1-exp(-gamma * dt));
+  
+  S -= dN_SE;
+  E += dN_SE - dN_EI;
+  I += dN_EI - dN_IR;
+  R += dN_IR;
+  Incidence += dN_EI - dN_IR;
+")
+
+seir_init <- Csnippet("
+  E = 0;
+  I = 25;
+  R = 0;
+  S = N - E -I - R;
+  Incidence = 0;
+")
+
+dmeas <- Csnippet("
+    if (Incidence < 0) {
+      lik = (give_log) ? R_NegInf : 0.0;
+    } else {
+      lik = dnbinom_mu(cases, 1/k , Incidence * rho, give_log);
+      if (!give_log & lik <= 0) {
+        lik = R_NegInf;
+      } else if (!give_log) {
+        lik = log(lik);
+      }
+    }
+  ")
+
+  ############## DEFINE PROCESS SIMULATOR ##############
+  # Generates observations based on the specified distribution
+
+rmeas <- Csnippet("
+  if (Incidence < 0) {
+    Rf_error(\"Invalid state values\");
+  }else{
+  cases = rnbinom_mu(1/k , Incidence * rho);
+  }")
+
+fixed_params_names <- c("N","sigma", "gamma")
+
+params_to_estimate <- c("Beta", "k", "rho")
+
+paramnames <- c(params_to_estimate, fixed_params_names)
+
+merged_data |>
+  dplyr::select(day, cases) -> df
+
+df %>%
+  pomp(
+    times = "day",
+    t0 = 0,
+    rprocess = discrete_time(seir_step, delta.t = 1.0),
+    rinit = seir_init,
+    rmeasure = rmeas,
+    dmeasure = dmeas,
+    accumvars = "Incidence",
+    #partrans = parameter_trans(log = c("Beta","sigma","gamma","k"), logit = c("rho")),
+    paramnames = paramnames,
+    obsnames = c("cases"),
+    statenames = c("S","E","I","R","Incidence")
+  ) -> covSEIR
+```
+
+```{r}
+cl = makeCluster(1L)
+registerDoParallel(cores = detectCores())
+registerDoRNG(625904618)
+
+guess_params =c(Beta = 0.01, sigma = 1/3, gamma = 1/14, rho = 0.5, k = 0.05,  N = 510550)
+
+registerDoRNG(1235252)
+
+  foreach(i=1:10, .combine = c) %dopar% {
+    library(pomp)
+    covSEIR |> pfilter(params = guess_params,  Np = 5000)
+  } -> pf
+plot(pf)
+pf %>% logLik() %>% logmeanexp(se = TRUE)
+```
+
+
+
+
+```{r, echo = TRUE}
+covSEIR |>
+  simulate(params = guess_params,nsim=1, format="data.frame", include.data=TRUE) |>
+    dplyr:::select.data.frame(c(".id","day","cases")) |>
+    reshape2::melt(id = c(".id", "day")) |>
+    ggplot(aes(x=day,y=value,color=ifelse(.id=="data","data","simulation"),group=.id))+
+    scale_color_manual(labels = c("True Cases", "Model Simulation"),values = c("black","#00A087B2"))+
+    labs(color="")+
+    geom_point()+
+    geom_smooth(span = 0.15) +
+    theme_clean()+
+    scale_color_manual(values = c("red","navy")) +
+    theme(axis.text.x = element_text(size = 14), axis.title.x = element_text(size = 14,color = "black"),
+          axis.text.y = element_text(size = 14), axis.title.y = element_text(size = 14,color = "black"),
+          plot.title = element_text(size = 14, face = "bold", color = "black",hjust = 0.5))+
+    ggtitle("Simulation With Initial Guess Parameters.") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    facet_wrap(~variable,ncol=1,scales="free_y")
+```
+
+```{r, echo = TRUE}
+suppressPackageStartupMessages({
+  library(foreach)
+  library(doParallel)
+  library(doRNG)
+  library(tidyverse)
+  library(pomp)
+})
+
+cl = makeCluster(1L)
+registerDoParallel(cores = detectCores())
+registerDoRNG(625904618)
+
+run_level = 3
+NP = switch(run_level, 50, 1e3, 3e3) # number of particles
+num_mifs = switch(run_level, 10, 100, 1000) # - large
+num_eval_repeats = switch(run_level, 5, 20, 40) # number of replications in likelihood evaluation
+num_repeats = switch(run_level, 10, 20, 30) # number of replications in local search
+
+params_rw_sd = rw_sd(Beta_1 = 0.01, Beta_2 = 0.01, Beta_3 = 0.01, Beta_4 = 0.01, k = 0.01, rho = ivp(0.001))#, sigma = ivp(0.001))
+
+registerDoRNG(1235252)
+bake(file = "pfff_writeup_lik_starting_values.rds", {
+  foreach(i=1:10, .combine = c) %dopar% {
+    library(pomp)
+    Omicron_PMCMC |> pfilter(params= guess_params,  Np = 1000)
+  }
+}) -> pf
+plot(pf)
+pf %>% logLik() %>% logmeanexp(se = TRUE)
+```
+
+```{r, fig.height = 5, fig.width = 8, echo = TRUE}
+# run_id = 1
+registerDoRNG(482947940)
+bake(file = "miff_writeup_local_search.rds", {
+  foreach(i = 1:num_repeats, .combine = c) %dopar% {
+    suppressPackageStartupMessages({
+      library(tidyverse)
+      library(pomp)
+    })
+    Omicron_PMCMC %>%
+      mif2(
+        params = guess_params,
+        Np = NP, Nmif = num_mifs,
+        cooling.fraction.50 = 0.5,
+        rw.sd = params_rw_sd
+      )
+  } -> mifs_local
+  attr(mifs_local,"ncpu") <- getDoParWorkers()
+  mifs_local
+}) -> mifs_local
+```
+
+```{r, echo = TRUE}
+# likelihood est. for local search results
+registerDoRNG(900242057)
+bake(file = "miff_writeup_lik_local.rds", {
+  foreach(mf = mifs_local, .combine = rbind) %dopar% {
+    suppressPackageStartupMessages({
+      library(tidyverse)
+      library(pomp)
+    })
+    ll = replicate(num_eval_repeats, logLik(pfilter(mf, Np = NP))) %>%
+         logmeanexp(se = TRUE)
+    coef(mf) %>% bind_rows() %>% bind_cols(loglik = ll[1], loglik.se = ll[2])
+  } -> results
+  attr(results,"ncpu") <- getDoParWorkers()
+  results
+}) -> results
+```
+
+```{r, eval = FALSE}
+results %>% arrange(-loglik) %>% head %>%
+  knitr::kable(digits = 4, caption = "Local search results (in decreasing order of likelihood)")
+write.csv(results,"~/Documents/mifinitial_parameters_final.csv",row.names = FALSE)
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=7}
+mifs_local %>%
+  traces(c(params_to_estimate,"loglik")) %>%
+  melt() %>%
+  ggplot(aes(x = iteration, y = value, group = .L1, color = factor(.L1))) +
+  theme_bw() +
+  geom_line() +
+  guides(color = FALSE) +
+  facet_wrap(~name, scales = "free_y")
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=7}
+set.seed(132628337)
+Omicron_PMCMC |>
+  simulate(params = results[1,],nsim=1, format="data.frame", include.data=TRUE) |>
+    dplyr:::select.data.frame(c(".id","day","estimated_true_infections")) |>
+    reshape2::melt(id = c(".id", "day")) |>
+    ggplot(aes(x=day,y=value,color=ifelse(.id=="data","data","simulation"),group=.id))+
+    scale_color_manual(labels = c("True Cases", "Model Simulation"),values = c("black","#00A087B2"))+
+    labs(color="")+
+    geom_point()+
+    geom_smooth(span = 0.15) +
+    theme_clean()+
+    scale_color_manual(values = c("red","navy")) +
+    theme(axis.text.x = element_text(size = 14), axis.title.x = element_text(size = 14,color = "black"),
+          axis.text.y = element_text(size = 14), axis.title.y = element_text(size = 14,color = "black"),
+          plot.title = element_text(size = 14, face = "bold", color = "black",hjust = 0.5))+
+    ggtitle("Simulation With Initial Guess Parameters.") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    facet_wrap(~variable,ncol=1,scales="free_y")
+```
+
+
+```{r message=FALSE, warning=FALSE, fig.width=10, fig.height=6}
+set.seed(132628339)
+Omicron_PMCMC |>
+  simulate(params = results[1,], nsim = 2,as.data.frame = TRUE, include.data = TRUE) |>
+  data.frame()|>
+  dplyr::select(c(".L1","day","estimated_true_infections"
+                  ,"S","E","A","I","R","H","C","D", "Incidence")) |>
+  data.table:: melt(id = c(".L1", "day")) |>
+  ggplot(aes(x = day, y = value,group=variable,color=variable,fill = variable)) +
+  labs(color='')+
+  guides(scales = "none")+
+  geom_line(linewidth= 0.5)+
+  scale_color_manual(values = colors, name = "Disease States") +
+  facet_wrap(~variable,ncol= 4,scales = "free_y")+
+  ggtitle("Model Simulation With Initial Guess Parameters.") +
+  theme_clean()
+```
+
+```{r message=FALSE, warning=FALSE}
+mif_params_results <- read_csv("~/Documents/data/mif_initial_parameters_final.csv")
+# pmcmc_params_opt <- mif_params_results[mif_params_results["logLik"] == max(mif_params_results["logLik"]),]
+pmcmc_init_params <- mif_params_results[1,]
+pmcmc_init_params <- pmcmc_init_params[paramnames]
+
+############## parallelize on clusters ############## 
+set.seed(132628335)
+
+num_clusters <- parallel::makeCluster(parallel::detectCores())
+registerDoParallel(num_clusters)
+registerDoRNG(900242057)
+
+############## Run and calibrate model using PMCMC ############## 
+
+num_mcmc <- 15000
+num_np <- 500
+
+# Set the perturbation intensities for parameter random walk for proposals 
+parameters_to_estimate <- c("Beta_1","Beta_2", "Beta_3","Beta_4")
+perturbation_intensity <- rep(0.01, length(parameters_to_estimate))
+names(perturbation_intensity) <- parameters_to_estimate
+
+start_time = Sys.time()
+paste0("Model Training started at: ",start_time)
+
+bake(file = "~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/final_pmcmc_searchid.rds", {
+  foreach(i = 1:4, .combine = c, .packages = c("pomp","tidyverse")) %dopar%{
+    Omicron_PMCMC |>
+      pmcmc(
+        params = pmcmc_init_params,
+        Nmcmc = num_mcmc,
+        Np = num_np,
+        proposal = pomp::mvn_diag_rw(perturbation_intensity)) 
+  } -> pmcmc_chains  
+  attr(pmcmc_chains,"ncpu") <- getDoParWorkers()
+  pmcmc_chains
+}, seed = 132628335, kind = "L'Ecuyer") -> pmcmc_chains
+
+saveRDS(pmcmc_chains, "~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/final_pmcmc_chains.rds")
+
+# likelihood estimate for search results
+bake(file = "~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/final_pmcmc_lik.rds", {
+  foreach(pmcmc_run = pmcmc_chains, .combine = rbind) %dopar% {
+    ll = replicate(10, logLik(pfilter(pmcmc_run, Np = 20000))) |>
+      logmeanexp(se = TRUE)
+    coef(pmcmc_run) |> bind_rows() |> bind_cols(loglik = ll[1], loglik.se = ll[2])
+  } -> pmcmc_results
+  attr(pmcmc_results,"ncpu") <- getDoParWorkers()
+  pmcmc_results
+}, seed = 132628335, kind = "L'Ecuyer") -> pmcmc_results
+
+stopCluster(num_clusters)
+
+end_time = Sys.time()
+paste0("SEARCH-ID Model took ", round(difftime(end_time, start_time, units="hours"),3),"hrs", " - " , round(difftime(end_time, start_time, units="min"),3), "mins", " - ", round(difftime(end_time, start_time, units="secs"),3),"sec", " to run and calibrate parameters.")
+write.csv(pmcmc_results,"~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/final_pmcmc_parameters.csv",row.names = FALSE)
+```
+
+```{r}
+############## Save model and parameters and print results ############## 
+# write.csv(pmcmc_results,"~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/final_pmcmc_parameters.csv",row.names = FALSE)
+ t(sapply(pmcmc_chains, coef)) |> 
+  as_tibble() |>
+  dplyr::bind_cols(tibble(logLik = pmcmc_results[,1],logLik_se = pmcmc_results[,2])) -> pmcmc_params_df
+
+pmcmc_params_opt <- pmcmc_params_df[pmcmc_params_df["logLik"] == max(pmcmc_params_df["logLik"]),]
+pmcmc_params_opt <- pmcmc_params_opt[paramnames]
+```
+
+```{r message=FALSE, warning=FALSE, fig.height = 5, fig.width = 5}
+pmcmc_chains |>
+  traces(c("Beta_1","Beta_2","Beta_3","Beta_4","loglik")) -> pmcmc_chains_est 
+  
+plot(pmcmc_chains_est)
+```
+
+```{r warning=FALSE, message=FALSE, fig.height = 5, fig.width = 5}
+library(coda)
+
+pmcmc_chains |>
+  traces(c("Beta_1","Beta_2","Beta_3","Beta_4","loglik")) -> pmcmc_chains_est 
+
+gelman_diag_result <- gelman.diag(pmcmc_chains_est, confidence = 0.95, transform = FALSE, multivariate = TRUE)
+print(gelman_diag_result)
+
+gelman.plot(pmcmc_chains_est, autoburnin = FALSE, burnin = 1000)
+```
+
+```{r warning=FALSE, message=FALSE}
+set.seed(132628335)
+library(coda)
+library(xtable)
+
+pmcmc_chains |>
+  traces(c("Beta_1","Beta_2","Beta_3","Beta_4","loglik")) |>
+  summary() -> output 
+
+stats_table = xtable(as.data.frame(output$statistics))
+quant_table = xtable(as.data.frame(output$quantiles))
+
+print(stats_table, file="~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/final_stats_table.tex")
+print(quant_table, file="~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/final_quant_table.tex")
+output
+```
+
+```{r}
+pmcmc_param_results <- read_csv("~/Documents/nl_ba1_two_peak_pmcmc_model/saved_files/final_pmcmc_parameters.csv")
+pmcmc_params_opt <- pmcmc_param_results[1,]
+pmcmc_params_opt
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=7}
+set.seed(132628335)
+Omicron_PMCMC |>
+  simulate(params = pmcmc_params_opt,nsim=1, format="data.frame", include.data=TRUE) |>
+    dplyr::select(c(".id","day","estimated_true_infections")) |>
+    reshape2:: melt(id = c(".id", "day")) |>
+    ggplot(aes(x=day,y=value,color=ifelse(.id=="data","data","simulation"),group=.id))+
+    scale_color_manual(labels = c("True Cases", "Model Simulation"),values = c("black","#00A087B2"))+ 
+    labs(color="")+
+    geom_point(fill = "gray",shape = 8, show.legend = TRUE)+
+    geom_smooth(se = FALSE, size = 0.25, span = 0.15, linetype = 6) + 
+    theme_clean()+
+    scale_color_manual(values = c("red","navy")) +
+    theme(axis.text.x = element_text(size = 14), axis.title.x = element_text(size = 14,color = "black"),
+          axis.text.y = element_text(size = 14), axis.title.y = element_text(size = 14,color = "black"),
+          plot.title = element_text(size = 14, face = "bold", color = "black",hjust = 0.5))+
+    ggtitle("Simulation With Calibrated Parameters.") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    facet_wrap(~variable,ncol=1,scales="free_y")
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=7, fig.width=12}
+set.seed(132628335)
+Omicron_PMCMC |>
+  simulate(params = pmcmc_params_opt, nsim = 2,as.data.frame = TRUE, include.data = TRUE) |>
+  data.frame()|>
+  dplyr::select(c(".L1","day","estimated_true_infections","S","E","A","I","R","H","C","D", "Incidence")) |>
+  data.table:: melt(id = c(".L1", "day")) |>
+  ggplot(aes(x = day, y = value,group=variable,color=variable,fill = variable)) +
+  labs(color='')+
+  guides(scales = "none")+
+  geom_line(linewidth= 0.5)+
+  scale_color_manual(values = colors, name = "Disease States") +
+  facet_wrap(~variable,ncol= 4,scales = "free_y")+
+  ggtitle("Model Simulation With Initial Guess Parameters.") +
+  theme_clean()
+```
+
+#################################################################################################
+# SIMULATION WITH CALIBRATED PARAMETERS AND OUT-OF-SAMPLE PREDICTION
+#################################################################################################
+
+```{r}
+dates <- seq.Date(from = as.Date("2021-12-15"), by = "day", length.out = 170)
+
+# set a list of seed values to simulate cases using calibrated parameters and find the average
+seednum <- 132628332
+# Create an empty list to store the simulated data frames
+calibrated_data_list <- list()
+# Simulate the data and store in the list
+Omicron_PMCMC |>
+  simulate(params = pmcmc_params_opt, nsim = 1, format = "data.frame", include.data = TRUE, seed = seednum) |> 
+  cbind(dates) -> extended_sim_1
+
+calibrated_data_list[[length(calibrated_data_list) + 1]] <- extended_sim_1
+
+# Combine all data frames into a single data frame
+combined_data_1 <- do.call(rbind, calibrated_data_list)
+
+true_infections <- combined_data_1[combined_data_1$.id == 'data',]
+
+true_infections <- true_infections |>
+  replace(".id", "true_inf")
+
+true_infections <- true_infections[,c("day","dates",".id","estimated_true_infections","Incidence",
+                       "S","E","A","R","C","H","I","D",
+                       "S1","E1","A1","R1","C1","H1","I1","D1",
+                       "V2","E2","A2","R2","C2","H2","I2","D2",
+                       "V3","E3","A3","R3","C3","H3","I3","D3")]
+
+# get the cumulative sum of true cases
+true_infections$cum_cases <- cumsum(true_infections$estimated_true_infections)
+rownames(true_infections) <- NULL
+
+# select only model simulated cases to exclude true reported cases
+calibrated_data <- combined_data_1[combined_data_1$.id != 'data',]
+
+calibrated_data <- calibrated_data |>
+  replace(".id", "calib_sim")
+
+calibrated_data <- calibrated_data[,c("day","dates",".id","estimated_true_infections","Incidence",
+                       "S","E","A","R","C","H","I","D",
+                       "S1","E1","A1","R1","C1","H1","I1","D1",
+                       "V2","E2","A2","R2","C2","H2","I2","D2",
+                       "V3","E3","A3","R3","C3","H3","I3","D3")]
+
+# get the cumulative sum of simulated cases with calibrated parameters
+calibrated_data$cum_cases <- cumsum(calibrated_data$estimated_true_infections)
+rownames(calibrated_data) <- NULL
+
+#########################################
+# COUNTERFACTUAL:: ALERT 4 <--> ALLERT 3
+#########################################
+
+#----------------------------------------------------------
+#  Replace Beta_4 with Beta_3 and update model parameters 
+#----------------------------------------------------------
+params_onlyalert3 <- pmcmc_params_opt
+params_onlyalert3["Beta_4"] <- pmcmc_params_opt['Beta_3']
+
+Omicron_PMCMC@params <- unlist(params_onlyalert3)
+# Create an empty list to store the simulated data frames
+alert3_data_list <- list()
+# Simulate the data and store in the list
+Omicron_PMCMC |>
+  simulate(params = params_onlyalert3, nsim = 1, format = "data.frame", include.data = TRUE, seed = seednum) |> 
+  cbind(dates) -> extended_sim_2
+
+alert3_data_list[[length(alert3_data_list) + 1]] <- extended_sim_2
+
+# Combine all data frames into a single data frame
+combined_data_2 <- do.call(rbind, alert3_data_list)
+# select only model simulated cases to exclude true reported cases
+alert3_data <- combined_data_2[combined_data_2$.id != 'data',]
+
+alert3_data <- alert3_data |>
+  replace(".id", "alert3sim")
+
+alert3_data <- alert3_data[,c("day","dates",".id","estimated_true_infections","Incidence",
+                       "S","E","A","R","C","H","I","D",
+                       "S1","E1","A1","R1","C1","H1","I1","D1",
+                       "V2","E2","A2","R2","C2","H2","I2","D2",
+                       "V3","E3","A3","R3","C3","H3","I3","D3")]
+
+# get the cumulative sum of simulated cases with calibrated parameters
+alert3_data$cum_cases <- cumsum(alert3_data$estimated_true_infections)
+rownames(alert3_data) <- NULL
+#----------------------------------------------------------------------------
+# extract and append the reported cases
+#----------------------------------------------------------------------------
+
+# append the reported cases
+cases_reported <- reported_data[,c("day","date","cases")]
+cases_reported$.id <- "reported_cases"
+
+cases_reported <- cases_reported |>
+  rename_at(c("date","cases"),~c("dates","estimated_true_infections"))
+
+column_names <- c("Incidence","S","E","A","R","C","H","I","D",
+                       "S1","E1","A1","R1","C1","H1","I1","D1",
+                       "V2","E2","A2","R2","C2","H2","I2","D2",
+                       "V3","E3","A3","R3","C3","H3","I3","D3")
+
+# Create an empty list to store the columns
+column_list <- list()
+
+# Assign NA values to each column in the list
+for (col_name in column_names) {
+  column_list[[col_name]] <- rep(NA, nrow(cases_reported))
+}
+# append the new columns
+cases_reported = cbind(cases_reported,column_list)
+
+cases_reported <- cases_reported[,c("day","dates",".id","estimated_true_infections","Incidence",
+                       "S","E","A","R","C","H","I","D",
+                       "S1","E1","A1","R1","C1","H1","I1","D1",
+                       "V2","E2","A2","R2","C2","H2","I2","D2",
+                       "V3","E3","A3","R3","C3","H3","I3","D3")]
+
+# get the cumulative sum of simulated cases with calibrated parameters
+cases_reported$cum_cases <- cumsum(cases_reported$estimated_true_infections)
+
+#----------------------------------------------------------------------------
+# combine the real, calibrated and alert level scenario data
+#----------------------------------------------------------------------------
+alert_scenario_data <- rbind(true_infections, calibrated_data, alert3_data, cases_reported)
+
+# set row names to null
+rownames(alert_scenario_data) <- NULL
+
+
+#############################################
+# CUMULATIVE CASES OBTAINED FOR EACH SCENARIO
+#############################################
+# subset only cumulative cases
+cumu_alert_scenarios <- alert_scenario_data[,c("dates",".id","cum_cases")]
+
+# maximum cumulative values
+cumvalues <- tapply(cumu_alert_scenarios$cum_cases, cumu_alert_scenarios$.id, max)
+
+cum_alert3 <- cumvalues[1][[1]]
+cum_sim_cases <- cumvalues[2][[1]]
+cum_case_rep <- cumvalues[3][[1]]
+cum_true_inf <- cumvalues[4][[1]]
+
+# maximum cumulative values before cancellation of NPI
+cumu_alert_scenarios |>
+  subset(dates < as.Date("2022-03-18")) -> before_cancellation
+b4_cumvalues <- tapply(before_cancellation$cum_cases, before_cancellation$.id, max)
+
+b4_cum_alert3 <- b4_cumvalues[1][[1]]
+b4_cum_sim_cases <- b4_cumvalues[2][[1]]
+b4_cum_case_rep <- b4_cumvalues[3][[1]]
+b4_cum_true_inf <- b4_cumvalues[4][[1]]
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=7, fig.width=10}
+alert_scenario_data |>
+  ggplot(aes(x = dates,y = estimated_true_infections, group = .id, color = .id))+
+  geom_rect(aes(xmin=ymd('2022-03-14'), xmax = ymd('2022-06-02'), ymin = 0, ymax = Inf), fill = adjustcolor("#c7c7c7", alpha = 0.001), alpha = 0.01, color = NA) +
+  # geom_line(fill = "black",shape = 19, show.legend = TRUE, linetype = 6)+
+  geom_point(fill = "black",shape = 19, show.legend = TRUE, linetype = 6)+
+  geom_smooth(method = "loess", se = FALSE, size = 0.95, span = 0.15, linetype = 6, alpha = 0.55) + #
+  scale_y_continuous(limits = c(0,NA))+
+  annotate("text", x = as.Date("2021-12-18"), y = 4500, label = "Alert Level 2",size = 5,angle = 90, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2021-12-28"), y = 4500, label = "Alert Level 3",size = 5,angle = 90, hjust = 1,color = "black")+
+  annotate("text", x = as.Date("2022-02-05"), y = 3000, label = "Alert Level 4",size = 5,angle = 0, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-02-05"), y = 4000, label = "Alert Level 3",size = 5,angle = 0, hjust = 1, color = "darkgreen")+
+  annotate("text", x = as.Date("2022-03-04"), y = 4000, label = "Alert Level 3",size = 5,angle = 0, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-04-29"), y = 2500, label = "Alert Level 1",size = 5, hjust = 1, color = "black")+
+  scale_color_manual(name = NULL,values = c("darkgreen","red","black","navy"), labels = c("Alert Level 3 Sim.",'SEARCH-ID Model', "Reported Cases",'True Infections (Est)')) +
+
+  geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 1.5)  +
+  ylab('Reported Cases') +
+  geom_vline(xintercept = as.Date("2021-12-23"), colour = "gold4", linetype = 2, size = 1)  +
+  geom_vline(xintercept = as.Date("2022-01-03"), colour = "gold4", linetype = 2, size = 1)  +
+  geom_vline(xintercept = as.Date("2022-02-06"), colour = "gold4", linetype = 2, size = 1)  +
+  geom_vline(xintercept = as.Date("2022-03-14"), colour = "gold4", linetype = 2, size = 1)  +
+  annotate("text", x = as.Date("2022-03-05"), y = 4800, label = "Pre-Cancellation of Public \nHealth Emergency Declaration",size=5, hjust=1, color = "maroon")+
+  annotate("text", x = as.Date("2022-05-10"), y = 3800, label = "Post Cancellation of Public \nHealth Emergency Declaration",size=5, hjust=1,color = "maroon")+
+  scale_x_date(date_breaks = "1 weeks", date_labels =  "%d-%b-%Y", limits = c(as.Date("2021-12-15"), as.Date("2022-06-02"))) +
+  #coord_cartesian(xlim = c(as.Date("2021-12-15"), as.Date("2022-06-02"))) +
+  theme_clean() +
+    theme(axis.text.x = element_text(size = 14, angle = 70,hjust = 1), axis.title.x = element_text(size = 14,color = "black", face = "bold"),
+          axis.text.y = element_text(size = 14), axis.title.y = element_text(size = 14,color = "black",face = "bold" ),
+          plot.title = element_text(size = 14, face = "bold", color = "black",hjust = 0.5),
+          legend.position = c(0.85, 0.90),
+          legend.title = element_text(size = 0),
+          legend.background = element_rect(color = NA),
+          legend.margin = margin(0,0,0,0),
+          plot.background = element_blank())+
+    ggtitle("Model Simulation and Scenario Analysis") +
+    theme(plot.title = element_text(hjust = 0.5)) -> optimal_param_forecast
+
+optimal_param_forecast
+```
+
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=7, fig.width=10}
+cumu_alert_scenarios |>
+    reshape2:: melt(id = c(".id", "dates")) |>
+    ggplot(aes(x = dates, y = value, color = factor(.id),group = factor(.id)))+
+    labs(x = "Dates", y = "Cumulative Cases", title = "")+
+    scale_x_date(date_breaks = "1 week", date_labels =  "%d-%b-%Y") +
+    geom_line(fill = "darkgray",shape = 19, show.legend = TRUE)+
+    geom_point(fill = "darkgray",shape = 19, show.legend = TRUE)+
+    geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 1)  + 
+    scale_color_manual(name = NULL,values = c("darkgreen","red","black","gold4"), labels = c("Alert Level 3 Sim.",'SEARCH-ID Model', "Reported Cases",'True Infections (Est)')) +
+    annotate("text", x = as.Date("2022-03-18"), y = b4_cum_alert3 + 3000, label = paste0(b4_cum_alert3),size = 5,angle = 0, hjust = 1, color = "darkgreen")+
+    annotate("text", x = as.Date("2022-06-01"), y = cum_alert3 + 3000, label = paste0(cum_alert3),size = 5,angle = 0, hjust = 1, color = "darkgreen")+
+
+    annotate("text", x = as.Date("2022-03-30"), y = b4_cum_sim_cases, label = paste0(b4_cum_sim_cases),size = 5,angle = 0, hjust = 1,color = "red")+
+    annotate("text", x = as.Date("2022-06-02"), y = cum_sim_cases - 4000, label = paste0(cum_sim_cases),size = 5,angle = 0, hjust = 1,color = "red")+
+
+    annotate("text", x = as.Date("2022-03-16"), y = b4_cum_case_rep, label = paste0(b4_cum_case_rep),size = 5,angle = 0, hjust = 1, color = "black")+
+    annotate("text", x = as.Date("2022-06-01"), y = cum_case_rep + 4000, label = paste0(cum_case_rep),size = 5,angle = 0, hjust = 1, color = "black")+
+  
+    annotate("text", x = as.Date("2022-03-16"), y = b4_cum_true_inf, label = paste0(b4_cum_true_inf),size = 5,angle = 0, hjust = 1, color = "gold4")+
+    annotate("text", x = as.Date("2022-06-01"), y = cum_true_inf + 4000, label = paste0(cum_true_inf),size = 5,angle = 0, hjust = 1, color = "gold4")+
+    geom_rect(aes(xmin=ymd('2022-03-14'), xmax = ymd('2022-06-02'), ymin = 0, ymax = Inf), fill = adjustcolor("#c7c7c7", alpha = 0.001), alpha = 0.01, color = NA) +
+    theme_clean()+
+    theme(axis.text.x = element_text(size = 14, angle = 70,hjust = 1), axis.title.x = element_text(size = 14,color = "black", face = "bold"),
+          axis.text.y = element_text(size = 14), axis.title.y = element_text(size = 14,color = "black",face = "bold" ),
+          plot.title = element_text(size = 14, face = "bold", color = "black",hjust = 0.5),
+          legend.position = c(0.15, 0.8),
+          legend.title = element_text(size = 0),
+          legend.background = element_rect(color = NA),
+          legend.margin = margin(0,0,0,0),
+          plot.background = element_blank())+
+    ggtitle("Cumulative Cases For Alert Level Scenarios") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    facet_wrap(~variable,ncol=1, scales="free_y") -> cumulative_plot
+cumulative_plot
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=20, fig.width=15}
+alertscenarios <- plot_grid(optimal_param_forecast, cumulative_plot, nrow = 2, ncol=1, rel_widths = c(1, 1),labels= c("E", "F"),align = "hv")
+alertscenarios
+```
+
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=8, fig.width=12}
+recovered <- alert_scenario_data[,c("dates",".id","R")]
+recovered <- recovered[recovered$.id == "calib_sim",]
+recovered$recov_percapita <- recovered$R / total_population
+
+recovered$seroprev <- merged_data$cum_daily_serop
+
+ggplot(data = recovered) +
+  # geom_line(aes(x = dates, y = recov_percapita, color = "Recovery Per Capita"), size = 1, linetype = 6) +
+  geom_point(aes(x = dates, y = recov_percapita, color = "Recovery Per Capita"), size = 2) +
+  # geom_smooth(aes(x = dates, y = recov_percapita), span = 0.1, se = FALSE) +
+  # geom_line(aes(x = dates, y = seroprev, color = "CITF Seroprevalence"), size = 1, linetype = 6) +
+  geom_point(aes(x = dates, y = seroprev, color = "CITF Seroprevalence"), size = 2) +
+  # geom_smooth(aes(x = dates, y = seroprev),  span = 0.1, linetype = 6, se = FALSE) +
+  # scale_color_manual(values = c("Recovery Per Capita" = "darkgreen", "Recovery Per Capita" = "brown")) +
+  scale_color_manual(name = NULL,values = c("darkgreen","brown"), labels = c("Recovery Per Capita","CITF Seroprevalence")) +
+  labs(x = "Date", y = "Seroprevalence", title = "Recovery Per Capita and CITF Seroprevalence", color = "") +
+  theme_clean() +
+  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        plot.title = element_text(size = 20, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.25, 0.75),
+        legend.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.background = element_rect(color = NA),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+        theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+Omicron_PMCMC |>
+  simulate(params = pmcmc_params_opt, nsim = 1, format = "data.frame", include.data = TRUE, seed = seednum)
+```
+
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=7, fig.width=12}
+# Define the objective function (negative log-likelihood)
+obj_fun <- function(params, data, ...) {
+  Omicron_PMCMC |>
+  simulate(params = pmcmc_params_opt, nsim = 1, format = "data.frame", include.data = TRUE, seed = seednum) -> fitted
+  R <- fitted[(fitted$.id == 1),]$R
+  print(R/510550)
+  # error <- sum(dnorm(, fitted$R / sum(fitted$R), sd = 0.1, log = TRUE))
+  error <- sum((merged_data$cum_daily_serop - fitted$R/510550 )^2)
+  print(error)
+}
+
+# Perform maximum likelihood estimation
+mle_result <- optim(fn = obj_fun, par = pmcmc_params_opt[,c("Beta_1","Beta_2","Beta_3","Beta_4")], data = merged_data$cum_daily_serop)
+
+# Extract calibrated parameters
+calibrated_parameters <- mle_result$par
+```
+
+
+
