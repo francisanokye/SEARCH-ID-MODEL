@@ -7,12 +7,9 @@ loadEnvironments()
 beta_changepoints <- c(0, 10, 25, 55, 90)
 beta_values = c(0.3, 0.30, 0.34, 0.34, 0.33)
 
-<<<<<<< HEAD
-=======
 reporting_changepoints <- c(0, 10, 25, 55, 90)
 reporting_values = c(0.3, 0.30, 0.34, 0.34, 0.33)
 
->>>>>>> ff5249c5d699b32e7f8560e05460f67452dbb8b5
 report_prob_ts = c(0.178277500297921, 0.178277500297921, 0.178277500297921, 0.178277500297921,
 0.178277500297921, 0.178277500297921, 0.178277500297921, 0.178277500297921,
 0.178277500297921, 0.178277500297921, 0.178277500297921, 0.178277500297921,
@@ -185,20 +182,9 @@ nspec <- mp_tmb_insert(newspec
 
 ## update  model specification with piece-wise transmission rates
 timevar_spec <- mp_tmb_insert(nspec
-<<<<<<< HEAD
 	, expression = list(report_prob ~ report_prob_ts[time_step(1)])
 	, phase = "during", at = 1L
 	, default = list(report_prob_ts = report_prob_ts)
-=======
-	, expression = list(
-	    #beta ~ time_var(beta_values, beta_changepoints)
-	   report_prob ~ report_prob_ts[time_step(1)]
-	 )
-	, phase = "during", at = 1L
-	#, default = list(beta_values = beta_values, report_prob_ts = report_prob_ts)
-	, default = list(report_prob_ts = report_prob_ts)
-   #, integers = list(beta_changepoints = beta_changepoints)
->>>>>>> ff5249c5d699b32e7f8560e05460f67452dbb8b5
 )
 
 #timevar_spec <- mp_tmb_insert(timevar_spec
