@@ -16,44 +16,62 @@ population = 510550
 
 calibrator <- rdsRead("calibrate.rds")
 
+
 fitted_data <- mp_trajectory_sd(calibrator)
 start_date <- as.Date("2021-12-15")
 fitted_data$dates <- start_date + as.numeric(fitted_data$time) - 1
 fitted_data <- fitted_data[(fitted_data$dates > "2021-12-14")& (fitted_data$dates <= "2022-06-02"),]
 
-gg <- (ggplot(fitted_data, aes(x = dates, y = value))
-   + geom_point(data = seroprevdata, aes(x = dates, y = value, color = "data"))
-   + geom_line(aes(color = matrix),linewidth = 1)
-   + geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 1)  
-   + geom_vline(xintercept = as.Date("2021-12-23"), colour = "gold4", linetype = 2, size = 1)  
-   + geom_vline(xintercept = as.Date("2022-01-03"), colour = "gold4", linetype = 2, size = 1)  
-   + geom_vline(xintercept = as.Date("2022-02-06"), colour = "gold4", linetype = 2, size = 1)  
-   + geom_vline(xintercept = as.Date("2022-03-14"), colour = "gold4", linetype = 1, size = 1)  
-   + scale_color_manual(labels = c("A","fit_cases", "data", "E", "I", "R","report_prob","S","serop_cases","fit_serop"),
-                        values = c("#2192FF","red","black","#008080", "blue", "green", "orange", "#2192FF", "magenta","red"))# "#2192FF"))
-   + facet_wrap(~matrix, scales = "free")
-   + theme_bw()
-   + theme(axis.text.x = element_text(size = 12, angle = 45, hjust = 1),
-                axis.title.x = element_text(size = 12, color = "black", face = "bold"),
-                axis.text.y = element_text(size = 12),
-                axis.title.y = element_text(size = 12, color = "black", face = "bold"),
-                plot.title = element_text(size = 12, face = "bold", color = "black", hjust = 0.5),
-                legend.position = "bottom",#c(0.85, 0.10),
-                legend.title = element_text(size = 0),
-                legend.text = element_text(size = 10),
-                legend.background = element_rect(color = NA),
-                legend.margin = margin(0, 0, 0, 0),
-		legend.box = "horizontal",  # Arrange legend horizontally
-      		legend.key.size = unit(0.5, "lines"),
-                plot.background = element_blank()) +
-        theme(plot.title = element_text(hjust = 0.5)) 
-)
-print(gg)
-#print(gg + xlim(c(0,170)))
+# subset data for "report_prob"
+fitted_data_report_prob <- dplyr::filter(fitted_data, matrix == "report_prob")
+# subset data without "report_prob"
+fitted_data_others <- dplyr::filter(fitted_data, matrix != "report_prob")
+
+# plot setup
+pp <- (ggplot(data = fitted_data, aes(x = dates, y = value))
+       + geom_point(data = seroprevdata, aes(x = dates, y = value, color = "data"))
+       + geom_line(aes(color = matrix), linewidth = 1.0)
+       + labs(x = "Date (Dec 15, 2021 - March 18, 2022)", y = "Incidence", title = "SEAIR Model Fit", color = "")
+       + scale_color_manual(labels = c("A","beta", "case_fit", "data","E", "I", "R", "report_prob", "S", "serop_fit"),
+                        values = c("maroon","blue", "red", "black", "#ea801c", "#800074", "#36b700", "#298c8c", "magenta","#f1a226"))
+       + facet_wrap(~matrix, scales = "free")
+       + theme_clean()
+       + theme(axis.text.x = element_text(size = 10, angle = 45, hjust = 0.5),
+               axis.title.x = element_text(size = 10, color = "black", face = "bold"),
+               axis.text.y = element_text(size = 10),
+               axis.title.y = element_text(size = 10, color = "black", face = "bold"),
+               plot.title = element_text(size = 10, face = "bold", color = "black", hjust = 0.5),
+               legend.position = "right",
+               legend.title = element_text(size = 0),
+               legend.text = element_text(size = 8),
+               legend.background = element_rect(color = NA),
+               legend.margin = margin(0, 0, 0, 0),
+               plot.background = element_blank())
+       + theme(plot.title = element_text(hjust = 0.5)))
+
+# Add geom_vline only for the "report_prob" facet by using filtered data
+pp <- pp + geom_vline(data = fitted_data_report_prob,
+                      aes(xintercept = as.Date("2021-12-15")), colour = "gray", linetype = 2, linewidth = 0.5) +
+	   geom_vline(data = fitted_data_report_prob,
+                      aes(xintercept = as.Date("2022-01-03")), colour = "gray", linetype = 2, linewidth = 0.5) +
+           geom_vline(data = fitted_data_report_prob,
+                      aes(xintercept = as.Date("2022-01-24")), colour = "gray", linetype = 2, linewidth = 0.5) +
+           geom_vline(data = fitted_data_report_prob,
+                      aes(xintercept = as.Date("2022-02-25")), colour = "gray", linetype = 2, linewidth = 0.5) +
+           geom_vline(data = fitted_data_report_prob,
+                      aes(xintercept = as.Date("2022-03-18")), colour = "gray", linetype = 1, linewidth = 0.5)
+
+# Add geom_vline for the rest of the facets (excluding "report_prob")
+pp <- pp + geom_vline(data = fitted_data_others,
+                      aes(xintercept = as.Date("2021-12-23")), colour = "gold4", linetype = 4, linewidth = 0.5) +
+           geom_vline(data = fitted_data_others,
+                      aes(xintercept = as.Date("2022-01-03")), colour = "gold4", linetype = 4, linewidth = 0.5) +
+           geom_vline(data = fitted_data_others,
+                      aes(xintercept = as.Date("2022-02-06")), colour = "gold4", linetype = 4, linewidth = 0.5) +
+           geom_vline(data = fitted_data_others,
+                      aes(xintercept = as.Date("2022-03-14")), colour = "gold4", linetype = 1, linewidth = 0.5) +
+           geom_vline(data = fitted_data_others,
+                      aes(xintercept = as.Date("2022-03-18")), colour = "purple", linetype = 6, linewidth = 0.5)
 
 
-# print(gg + xlim(c(90,200)))
-
-
-
-
+print(pp)
