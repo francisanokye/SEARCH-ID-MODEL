@@ -15,7 +15,7 @@ flows = list(
   , mp_per_capita_flow("C1", "D1", icu_dead1 ~ eta1 * lambda1)
   , mp_per_capita_flow("S1", "V2", s1_v2 ~ v2)
   
-  , mp_per_capita_flow("V2", "E2", exposure2 ~ kappa2 * foi)
+  , mp_per_capita_flow("V2", "E2", exposure2 ~ kappa2)
   , mp_per_capita_flow("E2", "I2", infect_symp2 ~ sigma * mu)
   , mp_per_capita_flow("E2", "A2", infect_asymp2 ~ sigma * (1-mu))
   , mp_per_capita_flow("A2", "R2", asymp_recov2 ~ gamma)
@@ -27,7 +27,7 @@ flows = list(
   , mp_per_capita_flow("C2", "D2", icu_dead2 ~ eta2 * lambda2)
   , mp_per_capita_flow("V2", "V3", v2_v3 ~ v3)
   
-  , mp_per_capita_flow("V3", "E3", exposure3 ~ kappa3 * foi)
+  , mp_per_capita_flow("V3", "E3", exposure3 ~ kappa3)
   , mp_per_capita_flow("E3", "I3", infect_symp3 ~ sigma * mu)
   , mp_per_capita_flow("E3", "A2", infect_asymp3 ~ sigma * (1-mu))
   , mp_per_capita_flow("A3", "R3", asymp_recov3 ~ gamma)

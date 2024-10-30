@@ -68,6 +68,10 @@ S10 = N - (E10 - A10 - R10 - C10 - H10 - I10 -D10)
 V20 = N - (E20 - A20 - R20 - C20 - H20 - I20 -D20) - S10
 V30 = N - (E30 - A30 - R30 - C30 - H30 - I30 -D30) - S10 - V20
 
+print(S10)
+print(V20)
+print(V30)
+
 params = list(beta = beta, report_prob = report_prob, kappa1 = kappa1, kappa2 = kappa2, kappa3 = kappa3, gamma = gamma, sigma = sigma, mu = mu, 
 	      tau = tau, zeta = zeta, v2 = v2, v3 = v3, xi1 = xi1, xi2 = xi2, xi3 = xi3, eta1 = eta1, eta2 = eta2, eta3 = eta3,
 	      phi1 = phi1, phi2 = phi2, phi3 = phi3, theta1 = theta1, theta2 = theta2, theta3 = theta3, 
