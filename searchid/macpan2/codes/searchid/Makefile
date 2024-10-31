@@ -48,7 +48,7 @@ seroprevdata.Rout: seroprevdata.R ../../data/seroprevalence_adjusted_cases.csv
 calibrate_summary.Rout: calibrate_summary.R calibrate.rds
 	$(pipeR)
 
-## constant.calibrate_plot.Rout: calibrate_plot.R
+## constant.calibrate_plot.Rout: calibrate_plot.R seroprevdata.R
 ## lindec.calibrate_plot.Rout: calibrate_plot.R
 ## rbf.calibrate_plot.Rout: calibrate_plot.R
 %.calibrate_plot.Rout: calibrate_plot.R %.calibrate.rds seroprevdata.rds params.R

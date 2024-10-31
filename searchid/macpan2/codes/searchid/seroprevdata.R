@@ -4,6 +4,7 @@ library(tidyverse)
 
 start_date <- "2021-12-14"
 last_date <- "2022-06-01"
+trim_report <- "2022-05-01"
 
 sero <- (csvRead() 
 	|> mutate(dates = as.Date(date,format = "%Y-%m-%d"))
@@ -21,8 +22,15 @@ serodat <- (sero
 	#%>% mutate(matrix = recode(matrix,"adjusted_serop_cases" = "sero_cases","seroprevalence" = "serop")) 
 	%>% arrange(matrix)
 )
-	   
-print(serodat)
+
+serodat <- (serodat
+	|> mutate(value = ifelse((matrix == "cases")& (dates > as.Date(trim_report)),NA,value)
+	)
+	|> filter(!is.na(value))
+)
+
+print(serodat,n=Inf)
+
 
 rdsSave(serodat)
 #saveEnvironment()
