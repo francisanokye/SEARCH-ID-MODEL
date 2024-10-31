@@ -31,16 +31,16 @@ fitted_data_others <- dplyr::filter(fitted_data, matrix != "report_prob")
 pp <- (ggplot(data = fitted_data, aes(x = dates, y = value))
        + geom_point(data = seroprevdata, aes(x = dates, y = value, color = "data"))
        + geom_line(aes(color = matrix), linewidth = 1.0)
-       + labs(x = "Date (Dec 15, 2021 - March 18, 2022)", y = "Incidence", title = "SEAIR Model Fit", color = "")
+       + labs(x = "Date (Dec 15, 2021 - June 02, 2022)", y = "Incidence", title = "SEARCH-ID Model Fit", color = "")
        + scale_color_manual(labels = c("A","beta", "C", "case_fit", "D", "data","E", "H","I", "R", "report_prob", "S", "serop_fit"),
                         values = c("maroon","blue", "purple", "red", "orange","black", "#ea801c", "navy","#800074", "#36b700", "#298c8c", "magenta","#f1a226"))
        + facet_wrap(~matrix, scales = "free")
        + theme_clean()
-       + theme(axis.text.x = element_text(size = 10, angle = 45, hjust = 0.5),
-               axis.title.x = element_text(size = 10, color = "black", face = "bold"),
-               axis.text.y = element_text(size = 10),
-               axis.title.y = element_text(size = 10, color = "black", face = "bold"),
-               plot.title = element_text(size = 10, face = "bold", color = "black", hjust = 0.5),
+       + theme(axis.text.x = element_text(size = 8, angle = 45, hjust = 0.5),
+               axis.title.x = element_text(size = 8, color = "black", face = "bold"),
+               axis.text.y = element_text(size = 8),
+               axis.title.y = element_text(size = 8, color = "black", face = "bold"),
+               plot.title = element_text(size = 8, face = "bold", color = "black", hjust = 0.5),
                legend.position = "right",
                legend.title = element_text(size = 0),
                legend.text = element_text(size = 8),

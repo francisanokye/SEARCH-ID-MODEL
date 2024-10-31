@@ -1,7 +1,6 @@
 library(macpan2)
 library(shellpipes)
 rpcall("timevar_spec.Rout timevar_spec.R flows.rda params.rda")
-
 loadEnvironments()
 
 beta_changepoints <- c(0, 10, 25, 55, 90)
@@ -147,7 +146,6 @@ report_prob_ts = c(0.178277500297921, 0.178277500297921, 0.178277500297921, 0.17
 0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
 0.00763992045631685)
 
-
 spec <- mp_tmb_model_spec(
   before = list(
       N ~ N
@@ -166,7 +164,6 @@ spec <- mp_tmb_model_spec(
     , H2 ~ exp(log_H20)
     , I2 ~ exp(log_I20)
     , D2 ~ exp(log_D20)
-
     , E3 ~ exp(log_E30)
     , A3 ~ exp(log_A30)
     , R3 ~ exp(log_R30)
@@ -174,15 +171,13 @@ spec <- mp_tmb_model_spec(
     , H3 ~ exp(log_H30)
     , I3 ~ exp(log_I30)
     , D3 ~ exp(log_D30)
-
-    , S1 ~ N - E1 - A1 - R1 - C1 - H1 - I1 - D1
-    , V2 ~ N - E2 - A2 - R2 - C2 - H2 - I2 - D2
-    , V3 ~ N - E3 - A3 - R3 - C3 - H3 - I3 - D3)
-
+    
+    , S1 ~ 76583 - (E1 - A1 - R1 - C1 - H1 - I1 - D1) # Remainder assumed vaccinated
+    , V2 ~ 153165 - (E2 - A2 - R2 - C2 - H2 - I2 - D2) # 85% have received at least two doses (which includes those with boosters)
+    , V3 ~ 280802 - (E3 - A3 - R3 - C3 - H3 - I3 - D3))# 55% have received the booster (3 doses)
   , during = flows
   , default = c(params)
 )
-
 newspec <- mp_tmb_update(spec
 			 , default = list(beta = beta, report_prob = report_prob, kappa1 = kappa1, kappa2 = kappa2, kappa3 = kappa3, gamma = gamma, sigma = sigma, mu = mu,
               tau = tau, zeta = zeta, v2 = v2, v3 = v3, xi1 = xi1, xi2 = xi2, xi3 = xi3, eta1 = eta1, eta2 = eta2, eta3 = eta3,
@@ -213,22 +208,18 @@ newspec <- mp_tmb_update(spec
               , log_I30 = log(I30)
               , log_D30 = log(D30))
 			)
-
-
 ## accumulate infections
 nspec <- mp_tmb_insert(newspec
   , expression = list(serop ~ (R/N))
   , at = Inf
   , phase = "during"
 )
-
 ## update  model specification with piece-wise transmission rates
 timevar_spec <- mp_tmb_insert(nspec
 	, expression = list(report_prob ~ report_prob_ts[time_step(1)])
 	, phase = "during", at = 1L
 	, default = list(report_prob_ts = report_prob_ts)
 )
-
 timevar_spec = mp_tmb_insert_reports(timevar_spec
   , incidence_name = "exposure"
   , report_prob = 0.5
@@ -237,6 +228,4 @@ timevar_spec = mp_tmb_insert_reports(timevar_spec
   , reports_name = "cases"
   , report_prob_name = "report_prob"
 )
-
-
 rdsSave(timevar_spec)
