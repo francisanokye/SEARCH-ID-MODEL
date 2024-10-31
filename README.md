@@ -172,6 +172,6 @@ For the parameterization of the vaccination rate across cohorts, we used the Gov
 
 <img src= "https://github.com/francisanokye/SEARCH-ID-MODEL/blob/main/searchid/macpan2/figures/calibrate_plot.png">
 
-Even though our initial attempts lack convergence of the optimizer to obtain optimal parameter estimates, the trajectory from the model fit is visually reasonable as shown below and still undergoing modifications to resolve any identifiability issues.
+The optimizer convergences with the model's initial state conditions and reporting probabilities to obtain optimal parameter estimates, the trajectory from the model fit is visually reasonable as shown below.
 <img src= "https://github.com/francisanokye/SEARCH-ID-MODEL/blob/main/searchid/macpan2/figures/feature_select_plot.Rout-1.png">
 
