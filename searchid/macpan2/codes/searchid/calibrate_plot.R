@@ -1,5 +1,7 @@
 library(macpan2)
 library(shellpipes)
+rpcall("test_eli.calibrate_plot.Rout calibrate_plot.R test_eli.calibrate.rds seroprevdata.rds params.R")
+rpcall("constant.calibrate_plot.Rout calibrate_plot.R constant.calibrate.rds seroprevdata.rds params.R")
 library(conflicted)
 library(tidyverse)
 library(dplyr)
@@ -18,6 +20,8 @@ population = 510550
 
 calibrator <- rdsRead("calibrate.rds")
 
+print(calibrator)
+
 fitted_data <- mp_trajectory_sd(calibrator, conf.int = TRUE)
 
 fitted_data <- (fitted_data
@@ -25,6 +29,9 @@ fitted_data <- (fitted_data
 	|> dplyr::filter(between(dates, as.Date(start_date), as.Date(last_date)))
 )
 	
+print(fitted_data)
+
+
 
 # subset data for "report_prob"
 fitted_data_report_prob <- dplyr::filter(fitted_data, matrix == "report_prob")

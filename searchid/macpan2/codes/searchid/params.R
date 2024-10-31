@@ -3,6 +3,7 @@ set.seed(2024)
 
 beta_baseline = 0.35 # baseline transmission rate
 beta_deviation = 1   # multiplicative deviation from baseline transmission rate 
+beta <- 0.35
 report_prob = 1.0
 kappa1 = 1 
 kappa2 = 0.91 
@@ -69,11 +70,18 @@ S10 = 0.15 * N  - (E10 - A10 - R10 - C10 - H10 - I10 -D10)
 V20 = 0.30 * N  - (E20 - A20 - R20 - C20 - H20 - I20 -D20)
 V30 = 0.55 * N  - (E30 - A30 - R30 - C30 - H30 - I30 -D30) 
 
-params = list(beta_baseline = beta_baseline, beta_deviation = beta_deviation, report_prob = report_prob, kappa1 = kappa1, kappa2 = kappa2, kappa3 = kappa3, gamma = gamma, sigma = sigma, mu = mu, 
-	      tau = tau, zeta = zeta, v2 = v2, v3 = v3, xi1 = xi1, xi2 = xi2, xi3 = xi3, eta1 = eta1, eta2 = eta2, eta3 = eta3,
-	      phi1 = phi1, phi2 = phi2, phi3 = phi3, theta1 = theta1, theta2 = theta2, theta3 = theta3, 
-	      omega1 = omega1, omega2 = omega2, omega3 = omega3, lambda1 = lambda1, lambda2 = lambda2, lambda3 = lambda3
-		)
+
+# params = list(beta_baseline = beta_baseline, beta_deviation = beta_deviation
+params = list(beta= beta
+	, report_prob = report_prob, kappa1 = kappa1, kappa2 = kappa2, kappa3 = kappa3
+	, gamma = gamma, sigma = sigma, mu = mu
+	, tau = tau, zeta = zeta, v2 = v2, v3 = v3
+	, xi1 = xi1, xi2 = xi2, xi3 = xi3, eta1 = eta1, eta2 = eta2, eta3 = eta3
+	, phi1 = phi1, phi2 = phi2, phi3 = phi3, theta1 = theta1, theta2 = theta2
+	, theta3 = theta3
+	, omega1 = omega1, omega2 = omega2, omega3 = omega3
+	, lambda1 = lambda1, lambda2 = lambda2, lambda3 = lambda3
+)
 
 states = list(N = N
 	, S1 = S10

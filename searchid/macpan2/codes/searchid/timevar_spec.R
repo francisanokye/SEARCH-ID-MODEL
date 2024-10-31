@@ -14,6 +14,10 @@ reporting_probs = csvRead()
 # change prob1 through to prob6 to select different shapes of the reporting probabilities
 report_prob_ts <- reporting_probs$prob
 
+print(head(reporting_probs))
+print(summary(reporting_probs))
+
+
 spec <- mp_tmb_model_spec(
   before = list(
       N ~ N
