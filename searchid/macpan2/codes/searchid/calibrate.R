@@ -1,6 +1,5 @@
 library(macpan2)
 library(shellpipes)
-rpcall("calibrate.Rout calibrate.R timevar_spec.rds seroprevdata.rds params.rda timevar_spec.R")
 library(conflicted)
 library(tidyverse)
 library(dplyr)

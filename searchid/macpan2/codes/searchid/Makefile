@@ -25,22 +25,33 @@ flows.Rout: flows.R params.rda
 #reporting_probs.Rout: reporting_probs.R ../../data/report_probabilities.csv
 #        $(pipeRcall)
 
-timevar_spec.Rout: timevar_spec.R flows.rda  params.rda
-	$(pipeRcall)
+
+## constant.timevar_spec.Rout: timevar_spec.R
+## lindec.timevar_spec.Rout: timevar_spec.R
+## rbf.timevar_spec.Rout: timevar_spec.R
+%.timevar_spec.Rout: timevar_spec.R flows.rda params.rda ../../data/rp_%.csv
+	$(pipeR)
+
 
 simulate.Rout: simulate.R timevar_spec.rds params.rda
-	$(pipeRcall)
+	$(pipeR)
 
 seroprevdata.Rout: seroprevdata.R ../../data/seroprevalence_adjusted_cases.csv
-	$(pipeRcall)
+	$(pipeR)
 
-calibrate.Rout: calibrate.R timevar_spec.rds seroprevdata.rds params.rda timevar_spec.R
-	$(pipeRcall)
+## constant.calibrate.Rout: calibrate.R
+## lindec.calibrate.Rout: calibrate.R
+## rbf.calibrate.Rout: calibrate.R
+%.calibrate.Rout: calibrate.R %.timevar_spec.rds seroprevdata.rds params.rda timevar_spec.R
+	$(pipeR)
 
 calibrate_summary.Rout: calibrate_summary.R calibrate.rds
 	$(pipeR)
 
-calibrate_plot.Rout: calibrate_plot.R calibrate.rds seroprevdata.rds params.R
+## constant.calibrate_plot.Rout: calibrate_plot.R
+## lindec.calibrate_plot.Rout: calibrate_plot.R
+## rbf.calibrate_plot.Rout: calibrate_plot.R
+%.calibrate_plot.Rout: calibrate_plot.R %.calibrate.rds seroprevdata.rds params.R
 	$(pipeR)
 
 feature_select_plot.Rout: feature_select_plot.R calibrate.rds seroprevdata.rds params.R
