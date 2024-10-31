@@ -170,7 +170,7 @@ For the parameterization of the vaccination rate across cohorts, we used the Gov
 
 ## Model Implemetation in macpan2
 
-<img src= "https://github.com/francisanokye/SEARCH-ID-MODEL/blob/main/searchid/macpan2/figures/disease_sates_init.png">
+<img src= "https://github.com/francisanokye/SEARCH-ID-MODEL/blob/main/searchid/macpan2/figures/calibrate_plot.Rout.pdf">
 
 Even though our initial attempts lack convergence of the optimizer to obtain optimal parameter estimates, the trajectory from the model fit is visually reasonable as shown below and still undergoing modifications to resolve any identifiability issues.
 <img src= "https://github.com/francisanokye/SEARCH-ID-MODEL/blob/main/searchid/macpan2/figures/model_fit.png">
