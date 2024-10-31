@@ -173,9 +173,10 @@ spec <- mp_tmb_model_spec(
     , I3 ~ exp(log_I30)
     , D3 ~ exp(log_D30)
 
-    , S1  ~ 0.15 * N  - (E1 - A1 - R1 - C1 - H1 - I1 - D1)
-    , V2  ~ 0.30 * N  - (E2 - A2 - R2 - C2 - H2 - I2 - D2) 
-    , V3  ~ 0.55 * N  - (E3 - A3 - R3 - C3 - H3 - I3 - D3))  
+    , S1  = 0.15 * N  - (E1 - A1 - R1 - C1 - H1 - I1 - D1)
+    , V2  = 0.30 * N  - (E2 - A2 - R2 - C2 - H2 - I2 - D2) 
+    , V3  = 0.55 * N  - (E3 - A3 - R3 - C3 - H3 - I3 - D3)) 
+    
   , during = flows
   , default = c(params)
 )
