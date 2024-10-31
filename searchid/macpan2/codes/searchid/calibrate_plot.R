@@ -9,17 +9,22 @@ set.seed(2024)
 
 loadEnvironments()
 
+start_date <- "2021-12-15"
+last_date <- "2022-06-01"
+
 seroprevdata <- rdsRead("seroprevdata.rds")
 
 population = 510550
 
 calibrator <- rdsRead("calibrate.rds")
 
-
 fitted_data <- mp_trajectory_sd(calibrator, conf.int = TRUE)
-start_date <- as.Date("2021-12-15")
-fitted_data$dates <- start_date + as.numeric(fitted_data$time) - 1
-fitted_data <- fitted_data[(fitted_data$dates > "2021-12-14")& (fitted_data$dates <= "2022-03-19"),]
+
+fitted_data <- (fitted_data
+	|> mutate(dates = as.Date(start_date) + as.numeric(time) -1 )
+	|> dplyr::filter(between(dates, as.Date(start_date), as.Date(last_date)))
+)
+	
 
 # subset data for "report_prob"
 fitted_data_report_prob <- dplyr::filter(fitted_data, matrix == "report_prob")
@@ -66,7 +71,7 @@ pp <- pp + geom_vline(data = fitted_data_others,aes(xintercept = as.Date("2021-1
            geom_vline(data = fitted_data_others,aes(xintercept = as.Date("2022-02-06")), colour = "gold4", linetype = 4, linewidth = 0.5) +
            geom_vline(data = fitted_data_others,aes(xintercept = as.Date("2022-03-14")), colour = "gold4", linetype = 1, linewidth = 0.5) +
            geom_vline(data = fitted_data_others,aes(xintercept = as.Date("2022-03-18")), colour = "purple", linetype = 6, linewidth = 0.5)+
-           geom_ribbon(data = fitted_data_others,aes(dates, ymin = conf.low, ymax = conf.high))
+           geom_ribbon(data = fitted_data_others,aes(dates, ymin = conf.low, ymax = conf.high),alpha=0.05)
 
 
 

@@ -2,15 +2,16 @@ library(shellpipes)
 rpcall("seroprevdata.Rout seroprevdata.R ../../data/seroprevalence_adjusted_cases.csv")
 library(tidyverse)
 
-est_infect_from_seroprevalence <- csvRead()
-est_infect_from_seroprevalence$date <- as.Date(est_infect_from_seroprevalence$date, format = "%Y-%m-%d")
-est_infect_from_seroprevalence <- est_infect_from_seroprevalence |>
-  rename_at("date",~"dates")
+start_date <- "2021-12-14"
+last_date <- "2022-06-01"
 
-est_infect_from_seroprevalence <- est_infect_from_seroprevalence[(est_infect_from_seroprevalence$dates > "2021-12-14")& (est_infect_from_seroprevalence$dates <= "2022-03-19"),]
+sero <- (csvRead() 
+	|> mutate(dates = as.Date(date,format = "%Y-%m-%d"))
+	|> select(-date)
+	|> filter(between(dates,as.Date(start_date),as.Date(last_date)))
+)
 
-
-seroprevdata <- (est_infect_from_seroprevalence 
+serodat <- (sero
 	#%>% select(dates, adjusted_serop_cases, seroprevalence, cases)
         %>% select(dates, seroprevalence, cases)	
 	%>% mutate(time = seq_along(dates))
@@ -21,8 +22,8 @@ seroprevdata <- (est_infect_from_seroprevalence
 	%>% arrange(matrix)
 )
 	   
-print(seroprevdata)
+print(serodat)
 
-rdsSave(seroprevdata)
+rdsSave(serodat)
 #saveEnvironment()
 
