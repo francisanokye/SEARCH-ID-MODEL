@@ -40,7 +40,10 @@ calibrate_summary.Rout: calibrate_summary.R calibrate.rds
 calibrate_plot.Rout: calibrate_plot.R calibrate.rds seroprevdata.rds params.R
 	$(pipeR)
 
-check_plot.Rout: check_plot.R calibrate.rds
+feature_select_plot.Rout: feature_select_plot.R calibrate.rds seroprevdata.rds params.R
+	$(pipeR)
+
+extract_beta.Rout: extract_beta.R calibrate.rds
 	$(pipeR)
 
 Ignore += makestuff
