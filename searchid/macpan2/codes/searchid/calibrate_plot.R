@@ -10,7 +10,6 @@ set.seed(2024)
 loadEnvironments()
 
 seroprevdata <- rdsRead("seroprevdata.rds")
-print(head(seroprevdata))
 
 population = 510550
 
