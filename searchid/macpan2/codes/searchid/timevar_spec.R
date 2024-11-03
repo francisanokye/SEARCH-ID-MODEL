@@ -9,7 +9,7 @@ beta_values = c(0.3, 0.30, 0.34, 0.34, 0.33)
 reporting_probs = read.csv("../../data/report_probabilities.csv")
 print(nrow(reporting_probs))
 
-report_prob_ts <- reporting_probs |> dplyr::pull(prob3) |> dput()
+report_prob_ts <- reporting_probs |> dplyr::pull(prob6) |> dput()
 
 spec <- mp_tmb_model_spec(
   before = list(
