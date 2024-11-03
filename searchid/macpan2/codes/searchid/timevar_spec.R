@@ -6,10 +6,10 @@ loadEnvironments()
 beta_changepoints <- c(0, 10, 25, 55, 90)
 beta_values = c(0.3, 0.30, 0.34, 0.34, 0.33)
 
+# reads in sample of generated reported probabilities
 reporting_probs = read.csv("../../data/report_probabilities.csv")
-print(nrow(reporting_probs))
-
-report_prob_ts <- reporting_probs |> dplyr::pull(prob6) |> dput()
+# change prob1 through to prob6 to select different shapes of the reporting probabilities
+report_prob_ts <- reporting_probs |> dplyr::pull(prob1) |> dput()
 
 spec <- mp_tmb_model_spec(
   before = list(

@@ -15,7 +15,7 @@ calibrator <- rdsRead("calibrate.rds")
 fitted_data <- mp_trajectory_sd(calibrator)
 start_date <- as.Date("2021-12-15")
 fitted_data$dates <- start_date + as.numeric(fitted_data$time) - 1
-fitted_data <- fitted_data[(fitted_data$dates > "2021-12-14")& (fitted_data$dates <= "2022-06-02"),]
+fitted_data <- fitted_data[(fitted_data$dates > "2021-12-14") & (fitted_data$dates <= "2022-06-02"),]
 
 # subset beta values for boxplot
 beta_values <- dplyr::filter(fitted_data, matrix %in% c("beta"))
@@ -35,7 +35,7 @@ means <- beta_values |>
   summarise(mean_value = mean(value, na.rm = TRUE))
 
 # colors for alert levels
-alert_colors <- c('ALS-2' = "blue", 'ALS-3' = "orange", 'ALS-4' = "green",'Mod-ALS-3' = "purple", 'No-ALS' = "gray")        
+alert_colors <- c('ALS-2' = "green", 'ALS-3' = "#CDA4DE", 'ALS-4' = "#FF9800",'Mod-ALS-3' = "#EADDF0", 'No-ALS' = "lightblue")        
 
 betaplot <- (ggplot() +
   geom_line(data = beta_values, aes(x = dates, y = value), linewidth = 2, color = "black") + 
@@ -44,7 +44,7 @@ betaplot <- (ggplot() +
   geom_line(data = beta_values %>% dplyr::filter(alert_level == "ALS-3"), aes(x = dates, y = value, color = alert_level), linewidth = 2) +
   geom_line(data = beta_values %>% dplyr::filter(alert_level == "Mod-ALS-3"), aes(x = dates, y = value, color = alert_level), linewidth = 2) +
   geom_line(data = beta_values %>% dplyr::filter(alert_level == "ALS-4"), aes(x = dates, y = value, color = alert_level), linewidth = 2) +
-  labs(title = "Transmission Rates Across Time", x = "Date (Dec 15, 2021 - June 02, 2022)", y = expression("Transmission Rate ("*beta*")")) +
+  labs(title = "Transmission Rates Across Time", x = "Date (Dec 15, 2021 - June 02, 2022)", y = expression(""*beta*"")) +
   scale_color_manual(values = alert_colors, name = "Alert Level") +
   theme_clean() +  
   geom_vline(data = beta_values,aes(xintercept = as.Date("2021-12-23")), colour = "grey", linetype = 2, linewidth = 1) +
@@ -72,12 +72,12 @@ betaplot <- (ggplot() +
 alert_boxplot <- (ggplot(beta_values, aes(x = alert_level, y = value, fill = alert_level)) +  
   geom_boxplot(color = "black", outlier.shape = NA) +
   stat_summary(fun = mean, geom = "point", shape = 20, color = "red", size = 3) +
-  geom_text(data = means, aes(x = alert_level, y = mean_value, label = round(mean_value, 2)),vjust = -1.2, hjust = 0.5, color = "red") +
-  labs(title = "Mean Transmission Rate For Alert Levels", x = "Alert Levels", y = expression("Transmission Rate ("*beta*")")) +
+  geom_text(data = means, aes(x = alert_level, y = mean_value, label = round(mean_value, 2)),vjust = -1.5, hjust = 0.35, color = "red") +
+  labs(title = "Mean Transmission Rate For Alert Levels", x = "Alert Levels", y = expression(""*beta*"")) +
   scale_fill_manual(values = alert_colors, guide = "none") + 
   theme_clean() + 
   theme(
-    axis.text.x = element_text(size = 12, hjust = 1, angle = 45),
+    axis.text.x = element_text(size = 10, hjust = 1, angle = 45),
     axis.title.x = element_text(size = 12, color = "black", face = "bold"),
     axis.text.y = element_text(size = 12),
     axis.title.y = element_text(size = 12, color = "black", face = "bold"),
@@ -92,7 +92,7 @@ alert_boxplot <- (ggplot(beta_values, aes(x = alert_level, y = value, fill = ale
 # combine the plots using patchwork with equal widths 
 combined_plot <- (betaplot | alert_boxplot) + plot_layout(guides = "collect", widths = c(1, 1)) & theme(legend.position = "bottom")
 # save plot 
-ggsave("../../figures/beta_boxplot.png", plot = combined_plot, width = 10, height = 6, dpi = 600)
+#ggsave("../../figures/beta_boxplot.png", plot = combined_plot, width = 10, height = 6, dpi = 600)
 
 
 print(combined_plot)

@@ -16,7 +16,7 @@ population = 510550
 calibrator <- rdsRead("calibrate.rds")
 
 
-fitted_data <- mp_trajectory_sd(calibrator)
+fitted_data <- mp_trajectory_sd(calibrator, conf.int = TRUE)
 start_date <- as.Date("2021-12-15")
 fitted_data$dates <- start_date + as.numeric(fitted_data$time) - 1
 fitted_data <- fitted_data[(fitted_data$dates > "2021-12-14")& (fitted_data$dates <= "2022-06-02"),]
@@ -61,16 +61,13 @@ pp <- pp + geom_vline(data = fitted_data_report_prob,
                       aes(xintercept = as.Date("2022-03-18")), colour = "gray", linetype = 1, linewidth = 0.5)
 
 # Add geom_vline for the rest of the facets (excluding "report_prob")
-pp <- pp + geom_vline(data = fitted_data_others,
-                      aes(xintercept = as.Date("2021-12-23")), colour = "gold4", linetype = 4, linewidth = 0.5) +
-           geom_vline(data = fitted_data_others,
-                      aes(xintercept = as.Date("2022-01-03")), colour = "gold4", linetype = 4, linewidth = 0.5) +
-           geom_vline(data = fitted_data_others,
-                      aes(xintercept = as.Date("2022-02-06")), colour = "gold4", linetype = 4, linewidth = 0.5) +
-           geom_vline(data = fitted_data_others,
-                      aes(xintercept = as.Date("2022-03-14")), colour = "gold4", linetype = 1, linewidth = 0.5) +
-           geom_vline(data = fitted_data_others,
-                      aes(xintercept = as.Date("2022-03-18")), colour = "purple", linetype = 6, linewidth = 0.5)
+pp <- pp + geom_vline(data = fitted_data_others,aes(xintercept = as.Date("2021-12-23")), colour = "gold4", linetype = 4, linewidth = 0.5) +
+           geom_vline(data = fitted_data_others,aes(xintercept = as.Date("2022-01-03")), colour = "gold4", linetype = 4, linewidth = 0.5) +
+           geom_vline(data = fitted_data_others,aes(xintercept = as.Date("2022-02-06")), colour = "gold4", linetype = 4, linewidth = 0.5) +
+           geom_vline(data = fitted_data_others,aes(xintercept = as.Date("2022-03-14")), colour = "gold4", linetype = 1, linewidth = 0.5) +
+           geom_vline(data = fitted_data_others,aes(xintercept = as.Date("2022-03-18")), colour = "purple", linetype = 6, linewidth = 0.5)+
+           geom_ribbon(data = fitted_data_others,aes(dates, ymin = conf.low, ymax = conf.high))
+
 
 
 print(pp)
