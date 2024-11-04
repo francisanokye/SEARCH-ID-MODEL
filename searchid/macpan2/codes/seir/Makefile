@@ -40,6 +40,12 @@ calibrate_summary.Rout: calibrate_summary.R calibrate.rds
 calibrate_plot.Rout: calibrate_plot.R calibrate.rds seroprevdata.rds params.R
 	$(pipeR)
 
+feature_select_plot.Rout: feature_select_plot.R calibrate.rds seroprevdata.rds params.R
+	$(pipeR)
+
+extract_beta.Rout: extract_beta.R calibrate.rds
+	$(pipeR)
+
 
 Ignore += makestuff
 msrepo = https://github.com/dushoff

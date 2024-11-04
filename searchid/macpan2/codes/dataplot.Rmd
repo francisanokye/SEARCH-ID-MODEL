@@ -1,0 +1,1529 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r warning=FALSE, message=FALSE}
+#rm(list = ls(all.names = TRUE))
+set.seed(132628335)
+suppressPackageStartupMessages({
+pacman::p_load(tidyverse, reshape2, ggplot2, coda, gtools, gridExtra,
+                foreach, doParallel, doRNG, tidyr,plyr, pomp, doMC, zoo, 
+                devtools, readxl, viridis, tibbletime, tidyquant, lubridate,
+                grid, ggthemes, ggh4x, ggsci, ggnewscale, repr, magrittr, 
+               coda, xtable, gghighcontrast, superdiag,ggpubr,cowplot)})
+
+base_colors <- scales::hue_pal()(18)
+dark_colors <- colorspace::darken(base_colors, 0.3)
+lite_colors <- colorspace::lighten(base_colors, 0.3)
+
+library(doParallel)
+registerDoParallel(cores = detectCores())
+options(scipen = 100, digits = 4)
+```
+
+```{r warning=FALSE, message=FALSE}
+set.seed(132628335)
+library(tidyverse)
+library(here)
+library(pomp)
+library(foreach)
+library(doFuture)
+library(parallel)
+library(doParallel)
+library(doRNG)
+library(coda)
+library(ggthemes)
+library(coda)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(ggthemes)
+library(cowplot)
+library(minpack.lm)
+library(coda)
+library(xtable)
+library(mgcv)
+
+colors = c("#31E1F7","#F99417","#E11299","#002B5B","#379237","#D2001A",
+           "#6F38C5","#8D7B68","#BFDB38","#820000","#367E18","#2192FF",
+           "#C58940","black","orange4","yellow","magenta","maroon")
+
+options(scipen = 100, digits = 8)
+
+weekly_seroprevalence <- read.csv("~/Documents/MUN/SEARCH-ID-MODEL/searchid/pomp/data/estimated_seroprevalence.csv")
+weekly_seroprevalence$week_end <- as.Date(weekly_seroprevalence$week_end, format = "%Y-%m-%d")
+
+# Make copy data and format the date
+original_est_SERP <- weekly_seroprevalence[(weekly_seroprevalence$geo == "NL"),]
+original_est_SERP <- original_est_SERP %>%
+  mutate(week_end = as.Date(week_end, format = "%Y-%m-%d"),est_infection_date = week_end)
+
+# Subset the Anti-N 
+weekly_seroprevalence <- weekly_seroprevalence[(weekly_seroprevalence$geo == "NL")  & (weekly_seroprevalence$ab_estimate == "Anti-N estimate"),] #
+
+# Rename date column
+weekly_seroprevalence <- weekly_seroprevalence %>%
+  rename_at("week_end", ~"date")
+
+# Format date column
+weekly_seroprevalence$date <- as.Date(weekly_seroprevalence$date, format = "%Y-%m-%d")
+
+# Total population
+total_population <- 510550
+
+# Create a copy of data
+est_SERP <- weekly_seroprevalence
+
+# Create the daily seroprevalence 
+est_SERP <- est_SERP %>%
+  mutate(daily_pct = c(0,diff(pct_mean)))
+
+# Subset only the study period
+est_SERP <- est_SERP[(est_SERP$date >= "2021-10-01") & (est_SERP$date < "2022-06-09"),]
+rownames(est_SERP) <- NULL
+
+# est_SERP <- est_SERP %>%
+#   select(-c(geo,ab_estimate,pct_q25,pct_q75))
+
+# Create the count index
+est_SERP$day <- 1:nrow(est_SERP) * 7
+rownames(est_SERP) <- NULL
+
+# create a new dummy dataframe in the daily scale
+daily_seroprev <- data.frame(day = 1:(nrow(est_SERP) * 7)) 
+
+# Create a sequence of dates
+date <- seq.Date(from = as.Date("2021-10-01"), by = "day", length.out = nrow(daily_seroprev))
+
+# Add dates
+daily_seroprev$date <- date
+
+#-----------------------------------------------------------------------------------
+# Fit a logistic model to convert weekly estimated seroprevalence to daily estimates
+#-----------------------------------------------------------------------------------
+
+# Define the logistic function
+# logistic_model <- function(t, K, r, t0) {
+#   K / (1 + exp(-r * (t - t0)))
+#   }
+# # median(est_SERP$day)
+# # Fit the serology data on the weekly scale
+# logit_model <- nlsLM(pct_mean ~ logistic_model(day, K, r, t0), data = est_SERP,
+#              start = list(K = max(est_SERP$pct_mean), r = 0.05, t0 = est_SERP$day[1]),
+#              control = nls.lm.control(maxiter = 2000000))
+# 
+# # Predict cumulative seroprevalence on daily scale
+# daily_seroprev$daily_serop <- predict(logit_model, type = "response", newdata = daily_seroprev)
+
+#-----------------------------------------------------------------------------------
+# Fit Generalized Additive Model (GAM)  to convert weekly estimated seroprevalence to daily estimates
+#-----------------------------------------------------------------------------------
+gam_model <- gam(pct_mean ~ s(day), data = est_SERP)
+# predict cumulative seroprevalence on daily scale
+y_pred_gam <- predict(gam_model, newdata = daily_seroprev , type = "response")
+# interpolated daily seroprevalence
+daily_seroprev$daily_serop <- y_pred_gam
+
+# calculate the daily seroprevalence increment
+daily_seroprev$daily_serop_increment <- c(0, diff(daily_seroprev$daily_serop))
+
+#-----------------------------------------------------------------------------------
+# Fit a Gompertz model to convert weekly estimated seroprevalence to daily estimates
+#-----------------------------------------------------------------------------------
+
+# gompertz_func = function(a,b,c,K, t) {
+#   a + (c * exp(-exp(-b * (t - K))))
+#   }
+# #
+# gombertz_mod <- nlsLM(pct_mean ~ gompertz_func(a,b,c, K, day), data = est_SERP,
+#                       start = list(a = 0.5, b = 0.05, c = 1, K = max(est_SERP$pct_mean)),
+#                       control = nls.lm.control(maxiter = 20000))
+# 
+# y_pred_gomb <- predict(gombertz_mod, newdata = daily_seroprev, type = "response")
+# 
+# daily_seroprev$daily_serop <- y_pred_gomb
+#-----------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------
+# Add confidence interval (CI) to daily seroprevalence estimates
+#-----------------------------------------------------------------------------------
+n <- nrow(daily_seroprev)
+sero_mean_y <- daily_seroprev$daily_serop
+sero_sd_y <- sd(daily_seroprev$daily_serop)  # Sample standard deviation
+
+# Z-score for 95% confidence; qnorm(0.975) gives 1.96
+z <- qnorm(0.975)
+#
+# # Calculate confidence interval
+sero_ci_width <- z * (sero_sd_y / sqrt(n))
+sero_lower_ci <- sero_mean_y - sero_ci_width
+sero_upper_ci <- sero_mean_y + sero_ci_width
+#
+# Add calculated CI to daily seroprevalence estimates
+daily_seroprev$daily_serop_q025 <- sero_lower_ci
+daily_seroprev$daily_serop_q975 <- sero_upper_ci
+
+daily_seroprev <- daily_seroprev[(daily_seroprev$date < "2022-06-03"),]
+daily_seroprev$day <- 1:nrow(daily_seroprev)
+rownames(daily_seroprev) <- NULL
+
+#################
+# REPORTED DATA 
+#################
+# recovered <- read.csv("~/Documents/nl_ba1_two_peak_pmcmc_model/data/covid19-download.csv")
+# recovered$date <- as.Date(recovered$date, format = "%Y-%m-%d")
+# recovered <- recovered[(recovered$prname == "Newfoundland and Labrador"),] #
+# recovered <- recovered[,c("date","numrecover")]
+# rownames(recovered) <- NULL
+# recovered <- recovered[(recovered$date >= "2021-12-15") & (recovered$date < "2022-06-03"),]
+# recovered$daily_recovery <- c(0,diff(recovered$numrecover))
+# recovered$recovery <- cumsum(recovered$daily_recovery) / total_population
+
+#################
+# REPORTED DATA 
+#################
+
+# load reported data
+reported_data <- read.csv("~/Documents/MUN/SEARCH-ID-MODEL/searchid/pomp/data/IM215194_NL_COVID_CASESHOSPDEATH.csv")
+
+# format date column
+reported_data$DATE <- as.Date(reported_data$DATE, format = "%Y-%m-%d")
+
+# rename columns
+colnames(reported_data) <- c("date", "cases", "hosp", "death")
+
+# reassign row indices
+rownames(reported_data) <- 1:nrow(reported_data)
+
+# select only date and cases columns
+# reported_data <- reported_data[c("date", "cases")]
+
+date <- seq.Date(from = as.Date("2020-03-14"), to = as.Date("2022-06-02"), by = "day")
+df <- data.frame(date)
+
+reported_data <- df |> 
+  full_join(reported_data,"date")
+
+reported_data <- reported_data |>
+  mutate(cases = ifelse(is.na(cases), 0, cases))
+
+# rearrange data according to date in ascending order
+reported_data <- reported_data %>%
+  arrange(date)
+
+covid_cases <- reported_data
+
+# Calculate total cases, last date, weekly cumulative sum, and overall cumulative sum
+# Subset data for study period
+reported_data <- reported_data[(reported_data$date >= "2021-10-01") & (reported_data$date < "2022-06-03"),]
+rownames(reported_data) <- NULL
+reported_data$day <- 1: nrow(reported_data)
+
+reported_data <- reported_data |>
+  arrange(date)
+
+# Calculate daily cumulative cases
+reported_data$cum_cases <- cumsum(reported_data$cases)
+# Calculate total cases, last date, weekly cumulative sum, and overall cumulative sum
+reported_data$cum_case_per_capita <- reported_data$cum_cases / total_population
+# Calculate total cases, last date, weekly cumulative sum, and overall cumulative sum
+reported_data$daily_case_increment = c(reported_data$cum_case_per_capita[1], diff(reported_data$cum_case_per_capita))
+
+#-----------------------------------------------------------------------------------
+# Add confidence interval (CI) to daily case per capita estimates
+#-----------------------------------------------------------------------------------
+
+n <- nrow(reported_data)
+case_mean_y <- reported_data$cum_case_per_capita
+case_sd_y <- sd(reported_data$cum_case_per_capita)  # Sample standard deviation
+
+# Z-score for 95% confidence; qnorm(0.975) gives 1.96
+z <- qnorm(0.975)
+
+# Calculate confidence interval
+case_ci_width <- z * (case_sd_y / sqrt(n))
+case_lower_ci <- case_mean_y - case_ci_width
+case_upper_ci <- case_mean_y + case_ci_width
+# 
+# Add calculated CI to daily seroprevalence estimates
+#daily_reported_cases$daily_mean_case_capita <- case_mean_y
+reported_data$cum_case_per_capita_q025 <- case_lower_ci
+reported_data$cum_case_per_capita_q975 <- case_upper_ci
+
+```
+
+
+```{r warning=FALSE, message=FALSE, fig.height=6, fig.width=12}
+ggplot() +
+  geom_line(data = merged_data, aes(x = day, y = est_inci_case, color = "True Incidence - adjusted underreporting"), size = 1) +
+  # geom_point(data = est_SERP, aes(x = date, y = pct_mean, color = "Weekly Seroprevalence Increment"), size = 1) +
+  geom_line(data = merged_data, aes(x = day, y = est_inci_serop, color = "True Incidence - adjusted sero-increment"), size = 1.5, alpha = 0.95) +
+  scale_color_manual(values = c("True Incidence - adjusted sero-increment" = "blue", "True Incidence - adjusted underreporting" = "brown")) +
+  labs(x = "Date", y = "Seroprevalence(%)", title = "Estimated True Incidence") +
+  theme_clean() +
+  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        plot.title = element_text(size = 20, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.25, 0.98),
+        legend.title = element_blank(),
+        legend.background = element_rect(color = NA),
+        legend.text = element_text(size = 20),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=7}
+
+X <- ggplot() +
+  geom_line(data = original_est_SERP, aes(x = est_infection_date, y = pct_mean, color = ab_estimate), size = 1.5) +
+  geom_point(data = original_est_SERP, aes(x = est_infection_date, y = pct_mean, color = ab_estimate), size = 2)+
+  geom_smooth(se = TRUE, span = 0.5) +
+  labs(x = "Date", y = "Seroprevalence(%)", title = "SARS-CoV-2 Seroprevalence in Newfoundland & Labrador",
+       color = "") +
+  theme_clean()+
+  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        plot.title = element_text(size = 20, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.15, 0.75),
+        legend.title = element_text(size = 20),
+        legend.background = element_rect(color = NA),
+        legend.text = element_text(size = 20),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+  geom_rect(aes(xmin = ymd('2021-12-15'), xmax = ymd('2022-06-02'), ymin = -Inf, ymax = Inf), fill = "#c7c7c7", alpha = 0.35, inherit.aes = FALSE) +
+  annotate("text", x = ymd('2022-03-05'), y = 0.75, label = "Omicron Wave", vjust = 1, size = 5, color = "blue") +
+  ggtitle("CITF SARS-CoV-2 Seroprevalence in Newfoundland & Labrador") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+Y <- ggplot() +
+  geom_line(data = covid_cases, aes(x = date, y = cases, color = "brown"),lty = 5, size = 1) +
+  geom_point(data = covid_cases, aes(x = date, y = cases, color = "cases"), size = 1)+
+  # geom_smooth(se = TRUE, span = 0.5) +
+  labs(x = "Date", y = "COVID-19 Cases", title = "SARS-CoV-2 Seroprevalence in Newfoundland & Labrador",color = "") +
+  scale_color_manual(values = c("cases" = "purple")) +
+  theme_clean()+
+  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        plot.title = element_text(size = 20, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.25, 0.75),
+        legend.title = element_text(size = 20),
+        legend.background = element_rect(color = NA),
+        legend.text = element_text(size = 20),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+  geom_rect(aes(xmin = ymd('2021-12-15'), xmax = ymd('2022-06-02'), ymin = -Inf, ymax = Inf), fill = "#c7c7c7", alpha = 0.35, inherit.aes = FALSE) +
+  annotate("text", x = ymd('2022-03-15'), y = 1000, label = "Omicron Wave", vjust = 1, size = 5, color = "blue") +
+  ggtitle("COVID-19 Cases in Newfoundland & Labrador") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r warning=FALSE, message=FALSE, fig.height= 12 ,fig.width=25}
+X_Y <- plot_grid(X, Y, ncol = 2, labels=c("X", "Y"),align = "hv")
+# C_D <- plot_grid(C, D, ncol = 2, labels=c("C", "D"),align = "hv")
+X_Y <- plot_grid(X_Y, nrow = 1, rel_heights = c(1, 1, 1),labels=c("", "XY"))
+X_Y
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=7}
+
+gg1 <- ggplot() +
+  geom_line(data = original_est_SERP, aes(x = est_infection_date, y = pct_mean, color = ab_estimate), size = 4) +
+  geom_point(data = original_est_SERP, aes(x = est_infection_date, y = pct_mean, color = ab_estimate), size = 4)+
+  geom_smooth(se = TRUE, span = 0.5) +
+  labs(x = "Date", y = "Seroprevalence(%)", title = "SARS-CoV-2 Seroprevalence in Newfoundland & Labrador",
+       color = "") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        plot.title = element_text(size = 20, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.25, 0.75),
+        legend.title = element_text(size = 20),
+        legend.background = element_rect(color = NA),
+        legend.text = element_text(size = 20),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+  geom_rect(aes(xmin = ymd('2021-12-15'), xmax = ymd('2022-06-02'), ymin = -Inf, ymax = Inf), fill = "#c7c7c7", alpha = 0.35, inherit.aes = FALSE) +
+  annotate("text", x = ymd('2022-03-05'), y = 0.75, label = "Omicron Wave\n(Study Period)", vjust = 1, size = 5, color = "blue") +
+  ggtitle("SARS-CoV-2 Seroprevalence in Newfoundland & Labrador") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+gg2 <- ggplot() +
+  geom_ribbon(data = merged_data, aes(x = date, ymin = daily_serop_q025, ymax = daily_serop_q975), alpha = 0.35, fill = "gold4") +
+  geom_ribbon(data = merged_data, aes(x = date, ymin = cum_case_per_capita_q025, ymax = cum_case_per_capita_q975), alpha = 1, fill = "gray") +
+  geom_line(data = merged_data, aes(x = date, y = cum_case_per_capita, color = "Cum. Case Per Capita"), size = 2) +
+  geom_line(data = merged_data, aes(x = date, y = daily_serop, color = "Cum. Seroprevalence Estimate"), size = 2) +
+  # geom_smooth(data = daily_reported_cases, aes(x = date, y = cum_case_per_capita, color = "Daily Case Per Capita"), se = TRUE, size = 2, linetype = 1) +
+  scale_color_manual(values = c("Cum. Case Per Capita" = "darkblue", "Cum. Seroprevalence Estimate" = "brown")) +
+  labs(x = "Date", y = "Infection Prevalence (%)", title = "Cum. Cases Per Capita & Cum. Seroprevalence (Anti-N) Estimate", color = "Indicator") +
+  theme_clean() +
+  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        plot.title = element_text(size = 20, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.25, 0.75),
+        legend.title = element_blank(),
+        legend.background = element_rect(color = NA),
+        legend.text = element_text(size = 20),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r warning=FALSE, message=FALSE, fig.height= 10 ,fig.width=25}
+gg1_gg2 <- plot_grid(gg1, gg2, ncol = 2, labels=c("gg1", "gg2"),align = "hv")
+# C_D <- plot_grid(C, D, ncol = 2, labels=c("C", "D"),align = "hv")
+gg1_gg2 <- plot_grid(gg1_gg2, nrow = 1, rel_heights = c(1, 1, 1),labels=c("", "C"))
+gg1_gg2
+```
+
+```{r warning=FALSE, message=FALSE}
+A <- ggplot() +
+  geom_line(data = est_SERP, aes(x = date, y = pct_mean, color = "Weekly Seroprevalence Estimate"), size = 1) +
+  geom_point(data = est_SERP, aes(x = date, y = pct_mean, color = "Weekly Seroprevalence Estimate"), size = 1) +
+  geom_line(data = daily_seroprev, aes(x = date, y = daily_serop, color = "Daily Seroprevalence Estimate"), size = 1.5, alpha = 0.95) +
+  geom_point(data = daily_seroprev, aes(x = date, y = daily_serop, color = "Daily Seroprevalence Estimate"), size = 1) +
+
+  scale_color_manual(values = c("Weekly Seroprevalence Estimate" = "blue", "Daily Seroprevalence Estimate" = "brown")) +
+  labs(x = "Date", y = "Seroprevalence(%)", title = "Modified Gompertz Model Fit Estimating Daily Seroprevalence From Weekly Data") +
+  theme_clean() +
+  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        plot.title = element_text(size = 20, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.25, 0.75),
+        legend.title = element_blank(),
+        legend.background = element_rect(color = NA),
+        legend.text = element_text(size = 20),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+##############################################
+# Make same plot using the study's time period
+##############################################
+
+B <- ggplot() +
+  geom_ribbon(data = merged_data, aes(x = date, ymin = daily_serop_q025, ymax = daily_serop_q975), alpha = 0.25, fill = "gold4") +
+  geom_ribbon(data = merged_data, aes(x = date, ymin = cum_case_per_capita_q025, ymax = cum_case_per_capita_q975), alpha = 1, fill = "gray") +
+  geom_line(data = merged_data, aes(x = date, y = cum_case_per_capita, color = "Daily Cum. Case Per Capita"), size = 2) +
+  geom_line(data = merged_data, aes(x = date, y = daily_serop, color = "Daily Seroprevalence Estimate"), size = 2) +
+  # geom_smooth(data = daily_reported_cases, aes(x = date, y = cum_case_per_capita, color = "Daily Case Per Capita"), se = TRUE, size = 2, linetype = 1) +
+  scale_color_manual(values = c("Daily Cum. Case Per Capita" = "darkblue", "Daily Seroprevalence Estimate" = "brown")) +
+  labs(x = "Date", y = "Infection Prevalence (%)", title = "Daily Cum. Case Per Capita & Seroprevalence Estimate") +
+  theme_clean() +
+  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        plot.title = element_text(size = 20, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.35, 0.75),
+        legend.title = element_blank(),
+        legend.background = element_rect(color = NA),
+        legend.text = element_text(size = 20),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+#############
+# (4) Make a third plot that is (b)/(a) for the dates this is defined.
+#############
+
+C <- ggplot() +
+  geom_ribbon(data = merged_data, aes(x = date, ymin = daily_underrep_q025, ymax = daily_underrep_q975), alpha = 0.35, fill = "darkgreen") +
+  geom_line(data = merged_data, aes(x = date, y =  underreporting_factor, color = "Underreporting Factor"), size = 1) +
+  # geom_point(data = merged_data, aes(x = date, y = underreporting_factor), color = "blue",size = 1) +
+  scale_color_manual(values = c("underreporting factor" = "black")) +
+  labs(x = "Date", y = "Underreporting Factor", title = "Underreporting Factor - Seroprevalence To Reported Case Per Capita", color = "") +
+  # scale_y_continuous(limits = c(0,NA))+
+  # annotate("text", x = as.Date("2021-12-18"), y = 4, label = "Alert Level 2",size = 6,angle = 90, hjust = 1, color = "black")+
+  # annotate("text", x = as.Date("2021-12-28"), y = 3, label = "Alert Level 3",size = 6,angle = 90, hjust = 1,color = "black")+
+  # annotate("text", x = as.Date("2022-02-02"), y = 3, label = "Alert Level 4",size = 6,angle = 0, hjust = 1, color = "black")+
+  # # annotate("text", x = as.Date("2022-02-05"), y = 3, label = "Alert Level 3",size = 5,angle = 10, hjust = 1, color = "black")+
+  # annotate("text", x = as.Date("2022-03-04"), y = 3, label = "Alert Level 3",size = 6,angle = 0, hjust = 1, color = "black")+
+  # annotate("text", x = as.Date("2022-04-29"), y = 4, label = "Alert Level 1",size = 6, hjust = 1, color = "black")+
+  # theme_clean() +
+  # geom_vline(xintercept = as.Date("2022-03-18"), colour = "purple", linetype = 6, size = 2)  +
+  # geom_vline(xintercept = as.Date("2021-12-23"), colour = "black", linetype = 2, size = 1.5)  +
+  # geom_vline(xintercept = as.Date("2022-01-03"), colour = "black", linetype = 2, size = 1.5)  +
+  # geom_vline(xintercept = as.Date("2022-02-06"), colour = "black", linetype = 2, size = 1.5)  +
+  # geom_vline(xintercept = as.Date("2022-03-14"), colour = "black", linetype = 2, size = 1.5)  +
+  # annotate("text", x = as.Date("2022-03-05"), y = 5, label = "Pre-Cancellation of Public \nHealth Emergency Declaration",size=6, hjust=1, color = "darkblue")+
+  # annotate("text", x = as.Date("2022-05-14"), y = 5, label = "Post Cancellation of Public \nHealth Emergency Declaration",size=6, hjust=1,color = "darkblue")+
+  # scale_x_date(date_breaks = "1 weeks", date_labels =  "%d-%b-%Y", limits = c(as.Date("2021-12-15"), as.Date("2022-06-02"))) +
+  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        plot.title = element_text(size = 20, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.25, 0.85),
+        legend.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.background = element_rect(color = NA),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+D <- ggplot() +
+  # geom_line(data = merged_data, aes(x = date, y = cases, color = "Reported Cases"), size = 1, linetype = 6) +
+  geom_point(data = merged_data, aes(x = date, y = cases, color = "Reported Cases"), size = 2) +
+  geom_smooth(data = merged_data, aes(x = date, y = cases), span = 0.1, color = "darkgreen", se = FALSE) +
+  # geom_line(data = merged_data, aes(x = date, y = est_inci_seroinc, color = "Estimated True Infections"), size = 1, linetype = 6) +
+  geom_point(data = merged_data, aes(x = date, y = est_inci_serop, color = "Estimated True Infections"), size = 2) +
+  geom_smooth(data = merged_data, aes(x = date, y = est_inci_serop),  span = 0.1, color = "brown", , linetype = 6, se = FALSE) +
+  scale_color_manual(values = c("Reported Cases" = "darkgreen", "Estimated True Infections" = "brown")) +
+  labs(x = "Date", y = "Number of Cases", title = "Reported Cases and  Estimated True Infections", color = "") +
+  theme_clean() +
+  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+        axis.title.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20, color = "black", face = "bold"),
+        plot.title = element_text(size = 18, face = "bold", color = "black", hjust = 0.5),
+        legend.position = c(0.75, 0.95),
+        legend.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.background = element_rect(color = NA),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) +
+        theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r warning=FALSE, message=FALSE, fig.height= 15 ,fig.width=25}
+A_B <- plot_grid(A, B, ncol = 2, labels=c("A", "B"),align = "hv")
+C_D <- plot_grid(C, D, ncol = 2, labels=c("C", "D"),align = "hv")
+AB_CD <- plot_grid(A_B, C_D, nrow = 2, rel_heights = c(1, 1, 1),labels=c("", "C"))
+AB_CD
+```
+
+
+```{r}
+seroprevdata <- read.csv("~/Documents/MUN/SEARCH-ID-MODEL/searchid/pomp/data/seroprevalence_adjusted_cases.csv")
+seroprevdata$date <- as.Date(seroprevdata$date, format = "%Y-%m-%d")
+n <- nrow(daily_seroprev)
+sero_mean_y <- seroprevdata$seroprevalence
+sero_sd_y <- sd(seroprevdata$seroprevalence)  # Sample standard deviation
+
+# Z-score for 95% confidence; qnorm(0.975) gives 1.96
+z <- qnorm(0.975)
+#
+# # Calculate confidence interval
+sero_ci_width <- z * (sero_sd_y / sqrt(n))
+sero_lower_ci <- sero_mean_y - sero_ci_width
+sero_upper_ci <- sero_mean_y + sero_ci_width
+#
+# Add calculated CI to daily seroprevalence estimates
+seroprevdata$daily_serop_q025 <- sero_lower_ci
+seroprevdata$daily_serop_q975 <- sero_upper_ci
+seroprevdata
+```
+
+```{r}
+
+a <- (ggplot() +
+    geom_point(data = seroprevdata, aes(x = date, y = cases, color = "Cases"), size = 5) +
+    scale_color_manual(labels = c("reported cases"), values =c("black")) +
+    labs(x = "Date (Dec 15, 2021 - June 3, 2022)", y = "Omicron Cases", title = "Daily Reported Cases", color = "") +
+    theme_clean() +
+    theme(axis.text.x = element_text(size = 25, angle = 45, hjust = 1),
+    axis.title.x = element_text(size = 25, color = "black", face = "bold"),
+    axis.text.y = element_text(size = 25),
+    axis.title.y = element_text(size = 25, color = "black", face = "bold"),
+    plot.title = element_text(size = 25, face = "bold", color = "black", hjust = 0.5),
+    legend.position = c(0.85, 0.75),
+    legend.title = element_text(size = 0),
+    legend.text = element_text(size = 25),
+    legend.background = element_rect(color = NA),
+    legend.margin = margin(0, 0, 0, 0),
+    plot.background = element_blank()) +
+    theme(plot.title = element_text(hjust = 0.5)))
+
+b <- (ggplot() +
+    geom_line(data = seroprevdata, aes(x = date, y = seroprevalence, color = " seroprevalence estimate"), linewidth = 4) +
+    geom_ribbon(data = seroprevdata, aes(x = date, ymin = daily_serop_q025, ymax = daily_serop_q975), alpha = 0.25, fill = "gold4") +
+    scale_color_manual(label = c("seroprevalence estimate"), values = c("maroon2")) +
+    labs(x = "Date (Dec 15, 2021 - June 3, 2022)", y = "Seroprevalence (%)", title = "Daily Seroprevalence Estimate") +
+    theme_clean()+
+    theme(axis.text.x = element_text(size = 25, angle = 45, hjust = 1),
+    axis.title.x = element_text(size = 25, color = "black", face = "bold"),
+    axis.text.y = element_text(size = 25),
+    axis.title.y = element_text(size = 25, color = "black", face = "bold"),
+    plot.title = element_text(size = 25, face = "bold", color = "black", hjust = 0.5),
+    legend.position = c(0.3, 0.75),
+    legend.title = element_text(0),
+    legend.text = element_text(size = 25),
+    legend.background = element_rect(color = NA),
+    legend.margin = margin(0, 0, 0, 0),
+    plot.background = element_blank()) +
+    theme(plot.title = element_text(hjust = 0.5)))
+```
+
+```{r warning=FALSE, message=FALSE, fig.height= 10 ,fig.width=25}
+a_b <- plot_grid(a, b, ncol = 2, labels=c("A", "B"),align = "hv", label_size = 35)
+a_b <- plot_grid(a_b, nrow = 1, rel_heights = c(1, 1, 1))
+a_b
+```
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(geomtextpath)
+
+beta = 0.35
+report_prob <- 1.0
+kappa1 = 1
+kappa2 = 0.91
+kappa3 = 0.3
+gamma = 1/14
+sigma = 1/3
+mu = 0.6
+
+tau = 0.799
+zeta = 0.75
+v2 = 0.2828
+v3 = 0.1359
+
+xi1 = 0.015
+xi2 = 0.015
+xi3 = 0.015
+
+eta1 = 1/5.5
+eta2 = 1/5.5
+eta3 = 1/5.5
+
+phi1 = 1/5
+phi2 = 1/5
+phi3 = 1/5
+
+theta1 = 0.07
+theta2 = 0.05
+theta3 = 0.025
+
+omega1 = 1/7
+omega2 =  1/7
+omega3 =  1/7
+
+lambda1 = 0.25
+lambda2 = 0.156
+lambda3 = 0.150
+
+R0 <- function(beta, eta_1, theta = 141302, mu = 0.001229, tau = 0.45,
+               zeta = 1/14, alpha = 0.75214, q = 0.31167, eta_2 = 0.02557,
+               eta_3 = 1/7, delta_1 = 0.16673, delta_2 = 0.00147, 
+               delta_3 = 0.00038, gamma_1 = 0.00827, gamma_2 = 0.00787, 
+               gamma_3 = 0.20186) {
+  
+    K_1 <- eta_1 + eta_2 + eta_3 + mu
+    K_2 <- zeta + q + mu
+    K_3 <- gamma_1 + delta_1 + mu
+    K_4 <- alpha + gamma_2 + delta_2 + mu
+    K_5 <- gamma_3 + delta_3 + mu
+
+    beta * (tau * eta_2*K_2*K_4 + K_3*(eta_3*K_2 + eta_1*q)) / (K_1*K_2*K_3*K_4)
+}
+
+expand.grid(beta = seq(0, 1, 0.01), eta1 = seq(0, 1, 0.01)) %>%
+  mutate(R0 = apply(., 1, function(x) R0(x[1], x[2]))) %>%
+  ggplot(aes(beta, eta1)) +
+  geom_contour_filled(aes(z = R0)) +
+  geom_textcontour(aes(z = R0, label = after_stat(level)), size = 6) +
+  scale_x_continuous(name = bquote(beta), expand = c(0, 0)) +
+  scale_y_continuous(name = bquote(eta[1]), expand = c(0, 0)) +
+  coord_equal() +
+  theme_classic(base_size = 10) +
+  scale_fill_manual(values = c("red", "yellow", "blue", "gray", "#00bfbf","purple", "maroon", "gold"), name = bquote(R[0])) +
+  guides(fill = guide_colorsteps(key_height = unit(10, "mm"))) +
+  theme(legend.key.height = unit(15, "mm"))
+```
+
+```{r}
+# Load necessary library
+library(ggplot2)
+
+
+N <- 510550  
+gamma <- 0.1  
+tau <- 0.2    
+zeta <- 0.3   
+mu <- 0.4     
+S1 <- 76582.5 # Susceptible with single dose 
+S2 <- 153165  # Susceptible with double dose
+S3 <- 280802.5 # Susceptible with booster
+w <- c(0.15, 0.3, 0.55) # Weights for each Rt,i 
+
+# Parameter ranges for contour plot
+beta_values <- seq(0.1, 1, length.out = 100)  # Range of beta values
+phi_values <- seq(0.1, 1, length.out = 100)   # Range of phi values
+
+# Define a function to calculate Rt,i
+Rt_i <- function(kappa, beta, mu, phi, zeta, S, tau, gamma, N) {
+  kappa * (beta * mu * phi * zeta * S - (S * beta * gamma * mu - S * beta * gamma) * tau) / (N * gamma * phi)
+}
+
+# initialize a grid to store Rceff values
+Rceff_grid <- expand.grid(beta = beta_values, phi = phi_values)
+Rceff_grid$Rceff <- 0  # Initialize Rceff column
+
+# loop over the grid and calculate Rceff for each point
+for (i in 1:nrow(Rceff_grid)) {
+  beta <- Rceff_grid$beta[i]
+  phi <- Rceff_grid$phi[i]
+  
+  # Calculate Rt,i for each group
+  Rt1 <- Rt_i(1, beta, mu, phi, zeta, S1, tau, gamma, N)
+  Rt2 <- Rt_i(1, beta, mu, phi, zeta, S2, tau, gamma, N)
+  Rt3 <- Rt_i(1, beta, mu, phi, zeta, S3, tau, gamma, N)
+  
+  # Calculate Rceff as weighted sum
+  Rceff_grid$Rceff[i] <- w[1] * Rt1 + w[2] * Rt2 + w[3] * Rt3
+}
+
+# Calculate a representative Rceff value to display (e.g., mean of all points)
+Rceff_value <- mean(Rceff_grid$Rceff, na.rm = TRUE)
+
+# Create contour plot with annotation for Rceff value
+ggplot(Rceff_grid, aes(x = beta, y = phi, z = Rceff, color = "gray")) +
+  geom_contour_filled() +
+  labs(title = "Contour Plot of Effective Reproduction Number (Rceff)",
+       x = expression(beta),
+       y = expression(phi),
+       fill = "Rceff") +
+  theme_minimal() +
+  # Add single text annotation for the overall Rceff value
+  annotate("text", x = 0.8, y = 0.9, label = paste("Rceff =", round(Rceff_value, 2)), color = "black", size = 5, fontface = "bold")
+
+```
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Original data
+set.seed(123)
+report_prob_ts <- c(0.178277500297921, 0.178277500297921, 0.178277500297921, 0.178277500297921,
+                    0.178277500297921, 0.178277500297921, 0.178277500297921, 0.178277500297921,
+                    0.178277500297921, 0.178277500297921, 0.178277500297921, 0.178277500297921,
+                    0.178277500297921, 0.178277500297921, 0.178277500297921, 0.178277500297921,
+                    0.178277500297921, 0.178277500297921, 0.178277500297921, 0.178277500297921,
+                    0.178277500297921, 0.178277500297921, 0.178277500297921, 0.178277500297921,
+                    0.178277500297921, 0.178277500297921, 0.178277500297921, 0.178277500297921,
+                    0.178277500297921, 0.178277500297921, 0.178277500297921, 0.178277500297921,
+                    0.181465882199124, 0.184906305383687, 0.188608631862691, 0.192583345413292,
+                    0.196841568335723, 0.201395077388073, 0.206256318663702, 0.211438421148947,
+                    0.216955208670464, 0.222821209912375, 0.229051666153592, 0.235662536345531,
+                    0.242670499120395, 0.250092951290545, 0.241332373665126, 0.248093025473852,
+                    0.255175843403068, 0.262586989977925, 0.270332069645706, 0.278416016032408,
+                    0.286842970590702, 0.295616152759514, 0.304737721898533, 0.314208631423761,
+                    0.324028475753122, 0.334195330873641, 0.344705589563059, 0.355553792537453,
+                    0.366732457050107, 0.378231904732789, 0.3900400907445, 0.402142436570202,
+                    0.414521669087025, 0.427157668781444, 0.440027330250299, 0.453104438342837,
+                    0.466359563491097, 0.479759979922151, 0.493269610537924, 0.506849002276325,
+                    0.520455335721255, 0.534042472599292, 0.54756104457901, 0.560958586467815,
+                    0.574179716475656, 0.587166365681855, 0.599858058200257, 0.612192242791729,
+                    0.624104675827648, 0.635529854573493, 0.646401498751303, 0.656653077271336,
+                    0.666218375917784, 0.675032100655618, 0.683030510123348, 0.690152069819687,
+                    0.696338119512789, 0.701533544531294, 0.705687440869185, 0.708753763482162,
+                    0.710691946800053, 0.711467486351825, 0.711052470516391, 0.709426051786517,
+                    0.706574847570945, 0.702493261459435, 0.697183717027066, 0.690656797639342,
+                    0.682931287312035, 0.67403410944492, 0.664000162145561, 0.702047136981477,
+                    0.692010776386528, 0.680962377213444, 0.668954265567571, 0.656044357237575,
+                    0.642295572064954, 0.627775193273236, 0.612554182264955, 0.596706460124288,
+                    0.580308167529015, 0.563436914968113, 0.546171035080357, 0.528588848582737,
+                    0.510767954661064, 0.492784555872015, 0.474712826585335, 0.456624332811123,
+                    0.438587509948217, 0.420667203595395, 0.402924277128412, 0.385415288302563,
+                    0.368192235730453, 0.351302374742476, 0.334788100893677, 0.318686898260269,
+                    0.303031348692349, 0.28784919737007, 0.273163469357281, 0.258992631362135,
+                    0.245350792595976, 0.232247938463023, 0.219690190802885, 0.207680088531758,
+                    0.196216882769518, 0.185296840880838, 0.174913554279737, 0.165058245329591,
+                    0.155720069195824, 0.146886407058759, 0.138543147653168, 0.130674954654646,
+                    0.123265517968657, 0.116297787485687, 0.109754188337424, 0.10361681711814,
+                    0.0978676189185829, 0.0924885453544496, 0.0874616940573505, 0.0827694303338541,
+                    0.0783944918897123, 0.0743200776645277, 0.0705299219304903, 0.0670083548813954,
+                    0.0637403509792344, 0.0607115663396547, 0.0579083664288863, 0.0553178453175894,
+                    0.0393466401015737, 0.0370377956136838, 0.0348930874806082, 0.0329011699674882,
+                    0.0310513631667731, 0.0293336327896827, 0.0277385672599485, 0.0262573527535189,
+                    0.0248817467515825, 0.0236040506019699, 0.0224170815164088, 0.0213141443686641,
+                    0.02028900360155, 0.0193358554992501, 0.0184493010352868, 0.0176243194657145,
+                    0.0168562428014502, 0.0161407312628391, 0.0154737497932589, 0.0148515456864687,
+                    0.0142706273641417, 0.0137277443252342, 0.013219868277172, 0.0127441754499228)
+
+# Generate new, more varied datasets
+time <- 1:length(report_prob_ts)
+data_list <- list(
+  report_prob_ts,
+  report_prob_ts + sin(time / 10) * 0.02 + 0.15,
+  report_prob_ts + cos(time / 15) * 0.015 - 0.1,
+  report_prob_ts + (time / max(time))^2 * 0.03 - 0.1,
+  report_prob_ts + sin(time / 7) * 0.025 + 0.1,
+  report_prob_ts + cos(time / 20) * 0.02 + 0.5
+)
+
+all_data <- data.frame(
+  Time = time,
+  Base = data_list[[1]],
+  Set1 = data_list[[2]],
+  Set2 = data_list[[3]],
+  Set3 = data_list[[4]],
+  Set4 = data_list[[5]],
+  Set5 = data_list[[6]]
+)
+
+# reshape data 
+all_data_long <- pivot_longer(all_data, cols = -Time, names_to = "Set", values_to = "Value")
+
+# Plot all sets on the same line graph
+ggplot(all_data_long, aes(x = Time, y = Value, color = Set)) +
+  geom_line() +
+  labs(title = "Reporting Probabilities Over Time with Varied Shapes", x = "Time", y = expression("Reporting Prob ("*rho*")")) +
+  theme_minimal()
+
+```
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Original data
+set.seed(123)
+
+report_prob_ts = c(0.178277500297921, 0.178277500297921, 0.178277500297921, 0.178277500297921,
+0.178277500297921, 0.178277500297921, 0.178277500297921, 0.178277500297921,
+0.178277500297921, 0.178277500297921, 0.178277500297921, 0.178277500297921,
+0.178277500297921, 0.178277500297921, 0.178277500297921, 0.178277500297921,
+0.178277500297921, 0.178277500297921, 0.178277500297921, 0.178277500297921,
+0.178277500297921, 0.178277500297921, 0.178277500297921, 0.178277500297921,
+0.178277500297921, 0.178277500297921, 0.178277500297921, 0.178277500297921,
+0.178277500297921, 0.178277500297921, 0.178277500297921, 0.178277500297921,
+0.181465882199124, 0.184906305383687, 0.188608631862691, 0.192583345413292,
+0.196841568335723, 0.201395077388073, 0.206256318663702, 0.211438421148947,
+0.216955208670464, 0.222821209912375, 0.229051666153592, 0.235662536345531,
+0.242670499120395, 0.250092951290545, 0.241332373665126, 0.248093025473852,
+0.255175843403068, 0.262586989977925, 0.270332069645706, 0.278416016032408,
+0.286842970590702, 0.295616152759514, 0.304737721898533, 0.314208631423761,
+0.324028475753122, 0.334195330873641, 0.344705589563059, 0.355553792537453,
+0.366732457050107, 0.378231904732789, 0.3900400907445, 0.402142436570202,
+0.414521669087025, 0.427157668781444, 0.440027330250299, 0.453104438342837,
+0.466359563491097, 0.479759979922151, 0.493269610537924, 0.506849002276325,
+0.520455335721255, 0.534042472599292, 0.54756104457901, 0.560958586467815,
+0.574179716475656, 0.587166365681855, 0.599858058200257, 0.612192242791729,
+0.624104675827648, 0.635529854573493, 0.646401498751303, 0.656653077271336,
+0.666218375917784, 0.675032100655618, 0.683030510123348, 0.690152069819687,
+0.696338119512789, 0.701533544531294, 0.705687440869185, 0.708753763482162,
+0.710691946800053, 0.711467486351825, 0.711052470516391, 0.709426051786517,
+0.706574847570945, 0.702493261459435, 0.697183717027066, 0.690656797639342,
+0.682931287312035, 0.67403410944492, 0.664000162145561, 0.702047136981477,
+0.692010776386528, 0.680962377213444, 0.668954265567571, 0.656044357237575,
+0.642295572064954, 0.627775193273236, 0.612554182264955, 0.596706460124288,
+0.580308167529015, 0.563436914968113, 0.546171035080357, 0.528588848582737,
+0.510767954661064, 0.492784555872015, 0.474712826585335, 0.456624332811123,
+0.438587509948217, 0.420667203595395, 0.402924277128412, 0.385415288302563,
+0.368192235730453, 0.351302374742476, 0.334788100893677, 0.318686898260269,
+0.303031348692349, 0.28784919737007, 0.273163469357281, 0.258992631362135,
+0.245350792595976, 0.232247938463023, 0.219690190802885, 0.207680088531758,
+0.196216882769518, 0.185296840880838, 0.174913554279737, 0.165058245329591,
+0.155720069195824, 0.146886407058759, 0.138543147653168, 0.130674954654646,
+0.123265517968657, 0.116297787485687, 0.109754188337424, 0.10361681711814,
+0.0978676189185829, 0.0924885453544496, 0.0874616940573505, 0.0827694303338541,
+0.0783944918897123, 0.0743200776645277, 0.0705299219304903, 0.0670083548813954,
+0.0637403509792344, 0.0607115663396547, 0.0579083664288863, 0.0553178453175894,
+0.0393466401015737, 0.0370377956136838, 0.0348930874806082, 0.0329011699674882,
+0.0310513631667731, 0.0293336327896827, 0.0277385672599485, 0.0262573527535189,
+0.0248817467515825, 0.0236040506019699, 0.0224170815164088, 0.0213141443686641,
+0.02028900360155, 0.0193358554992501, 0.0184493010352868, 0.0176243194657145,
+0.0168562428014502, 0.0161407312628391, 0.0154737497932589, 0.0148515456864687,
+0.0142706273641417, 0.0137277443252342, 0.013219868277172, 0.0127441754499228,
+0.0122980300875222, 0.0118789691071809, 0.0117697543218102, 0.0113726752845545,
+0.0109985640323127, 0.0106452723808571, 0.0103107925118877, 0.00999324522677816,
+0.00969086964270289, 0.00940201427677885, 0.00912512946784713,
+0.00885876108769779, 0.00860154549363774, 0.00835220567208293,
+0.00810954851812255, 0.00787246318861922, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685, 0.00763992045631685, 0.00763992045631685,
+0.00763992045631685)
+
+# Generate varied reporting probabilities by adding noise to the initial
+time <- 1:length(report_prob_ts)
+# Define time threshold for the start of the drop and length of the decline
+threshold <- 50   # Time step at which the drop begins
+drop_length <- 90  # Duration over which the drop occurs
+
+# Create a vector with the constant initial value, gradual drop, and final value
+initial_value <- 0.65
+final_value <- 0.2
+
+constant_drop <- ifelse(
+  time < threshold, initial_value,
+  ifelse(time <= threshold + drop_length,
+         initial_value - (initial_value - final_value) * (time - threshold) / drop_length,
+         final_value)
+)
+
+# Generate different reporting probability patterns
+data_list <- list(
+  # Constant reporting probability
+  rep(0.3, length(report_prob_ts)),
+  
+  # Constant with a gradual drop at the threshold point
+  constant_drop,
+  
+  # Gradual increase
+  pmin(pmax(0.2 + (time / max(time)) * 0.5, 0.001), 0.999),
+  
+  # Weibull-shaped curve scaled to range [0.1, 0.75]
+  0.1 + (0.60 - 0.1) * dweibull(time, shape = 2, scale = max(time) / 2) / max(dweibull(time, shape = 2, scale = max(time) / 2)),
+  
+  # Gamma-shaped curve scaled to range [0.1, 0.65]
+  0.1 + (0.55 - 0.1) * dgamma(time, shape = 3, scale = max(time) / 15) / max(dgamma(time, shape = 5, scale = max(time) / 15))
+)
+
+# Combine all datasets into a single data frame
+all_data_df <- data.frame(
+  Time = time,
+  prob1 = report_prob_ts,
+  prob2 = data_list[[1]],
+  prob3 = data_list[[2]],
+  prob4 = data_list[[3]],
+  prob5 = data_list[[4]],
+  prob6 = data_list[[5]]
+)
+
+#write.csv(all_data_df, "~/Documents/MUN/SEARCH-ID-MODEL/searchid/macpan2/data/report_probabilities.csv")
+
+# Reshape data to long format for plotting
+all_data_long <- pivot_longer(all_data_df, cols = -Time, names_to = "prob", values_to = "value")
+all_data_long
+# Plot all sets on the same line graph
+ggplot(all_data_long, aes(x = Time, y = value, color = prob)) +
+  geom_line() +
+  labs(title = "Reporting Probabilities Over Time with Varied Shapes", x = "Time", y = expression("Reporting Probability ("*rho*")")) +
+  theme_bw()
+plot(all_data_df$prob6)
+```
+
+```{r}
+
+
+# Sample autocorrelated data
+set.seed(123)
+time <- 1:100
+data <- cumsum(rnorm(100))  # Cumulative sum to induce autocorrelation
+data_frame <- data.frame(Time = time, Value = data)
+
+# Plotting the line plot with a confidence interval using ggplot2
+library(ggplot2)
+
+ggplot(data_frame, aes(x = Time, y = Value)) +
+  geom_line(color = "blue") +
+  geom_smooth(method = "loess", span = 0.2, color = "darkblue", fill = "lightblue") +
+  labs(title = "Autocorrelated Data Over Time", x = "Time", y = "Value") +
+  theme_minimal()
+
+```
+
+```{r}
+# Load libraries
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+
+# Sample autocorrelated data with alert levels
+set.seed(123)
+time <- 1:100
+value <- cumsum(rnorm(100))  # Autocorrelated data
+alert_level <- rep(c("SMO Repealed", "ALS 2", "ALS 3", "Mod-ALS 3", "ALS 4"), each = 20)
+data_frame <- data.frame(Time = time, Value = value, Alert_Level = factor(alert_level, levels = c("SMO Repealed", "ALS 2", "ALS 3", "Mod-ALS 3", "ALS 4")))
+
+# Time Series Plot with Alert Levels
+time_series_plot <- ggplot(data_frame, aes(x = Time, y = Value, color = Alert_Level)) +
+  geom_line() +
+  #geom_smooth(method = "loess", span = 0.2, color = "darkblue", fill = "lightblue") +
+  labs(title = "Autocorrelated Data Over Time", x = "Time", y = "Value") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Boxplot by Alert Level
+boxplot_panel <- ggplot(data_frame, aes(x = Alert_Level, y = Value, fill = Alert_Level)) +
+  geom_boxplot(color = "black") +
+  labs(title = "Distribution by Alert Level", x = "Alert Levels", y = "Value") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Combine the plots using patchwork
+combined_plot <- time_series_plot + boxplot_panel + plot_layout(ncol = 2, widths = c(3, 1))
+print(combined_plot)
+
+```
+
+```{r}
+# Load libraries
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+
+# Sample autocorrelated data with alert levels
+set.seed(123)
+time <- 1:100
+value <- cumsum(rnorm(100))  # Autocorrelated data
+alert_level <- rep(c("SMO Repealed", "ALS 2", "ALS 3", "Mod-ALS 3", "ALS 4"), each = 20)
+data_frame <- data.frame(Time = time, Value = value, Alert_Level = factor(alert_level, levels = c("SMO Repealed", "ALS 2", "ALS 3", "Mod-ALS 3", "ALS 4")))
+
+# Time Series Plot with Alert Levels
+time_series_plot <- ggplot(data_frame, aes(x = Time, y = Value, color = Alert_Level)) +
+  geom_line(size = 1) +
+  geom_smooth(method = "loess", span = 0.2, color = "darkblue", fill = "lightblue") +
+  labs(title = "Autocorrelated Data Over Time", x = "Time", y = "Value") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    legend.position = "bottom",
+    legend.text = element_text(size = 10)
+  )
+
+# Boxplot by Alert Level
+boxplot_panel <- ggplot(data_frame, aes(x = Alert_Level, y = Value, fill = Alert_Level)) +
+  geom_boxplot(color = "black") +
+  labs(title = "Distribution by Alert Level", x = "Alert Levels", y = "Value") +
+  scale_fill_brewer(palette = "Pastel1") +  # Using a light color palette for publications
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    legend.position = "none"
+  )
+
+# Combine the plots using patchwork with equal widths
+combined_plot <- time_series_plot + boxplot_panel + plot_layout(ncol = 2, widths = c(1, 1))
+print(combined_plot)
+
+```
+
+```{r}
+# Load libraries
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+
+# Sample autocorrelated data with alert levels
+set.seed(123)
+time <- 1:100
+value <- cumsum(rnorm(100))  # Autocorrelated data
+alert_level <- rep(c("SMO Repealed", "ALS 2", "ALS 3", "Mod-ALS 3", "ALS 4"), each = 20)
+data_frame <- data.frame(Time = time, Value = value, Alert_Level = factor(alert_level, levels = c("SMO Repealed", "ALS 2", "ALS 3", "Mod-ALS 3", "ALS 4")))
+
+# Calculate means for each alert level
+means <- data_frame %>%
+  group_by(Alert_Level) %>%
+  summarize(mean_value = mean(Value))
+
+# Time Series Plot with Alert Levels
+time_series_plot <- ggplot(data_frame, aes(x = Time, y = Value, color = Alert_Level)) +
+  geom_line(size = 1) +
+  geom_smooth(method = "loess", span = 0.2, color = "darkblue", fill = "lightblue") +
+  labs(title = "Autocorrelated Data Over Time", x = "Time", y = "Value") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    legend.position = "bottom",
+    legend.text = element_text(size = 10)
+  )
+
+# Boxplot by Alert Level with Mean Indication
+boxplot_panel <- ggplot(data_frame, aes(x = Alert_Level, y = Value, fill = Alert_Level)) +
+  geom_boxplot(color = "black") +
+  stat_summary(fun = mean, geom = "point", shape = 20, color = "red", size = 3) +  # Add mean points
+  geom_text(data = means, aes(x = Alert_Level, y = mean_value, label = round(mean_value, 2)),
+            color = "red", vjust = -1.2, size = 3) +  # Label mean values above points
+  labs(title = "Distribution by Alert Level", x = "Alert Levels", y = "Value") +
+  scale_fill_brewer(palette = "Pastel1") +  # Light color palette
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    legend.position = "none"
+  )
+
+# Combine the plots using patchwork with equal widths
+combined_plot <- time_series_plot + boxplot_panel + plot_layout(ncol = 2, widths = c(1, 1))
+print(combined_plot)
+
+```
+
+```{r}
+# Load libraries
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+
+# Sample autocorrelated data with alert levels
+set.seed(123)
+time <- 1:100
+value <- cumsum(rnorm(100))  # Autocorrelated data
+alert_level <- rep(c("SMO Repealed", "ALS 2", "ALS 3", "Mod-ALS 3", "ALS 4"), each = 20)
+data_frame <- data.frame(Time = time, Value = value, Alert_Level = factor(alert_level, levels = c("SMO Repealed", "ALS 2", "ALS 3", "Mod-ALS 3", "ALS 4")))
+
+# Calculate means for each alert level
+means <- data_frame %>%
+  group_by(Alert_Level) %>%
+  summarize(mean_value = mean(Value))
+
+# Time Series Plot with Alert Levels
+time_series_plot <- ggplot(data_frame, aes(x = Time, y = Value, color = Alert_Level)) +
+  geom_line(size = 1) +
+  geom_smooth(method = "loess", span = 0.2, color = "darkblue", fill = "lightblue") +
+  labs(title = "Autocorrelated Data Over Time", x = "Time", y = "Value") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    legend.position = "bottom",
+    legend.text = element_text(size = 10)
+  )
+
+# Boxplot by Alert Level with Mean Indication and Rotated x-axis Labels
+boxplot_panel <- ggplot(data_frame, aes(x = Alert_Level, y = Value, fill = Alert_Level)) +
+  geom_boxplot(color = "black") +
+  stat_summary(fun = mean, geom = "point", shape = 20, color = "red", size = 3) +  # Add mean points
+  geom_text(data = means, aes(x = Alert_Level, y = mean_value, label = round(mean_value, 2)),
+            color = "red", vjust = -1.2, size = 3) +  # Label mean values above points
+  labs(title = "Distribution by Alert Level", x = "Alert Levels", y = "Value") +
+  scale_fill_brewer(palette = "Pastel1") +  # Light color palette
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10, angle = 45, hjust = 1),  # Rotate x-axis labels
+    legend.position = "none"
+  )
+
+# Combine the plots using patchwork with equal widths
+combined_plot <- time_series_plot + boxplot_panel + plot_layout(ncol = 2, widths = c(1, 1))
+print(combined_plot)
+
+```
+
+```{r}
+# Load libraries
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+
+# Sample autocorrelated data with alert levels
+set.seed(123)
+time <- 1:100
+value <- cumsum(rnorm(100))  # Autocorrelated data
+alert_level <- rep(c("SMO Repealed", "ALS 2", "ALS 3", "Mod-ALS 3", "ALS 4"), each = 20)
+data_frame <- data.frame(Time = time, Value = value, Alert_Level = factor(alert_level, levels = c("SMO Repealed", "ALS 2", "ALS 3", "Mod-ALS 3", "ALS 4")))
+
+# Calculate means for each alert level
+means <- data_frame %>%
+  group_by(Alert_Level) %>%
+  summarize(mean_value = mean(Value))
+
+# Time Series Plot with Alert Levels
+time_series_plot <- ggplot(data_frame, aes(x = Time, y = Value, color = Alert_Level)) +
+  geom_line(size = 1) +
+  geom_smooth(method = "loess", span = 0.2, color = "darkblue", fill = "lightblue") +
+  labs(title = "Autocorrelated Data Over Time", x = "Time", y = "Value") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    legend.position = "bottom",
+    legend.text = element_text(size = 10)
+  )
+
+# Boxplot by Alert Level with Mean Indication and Rotated x-axis Labels
+boxplot_panel <- ggplot(data_frame, aes(x = Alert_Level, y = Value, fill = Alert_Level)) +
+  geom_boxplot(color = "black") +
+  stat_summary(fun = mean, geom = "point", shape = 20, color = "red", size = 3) +  # Add mean points
+  geom_text(data = means, aes(x = Alert_Level, y = mean_value, label = round(mean_value, 2)),
+            color = "red", vjust = -1.2, size = 3) +  # Label mean values above points
+  labs(title = "Distribution by Alert Level", x = "Alert Levels", y = "Value") +
+  scale_fill_brewer(palette = "Pastel1") +  # Light color palette
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10, angle = 45, hjust = 1),  # Rotate x-axis labels
+    legend.position = "none"
+  )
+
+# Combine the plots using patchwork with equal widths
+combined_plot <- time_series_plot + boxplot_panel + plot_layout(ncol = 2, widths = c(1, 1))
+combined_plot
+# Save plot as high-quality PNG
+ggsave("~/Desktop/combined_plot.png", plot = combined_plot, width = 14, height = 8, dpi = 300)
+
+```
+
+```{r}
+# Load libraries
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+
+# Sample data with alert levels ordered by stringency
+set.seed(123)
+time <- 1:100
+value <- cumsum(rnorm(100))  # Autocorrelated data for time series plot
+alert_level <- rep(c("ALS 2", "ALS 3", "ALS 4", "Mod-ALS 3", "SMO Repealed"), each = 20)
+data_frame <- data.frame(Time = time, Value = value, Alert_Level = factor(alert_level, levels = c("SMO Repealed", "Mod-ALS 3", "ALS 2", "ALS 3", "ALS 4")))
+
+# Calculate means for each alert level
+means <- data_frame %>%
+  group_by(Alert_Level) %>%
+  summarize(mean_value = mean(Value))
+
+# Define colorblind-friendly light colors for alert levels
+alert_colors <- c('SMO Repealed' = "#E69F00",  # Light orange
+                  'ALS 2' = "#56B4E9",         # Light blue
+                  'ALS 3' = "#F0E442",         # Light yellow
+                  'Mod-ALS 3' = "#D3D3D3",     # Light gray
+                  'ALS 4' = "#009E73")         # Light green
+
+# Time Series Plot with Alert Levels
+time_series_plot <- ggplot(data_frame, aes(x = Time, y = Value, color = Alert_Level)) +
+  geom_line(size = 1) +
+  #geom_smooth(method = "loess", span = 0.2, color = "darkblue", fill = "lightblue") +
+  labs(title = "Autocorrelated Data Over Time", x = "Time", y = "Value") +
+  scale_color_manual(values = alert_colors) +  # Apply colorblind-friendly colors to time series
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    legend.position = "bottom",
+    legend.text = element_text(size = 10)
+  )
+
+# Enhanced Boxplot by Alert Level for Comparison
+boxplot_panel <- ggplot(data_frame, aes(x = Alert_Level, y = Value, fill = Alert_Level)) +
+  geom_boxplot(color = "black", outlier.shape = NA) +  # Hide outliers for clarity
+  #geom_jitter(width = 0.15, alpha = 0.5, size = 1, color = "black") +  # Add jittered points
+  stat_summary(fun = mean, geom = "point", shape = 20, color = "red", size = 3) +  # Mean points
+  geom_text(data = means, aes(x = Alert_Level, y = mean_value, label = round(mean_value, 2)),
+            color = "red", vjust = -1.2, size = 3) +  # Mean values as labels
+  labs(title = "Transmission Rate Comparison by Alert Level", x = "Alert Levels", y = "Transmission Rate (Value)") +
+  scale_fill_manual(values = alert_colors) +  # Consistent colors for comparison
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10, angle = 45, hjust = 1),  # Rotate x-axis labels
+    legend.position = "none"
+  )
+
+# Combine the plots using patchwork with equal widths
+combined_plot <- time_series_plot + boxplot_panel + plot_layout(ncol = 2, widths = c(1, 1))
+combined_plot
+# Save plot as high-quality PNG
+ggsave("combined_plot.png", plot = combined_plot, width = 14, height = 8, dpi = 300)
+
+```
+
+```{r}
+# Load libraries
+library(ggplot2)
+library(dplyr)
+library(ggthemes)
+library(patchwork)
+
+# Sample data with reordered alert levels
+set.seed(123)
+dates <- seq(as.Date("2022-01-01"), by = "month", length.out = 100)
+value <- cumsum(rnorm(100))  # Autocorrelated data for time series plot
+alert_level <- rep(c("ALS 2", "ALS 3", "ALS 4", "Mod-ALS 3", "No-ALS"), each = 20)
+beta_values <- data.frame(dates = dates, value = value, alert_level = factor(alert_level, levels = c("No-ALS", "ALS 2", "ALS 3", "Mod-ALS 3", "ALS 4")))
+
+# Calculate means for each alert level
+means <- beta_values %>%
+  group_by(alert_level) %>%
+  summarise(mean_value = mean(value, na.rm = TRUE))
+
+# Define colorblind-friendly light colors for alert levels
+alert_colors <- c('No-ALS' = "#E69F00",      # Light orange
+                  'ALS 2' = "#56B4E9",       # Light blue
+                  'ALS 3' = "#F0E442",       # Light yellow
+                  'Mod-ALS 3' = "#D3D3D3",   # Light gray
+                  'ALS 4' = "#009E73")       # Light green
+
+# Time Series Plot with shared legend
+betaplot <- ggplot(beta_values, aes(x = dates, y = value, color = alert_level)) +
+  geom_line(linewidth = 1) +
+  labs(title = "Transmission Rates Across Time", x = "Date", y = expression("Transmission Rate ("*beta*")")) +
+  scale_color_manual(values = alert_colors, name = "Alert Level") +  # Shared legend title
+  theme_clean() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    legend.position = "none",
+    legend.justification = "center",
+    legend.background = element_blank(),   # No box around the legend
+    legend.text = element_text(size = 10),
+    panel.border = element_blank(),        # Remove plot border
+    plot.background = element_blank()      # Remove plot background
+  )
+
+# Boxplot by Alert Level for Comparison with shared legend
+alert_boxplot <- ggplot(beta_values, aes(x = alert_level, y = value, fill = alert_level)) +
+  geom_boxplot(color = "black", outlier.shape = NA) +
+  stat_summary(fun = mean, geom = "point", shape = 20, color = "red", size = 3) +
+  geom_text(data = means, aes(x = alert_level, y = mean_value, label = round(mean_value, 2)),vjust = -1.2, hjust = 0.5, color = "red") +
+  labs(title = "Mean Transmission Rate For Alert Levels", x = "Alert Levels", y = expression("Transmission Rate ("*beta*")")) +
+  scale_fill_manual(values = alert_colors, name = "Alert Level") +  # Shared legend title
+  theme_clean() +
+  theme(
+    axis.text.x = element_text(size = 12, hjust = 1, angle = 45),
+    axis.title.x = element_text(size = 14, color = "black", face = "bold"),
+    axis.text.y = element_text(size = 12),
+    axis.title.y = element_text(size = 14, color = "black", face = "bold"),
+    plot.title = element_text(size = 12, face = "bold", color = "black", hjust = 0.5),
+    legend.position = "none",  # Remove individual legend for boxplot
+    panel.border = element_blank(),        # Remove plot border
+    plot.background = element_blank()      # Remove plot background
+  )
+
+# Combine the plots using patchwork with a single shared legend, wider layout
+combined_plot <- (betaplot + alert_boxplot) + plot_layout(guides = "collect", widths = c(1, 1)) & theme(legend.position = "bottom")
+combined_plot
+# Save plot with increased width and single legend
+ggsave("combined_plot.png", plot = combined_plot, width = 35, height = 10, dpi = 300)
+
+```
+
+```{r}
+# Load libraries
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+library(ggthemes)  # For theme_clean()
+
+# Sample data with reordered alert levels
+set.seed(123)
+dates <- seq(as.Date("2021-12-15"), by = "day", length.out = 100)
+value <- cumsum(rnorm(100))  # Autocorrelated data for time series plot
+alert_level <- rep(c("ALS-2", "ALS-3", "ALS-4", "Mod-ALS-3", "No-ALS"), each = 20)
+beta_values <- data.frame(dates = dates, value = value, alert_level = factor(alert_level, levels = c("No-ALS", "ALS-2", "ALS-3", "Mod-ALS-3", "ALS-4")))
+beta_values
+# Calculate means for each alert level
+means <- beta_values %>%
+  group_by(alert_level) %>%
+  summarise(mean_value = mean(value, na.rm = TRUE))
+
+# Define colorblind-friendly light colors for alert levels
+alert_colors <- c('No-ALS' = "#E69F00",      # Light orange
+                  'ALS-2' = "#56B4E9",       # Light blue
+                  'ALS-3' = "#F0E442",       # Light yellow
+                  'Mod-ALS-3' = "#D3D3D3",   # Light gray
+                  'ALS-4' = "#009E73")       # Light green
+
+# Time Series Plot with color transitions and shared legend
+betaplot <- ggplot() +
+  geom_line(data = beta_values, aes(x = dates, y = value), linewidth = 1, color = "black") +  # Continuous black line as base
+  geom_line(data = beta_values %>% filter(alert_level == "No-ALS"), aes(x = dates, y = value, color = alert_level), linewidth = 1) +
+  geom_line(data = beta_values %>% filter(alert_level == "ALS-2"), aes(x = dates, y = value, color = alert_level), linewidth = 1) +
+  geom_line(data = beta_values %>% filter(alert_level == "ALS-3"), aes(x = dates, y = value, color = alert_level), linewidth = 1) +
+  geom_line(data = beta_values %>% filter(alert_level == "Mod-ALS-3"), aes(x = dates, y = value, color = alert_level), linewidth = 1) +
+  geom_line(data = beta_values %>% filter(alert_level == "ALS-4"), aes(x = dates, y = value, color = alert_level), linewidth = 1) +
+  labs(title = "Transmission Rates Across Time", x = "Date", y = expression("Transmission Rate ("*beta*")")) +
+  scale_color_manual(values = alert_colors, name = "Alert Level") +  # Shared legend title
+  theme_clean() +  # Apply clean theme
+  geom_vline(data = beta_values,aes(xintercept = as.Date("2021-12-15")), colour = "gray", linetype = 2, linewidth = 0.5) +
+  geom_vline(data = beta_values,aes(xintercept = as.Date("2022-01-03")), colour = "gray", linetype = 2, linewidth = 0.5) +
+  geom_vline(data = beta_values,aes(xintercept = as.Date("2022-01-24")), colour = "gray", linetype = 2, linewidth = 0.5) +
+  geom_vline(data = beta_values,aes(xintercept = as.Date("2022-02-25")), colour = "gray", linetype = 2, linewidth = 0.5) +
+  geom_vline(data = beta_values,aes(xintercept = as.Date("2022-03-18")), colour = "gray", linetype = 1, linewidth = 0.5) +
+  theme(
+    axis.text.x = element_text(size = 12, hjust = 1, angle = 45),
+    axis.title.x = element_text(size = 12, color = "black", face = "bold"),
+    axis.text.y = element_text(size = 12, face = "bold"),
+    axis.title.y = element_text(size = 12, color = "black", face = "bold"),
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    axis.text = element_text(size = 10),
+    legend.position = "bottom",
+    legend.justification = "center",
+    legend.background = element_blank(),   # No box around the legend
+    legend.text = element_text(size = 10),
+    legend.title = element_text(size = 0),
+    panel.border = element_blank(),        # Remove plot border
+    plot.background = element_blank()      # Remove plot background
+  )
+
+# Boxplot by Alert Level without legend
+alert_boxplot <- ggplot(beta_values, aes(x = alert_level, y = value, fill = alert_level)) +  # Proper fill mapping
+  geom_boxplot(color = "black", outlier.shape = NA) +
+  stat_summary(fun = mean, geom = "point", shape = 20, color = "red", size = 3) +
+  geom_text(data = means, aes(x = alert_level, y = mean_value, label = round(mean_value, 2)),
+            vjust = -1.2, hjust = 0.5, color = "red") +
+  labs(title = "Mean Transmission Rate For Alert Levels", x = "Alert Levels", y = expression("Transmission Rate ("*beta*")")) +
+  scale_fill_manual(values = alert_colors, guide = "none") +  # Suppress legend with guide = "none"
+  theme_clean() +  # Apply clean theme
+  theme(
+    axis.text.x = element_text(size = 12, hjust = 1, angle = 45),
+    axis.title.x = element_text(size = 12, color = "black", face = "bold"),
+    axis.text.y = element_text(size = 12, face = "bold"),
+    axis.title.y = element_text(size = 12, color = "black", face = "bold"),
+    plot.title = element_text(size = 12, face = "bold", color = "black", hjust = 0.5),
+    legend.position = "none",  # Ensure no legend for the boxplot
+    panel.border = element_blank(),        # Remove plot border
+    plot.background = element_blank()      # Remove plot background
+  )
+
+# Combine the plots using patchwork with a single shared legend, centered at the bottom
+combined_plot <- (betaplot | alert_boxplot) + plot_layout(guides = "collect", widths = c(1, 1)) & theme(legend.position = "bottom")
+
+# Save plot with increased width and single legend
+ggsave("combined_plot.png", plot = combined_plot, width = 24, height = 10, dpi = 300)
+
+combined_plot
+```
+
+```{r}
+# Adjust the order of alert levels to reflect increasing stringency for the boxplot
+beta_values$alert_level <- factor(beta_values$alert_level, levels = c("ALS-4", "Mod-ALS-3", "ALS-3", "ALS-2", "No-ALS"))
+
+# Recalculate means for each alert level with the updated factor levels
+means <- beta_values %>%
+  group_by(alert_level) %>%
+  summarise(mean_value = mean(value, na.rm = TRUE))
+
+# Rest of your code remains the same
+alert_boxplot <- ggplot(beta_values, aes(x = alert_level, y = value, fill = alert_level)) +  # Proper fill mapping
+  geom_boxplot(color = "black", outlier.shape = NA) +
+  stat_summary(fun = mean, geom = "point", shape = 20, color = "red", size = 3) +
+  geom_text(data = means, aes(x = alert_level, y = mean_value, label = round(mean_value, 2)),
+            vjust = -1.2, hjust = 0.5, color = "red") +
+  labs(title = "Mean Transmission Rate For Alert Levels", x = "Alert Levels", y = expression("Transmission Rate ("*beta*")")) +
+  scale_fill_manual(values = alert_colors, guide = "none") +  # Suppress legend with guide = "none"
+  theme_clean() +  # Apply clean theme
+  theme(
+    axis.text.x = element_text(size = 12, hjust = 1, angle = 45),
+    axis.title.x = element_text(size = 12, color = "black", face = "bold"),
+    axis.text.y = element_text(size = 12, face = "bold"),
+    axis.title.y = element_text(size = 12, color = "black", face = "bold"),
+    plot.title = element_text(size = 12, face = "bold", color = "black", hjust = 0.5),
+    legend.position = "none",  # Ensure no legend for the boxplot
+    panel.border = element_blank(),        # Remove plot border
+    plot.background = element_blank()      # Remove plot background
+  )
+
+# Combine the plots using patchwork with a single shared legend, centered at the bottom
+combined_plot <- (betaplot | alert_boxplot) + plot_layout(guides = "collect", widths = c(1, 1)) & theme(legend.position = "bottom")
+
+# Save plot with increased width and single legend
+ggsave("combined_plot.png", plot = combined_plot, width = 24, height = 10, dpi = 300)
+
+combined_plot
+
+```
+
