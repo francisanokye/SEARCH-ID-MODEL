@@ -29,12 +29,14 @@ beta_values$alert_level <- rep(c('ALS-2', 'ALS-3', 'ALS-4', 'Mod-ALS-3', 'No-ALS
 #beta_values$alert_level <- as.factor(beta_values$alert_level)
 beta_values$alert_level <- factor(beta_values$alert_level, levels = c("No-ALS", "ALS-2", "ALS-3", "Mod-ALS-3", "ALS-4"))
 
+
 # calculate means for annotation
 means <- beta_values |>
   group_by(alert_level) |>
-  summarise(mean_value = mean(value, na.rm = TRUE))
+  summarise(mean_value = mean(value, na.rm = TRUE)
+  )
 
-# colors for alert levels
+  # colors for alert levels
 alert_colors <- c('ALS-2' = "green", 'ALS-3' = "#CDA4DE", 'ALS-4' = "#FF9800",'Mod-ALS-3' = "#EADDF0", 'No-ALS' = "lightblue")        
 
 betaplot <- (ggplot() +
@@ -86,8 +88,7 @@ alert_boxplot <- (ggplot(beta_values, aes(x = alert_level, y = value, fill = ale
     panel.border = element_blank(),        
     plot.background = element_blank()    
   )
-  )
-
+ )
 
 # combine the plots using patchwork with equal widths 
 combined_plot <- (betaplot | alert_boxplot) + plot_layout(guides = "collect", widths = c(1, 1)) & theme(legend.position = "bottom")
