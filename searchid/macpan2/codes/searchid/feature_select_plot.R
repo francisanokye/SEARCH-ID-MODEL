@@ -21,7 +21,7 @@ calibrator <- rdsRead("calibrate.rds")
 fitted_data <- mp_trajectory_sd(calibrator)
 start_date <- as.Date("2021-12-15")
 fitted_data$dates <- start_date + as.numeric(fitted_data$time) - 1
-fitted_data <- fitted_data[(fitted_data$dates > "2021-12-14")& (fitted_data$dates <= "2022-06-02"),]
+fitted_data <- fitted_data[(fitted_data$dates > "2021-12-14")& (fitted_data$dates <= "2022-03-19"),]
 
 # select the features to plot
 fitted_data <- dplyr::filter(fitted_data, matrix %in% c( "cases","report_prob", "serop"))

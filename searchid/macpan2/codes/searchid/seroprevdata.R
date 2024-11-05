@@ -7,6 +7,9 @@ est_infect_from_seroprevalence$date <- as.Date(est_infect_from_seroprevalence$da
 est_infect_from_seroprevalence <- est_infect_from_seroprevalence |>
   rename_at("date",~"dates")
 
+est_infect_from_seroprevalence <- est_infect_from_seroprevalence[(est_infect_from_seroprevalence$dates > "2021-12-14")& (est_infect_from_seroprevalence$dates <= "2022-03-19"),]
+
+
 seroprevdata <- (est_infect_from_seroprevalence 
 	#%>% select(dates, adjusted_serop_cases, seroprevalence, cases)
         %>% select(dates, seroprevalence, cases)	

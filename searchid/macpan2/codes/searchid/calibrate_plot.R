@@ -19,7 +19,7 @@ calibrator <- rdsRead("calibrate.rds")
 fitted_data <- mp_trajectory_sd(calibrator, conf.int = TRUE)
 start_date <- as.Date("2021-12-15")
 fitted_data$dates <- start_date + as.numeric(fitted_data$time) - 1
-fitted_data <- fitted_data[(fitted_data$dates > "2021-12-14")& (fitted_data$dates <= "2022-06-02"),]
+fitted_data <- fitted_data[(fitted_data$dates > "2021-12-14")& (fitted_data$dates <= "2022-03-19"),]
 
 # subset data for "report_prob"
 fitted_data_report_prob <- dplyr::filter(fitted_data, matrix == "report_prob")
