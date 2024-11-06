@@ -29,7 +29,7 @@ calibrator <- mp_tmb_calibrator(
   )
   , outputs = c(outputs)
   , par = "beta"
-  , tv = mp_rbf("beta", 9, sparse_tol = 0)
+  , tv = mp_rbf("beta", 7, sparse_tol = 0)
   , time = mp_sim_bounds(-70, 200, "daily")#-50,100
 )
 
