@@ -1,15 +1,18 @@
 library(macpan2)
 library(shellpipes)
-rpcall("timevar_spec.Rout timevar_spec.R flows.rda params.rda")
 loadEnvironments()
 
 beta_changepoints <- c(0, 10, 25, 55, 90)
 beta_values = c(0.3, 0.30, 0.34, 0.34, 0.33)
 
 # reads in sample of generated reported probabilities
-reporting_probs = read.csv("../../data/report_probabilities.csv")
+reporting_probs = csvRead()
 # change prob1 through to prob6 to select different shapes of the reporting probabilities
+<<<<<<< HEAD
 report_prob_ts <- reporting_probs |> dplyr::pull(prob3) |> dput()
+=======
+report_prob_ts <- reporting_probs$prob
+>>>>>>> 0019ea96f74661b5cc5aa49730a32677030ab310
 
 spec <- mp_tmb_model_spec(
   before = list(

@@ -10,7 +10,7 @@ set.seed(2024)
 
 loadEnvironments()
 
-calibrator <- rdsRead("calibrate.rds")
+calibrator <- rdsRead()
 
 fitted_data <- mp_trajectory_sd(calibrator)
 start_date <- as.Date("2021-12-15")
