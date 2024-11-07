@@ -6,12 +6,25 @@ beta_changepoints <- c(0, 10, 25, 55, 90)
 beta_values = c(0.3, 0.30, 0.34, 0.34, 0.33)
 
 # reads in sample of generated reported probabilities
+<<<<<<< HEAD
 
 # reporting_probs = csvRead()
 # change prob1 through to prob6 to select different shapes of the reporting probabilities
 # report_prob_ts <- reporting_probs$prob
 #reporting_probs = csvRead()
 # change prob1 through to prob6 to select different shapes of the reporting probabilities
+=======
+# reporting_probs = csvRead()
+# change prob1 through to prob6 to select different shapes of the reporting probabilities
+# report_prob_ts <- reporting_probs$prob
+
+reporting_probs = csvRead()
+# change prob1 through to prob6 to select different shapes of the reporting probabilities
+report_prob_ts <- reporting_probs$prob
+
+print(head(reporting_probs))
+print(summary(reporting_probs))
+>>>>>>> cef8044471ab48e2e8815de65b3724717c7834a0
 
 
 spec <- mp_tmb_model_spec(
@@ -84,6 +97,7 @@ nspec <- mp_tmb_insert(newspec
   , phase = "during"
 )
 ## update  model specification with piece-wise transmission rates
+<<<<<<< HEAD
 #timevar_spec <- mp_tmb_insert(nspec
 #	, expression = list(report_prob ~ report_prob_ts[time_step(1)])
 #	, phase = "during", at = 1L
@@ -99,7 +113,24 @@ timevar_spec = mp_tmb_insert(nspec
 	, phase = "during"
 	, at = 1L
 	, default = list(fminn = 0.01, fmaxx = 0.5, t_hat = 95, k = 0.1)
+=======
+timevar_spec <- mp_tmb_insert(nspec
+	, expression = list(report_prob ~ report_prob_ts[time_step(1)])
+	, phase = "during", at = 1L
+	, default = list(report_prob_ts = report_prob_ts)
+>>>>>>> cef8044471ab48e2e8815de65b3724717c7834a0
 )
+
+#timevar_spec = mp_tmb_insert(nspec
+#	, expression = list( 
+#		  fdiff ~ (fmaxx - fminn)
+#	        , logitt ~ 1 + exp(-k * (t_hat - time_step(1)))	
+#		, report_prob ~ fminn + fdiff / logitt 
+#	)
+#	, phase = "during"
+#	, at = 1L
+#	, default = list(fminn = 0.01, fmaxx = 0.3, t_hat = 95, k = 0.1)
+#)
 
 timevar_spec = mp_tmb_insert_reports(timevar_spec
   , incidence_name = "exposure"

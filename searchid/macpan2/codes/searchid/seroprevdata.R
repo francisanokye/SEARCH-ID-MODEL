@@ -1,10 +1,10 @@
 library(shellpipes)
-rpcall("seroprevdata.Rout seroprevdata.R ../../data/seroprevalence_adjusted_cases.csv")
 library(tidyverse)
 
 start_date <- "2021-12-14"
 last_date <- "2022-06-01"
-trim_report <- "2022-04-01"
+trim_report <- "2022-05-01"
+trim_report <- "2022-06-01"
 
 sero <- (csvRead() 
 	|> mutate(dates = as.Date(date,format = "%Y-%m-%d"))
