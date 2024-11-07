@@ -37,6 +37,14 @@ simulate.Rout: simulate.R timevar_spec.rds params.rda
 	$(pipeR)
 
 seroprevdata.Rout: seroprevdata.R ../../data/seroprevalence_adjusted_cases.csv
+<<<<<<< HEAD
+	$(pipeR)
+
+## constant.calibrate.Rout: calibrate.R
+## lindec.calibrate.Rout: calibrate.R
+## rbf.calibrate.Rout: calibrate.R
+%.calibrate.Rout: calibrate.R %.timevar_spec.rds seroprevdata.rds params.rda timevar_spec.R
+=======
 	$(pipeR)
 
 ## constant.calibrate.Rout: calibrate.R
@@ -45,9 +53,20 @@ seroprevdata.Rout: seroprevdata.R ../../data/seroprevalence_adjusted_cases.csv
 %.calibrate.Rout: calibrate.R %.timevar_spec.rds seroprevdata.rds params.rda timevar_spec.R
 	$(pipeR)
 
+calibrate_summary.Rout: calibrate_summary.R calibrate.rds
+	$(pipeR)
+
+## constant.calibrate_plot.Rout: calibrate_plot.R seroprevdata.R
+## lindec.calibrate_plot.Rout: calibrate_plot.R
+## rbf.calibrate_plot.Rout: calibrate_plot.R
+%.calibrate_plot.Rout: calibrate_plot.R %.calibrate.rds seroprevdata.rds params.R
+>>>>>>> 0019ea96f74661b5cc5aa49730a32677030ab310
+	$(pipeR)
+
 %.calibrate_summary.Rout: calibrate_summary.R %.calibrate.rds
 	$(pipeR)
 
+<<<<<<< HEAD
 ## constant.calibrate_plot.Rout: calibrate_plot.R seroprevdata.R
 ## lindec.calibrate_plot.Rout: calibrate_plot.R
 ## rbf.calibrate_plot.Rout: calibrate_plot.R
@@ -61,6 +80,11 @@ seroprevdata.Rout: seroprevdata.R ../../data/seroprevalence_adjusted_cases.csv
 ## constant.extract_beta.Rout: extract_beta.R
 ## lindec.extract_beta.Rout: extract_beta.R
 #rbf.extract_beta.Rout: extract_beta.R
+=======
+## constant.extract_beta.Rout: extract_beta.R
+## lindec.extract_beta.Rout: extract_beta.R
+## rbf.extract_beta.Rout: extract_beta.R
+>>>>>>> 0019ea96f74661b5cc5aa49730a32677030ab310
 %.extract_beta.Rout: extract_beta.R %.calibrate.rds
 	$(pipeR)
 
