@@ -1,7 +1,7 @@
 library(shellpipes)
 set.seed(2024)
 
-beta_baseline = 0.35 # baseline transmission rate
+beta_baseline = 0.28 # baseline transmission rate
 beta_deviation = 1   # multiplicative deviation from baseline transmission rate 
 report_prob = 1.0
 kappa1 = 1 

@@ -308,7 +308,6 @@ ggplot() +
 ```
 
 ```{r warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=7}
-
 gg1 <- ggplot() +
   geom_line(data = original_est_SERP, aes(x = est_infection_date, y = pct_mean, color = ab_estimate), size = 4) +
   geom_point(data = original_est_SERP, aes(x = est_infection_date, y = pct_mean, color = ab_estimate), size = 4)+

@@ -1001,8 +1001,6 @@ plot(all_data_df$prob6)
 ```
 
 ```{r}
-
-
 # Sample autocorrelated data
 set.seed(123)
 time <- 1:100
@@ -1526,4 +1524,59 @@ ggsave("combined_plot.png", plot = combined_plot, width = 24, height = 10, dpi =
 combined_plot
 
 ```
+
+
+
+```{r}
+# Original date sequence and date ranges
+dates <- seq(as.Date("2021-12-15"), by = "day", length.out = 170)
+value <- c(1.0, 0.52, 0.71, 0.46, 0.18)
+date_ranges <- data.frame(
+  start = as.Date(c("2021-12-15", "2022-01-03", "2022-01-24", "2022-02-25", "2022-03-18")),
+  end = as.Date(c("2022-01-02", "2022-01-23", "2022-02-24", "2022-03-17", "2022-06-03")),  
+  value = value
+)
+
+# Create initial dataframe with dates and NA values
+df <- data.frame(date = dates, value = NA_real_)
+
+# Assign values based on date ranges
+for (i in 1:nrow(date_ranges)) {
+  df$value[df$date >= date_ranges$start[i] & df$date <= date_ranges$end[i]] <- date_ranges$value[i]
+}
+
+# Calculate the number of additional dates needed to reach a total of 463
+additional_dates_needed <- 463 - nrow(df)
+
+# Define backward date intervals by mirroring the original intervals
+backward_date_ranges <- list()
+current_end <- as.Date("2021-12-14")
+for (i in seq_along(value)) {
+  interval_length <- as.numeric(date_ranges$end[i] - date_ranges$start[i]) + 1
+  start_date <- current_end - interval_length + 1
+  backward_date_ranges[[i]] <- data.frame(
+    date = seq(start_date, current_end, by = "day"),
+    value = value[i]
+  )
+  current_end <- start_date - 1
+}
+
+# Combine all backward ranges into a single dataframe and limit to required length
+df_backward <- do.call(rbind, backward_date_ranges)
+df_backward <- df_backward[1:additional_dates_needed, ]
+
+# Combine backward dates and the original data
+df_final <- rbind(df_backward, df)
+
+# Order by date to maintain chronological order
+df_final <- df_final[order(df_final$date), ]
+df_final$Time <- 1: nrow(df_final)
+df_final <- df_final[,c("Time", "value")]
+rownames(df_final) <- NULL
+# Display the final dataframe
+df_final
+
+#write.csv(df, "~/Documents/MUN/SEARCH-ID-MODEL/searchid/macpan2/data/test_elig_frac.csv")
+```
+
 
