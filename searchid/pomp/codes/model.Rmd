@@ -48,8 +48,6 @@ library(tidyverse) # Elegant data handling and plotting
 library(lubridate) # Elegant date handling
 library(incidence) # Package for handling and plotting incidence data
 library(EpiEstim)  # Package for calculating pandemic metrics
-library(egg)
-library(gganimate)
 
 colors = c("#000000","#31E1F7","#F99417","#E11299","#002B5B","#379237","#D2001A","#6F38C5","#8D7B68","#BFDB38","#820000","#367E18","#2192FF","#C58940",
            "black","orange","yellow","magenta","maroon")
@@ -59,7 +57,7 @@ options(scipen = 100, digits = 8)
 ## Parameterizing Vaccination using data
 
 ```{r}
-vacc <- read.csv("~/Documents/nl_ba1_two_peak_pmcmc_model/data/vaccination-coverage-map.csv")
+vacc <- read.csv("~/Documents/MUN/SEARCH-ID-MODEL/searchid/pomp/data/vaccination-coverage-map.csv")
 vacc <- vacc[vacc$prename == "Newfoundland and Labrador",]
 vacc$week_end <- as.Date(vacc$week_end, format = "%Y-%m-%d")
 vacc <- vacc[c("week_end", "numtotal_atleast1dose","numtotal_fully","numtotal_additional")]
