@@ -27,14 +27,9 @@ calibrator <- mp_tmb_calibrator(
     , serop = mp_log_normal(sd = mp_nofit(0.5))
   )
   , outputs = c(outputs)
-  , par = "beta"
-<<<<<<< HEAD
-  , tv = mp_rbf("beta", 9, sparse_tol = 0)
-  , time = mp_sim_bounds(-70, 200, "daily")#-50,100
-=======
-  , tv = mp_rbf("beta", 7, sparse_tol = 0)
+  , par = c("beta_deviation", "beta_baseline")
+  , tv = mp_rbf("beta_deviation", 9, sparse_tol = 0)
   , time = mp_sim_bounds(-30, 200, "daily")#-50,100
->>>>>>> 0019ea96f74661b5cc5aa49730a32677030ab310
 )
 
 
