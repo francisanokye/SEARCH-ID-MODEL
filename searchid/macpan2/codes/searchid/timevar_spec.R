@@ -2,18 +2,20 @@ library(macpan2)
 library(shellpipes)
 loadEnvironments()
 
-beta_changepoints <- c(0, 10, 25, 55, 90)
-beta_values = c(0.3, 0.30, 0.34, 0.34, 0.33)
+
+
+sim_start_date = start_date - lubridate::days(offset)
+
+par_values = c(1, 0.52, 0.71, 0.46, 0.18)
+change_time_steps = difftime(change_dates, start_date, units = "days") |> as.integer()
 
 # reads in sample of generated reported probabilities
-<<<<<<< HEAD
 
 # reporting_probs = csvRead()
 # change prob1 through to prob6 to select different shapes of the reporting probabilities
 # report_prob_ts <- reporting_probs$prob
 #reporting_probs = csvRead()
 # change prob1 through to prob6 to select different shapes of the reporting probabilities
-=======
 # reporting_probs = csvRead()
 # change prob1 through to prob6 to select different shapes of the reporting probabilities
 # report_prob_ts <- reporting_probs$prob
@@ -24,8 +26,6 @@ report_prob_ts <- reporting_probs$prob
 
 print(head(reporting_probs))
 print(summary(reporting_probs))
->>>>>>> cef8044471ab48e2e8815de65b3724717c7834a0
-
 
 spec <- mp_tmb_model_spec(
   before = list(
@@ -65,6 +65,10 @@ newspec <- mp_tmb_update(spec
               tau = tau, zeta = zeta, v2 = v2, v3 = v3, xi1 = xi1, xi2 = xi2, xi3 = xi3, eta1 = eta1, eta2 = eta2, eta3 = eta3,
               phi1 = phi1, phi2 = phi2, phi3 = phi3, theta1 = theta1, theta2 = theta2, theta3 = theta3,
               omega1 = omega1, omega2 = omega2, omega3 = omega3, lambda1 = lambda1, lambda2 = lambda2, lambda3 = lambda3
+	      , offset = offset
+	      , data_start_date = data_start_date
+	      , change_dates = change_dates
+	      , par_values = par_values
 	      , N = N
 	      , log_E10 = log(E10)
 	      , log_A10 = log(A10)
@@ -97,28 +101,27 @@ nspec <- mp_tmb_insert(newspec
   , phase = "during"
 )
 ## update  model specification with piece-wise transmission rates
-<<<<<<< HEAD
+
 #timevar_spec <- mp_tmb_insert(nspec
 #	, expression = list(report_prob ~ report_prob_ts[time_step(1)])
 #	, phase = "during", at = 1L
 #	, default = list(report_prob_ts = report_prob_ts)
 #)
 
-timevar_spec = mp_tmb_insert(nspec
-	, expression = list( 
-		  fdiff ~ (fmaxx - fminn)
-	        , logitt ~ 1 + exp(-k * (t_hat - time_step(1)))	
-		, report_prob ~ fminn + fdiff / logitt 
-	)
-	, phase = "during"
-	, at = 1L
-	, default = list(fminn = 0.01, fmaxx = 0.5, t_hat = 95, k = 0.1)
-=======
+#timevar_spec = mp_tmb_insert(nspec
+#	, expression = list( 
+#		  fdiff ~ (fmaxx - fminn)
+#	        , logitt ~ 1 + exp(-k * (t_hat - time_step(1)))	
+#		, report_prob ~ fminn + fdiff / logitt 
+#	)
+#	, phase = "during"
+#	, at = 1L
+#	, default = list(fminn = 0.01, fmaxx = 0.5, t_hat = 95, k = 0.1))
+
 timevar_spec <- mp_tmb_insert(nspec
 	, expression = list(report_prob ~ report_prob_ts[time_step(1)])
 	, phase = "during", at = 1L
 	, default = list(report_prob_ts = report_prob_ts)
->>>>>>> cef8044471ab48e2e8815de65b3724717c7834a0
 )
 
 #timevar_spec = mp_tmb_insert(nspec

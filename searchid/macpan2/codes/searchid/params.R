@@ -1,8 +1,8 @@
 library(shellpipes)
 set.seed(2024)
 
-beta_baseline = 0.28 # baseline transmission rate
-beta_deviation = 1   # multiplicative deviation from baseline transmission rate 
+#beta_baseline = 0.28 # baseline transmission rate
+#beta_deviation = 1   # multiplicative deviation from baseline transmission rate 
 beta <- 0.35
 report_prob = 1.0
 kappa1 = 1 
@@ -81,6 +81,7 @@ params = list(beta= beta
 	, theta3 = theta3
 	, omega1 = omega1, omega2 = omega2, omega3 = omega3
 	, lambda1 = lambda1, lambda2 = lambda2, lambda3 = lambda3
+	, offset = offset
 )
 
 states = list(N = N

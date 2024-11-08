@@ -19,6 +19,11 @@ Sources += $(wildcard *.R)
 params.Rout: params.R
 	$(pipeR)
 
+keydates.Rout: keydates.R
+	$(pipeR)
+#test_elig_changepoints.Rout: test_elig_changepoints.R
+#	$(pipeR)
+
 flows.Rout: flows.R params.rda
 	$(pipeR)
 
@@ -30,51 +35,47 @@ flows.Rout: flows.R params.rda
 ## test_eli.timevar_spec.Rout: timevar_spec.R
 ## lindec.timevar_spec.Rout: timevar_spec.R
 ## rbf.timevar_spec.Rout: timevar_spec.R
-timevar_spec.Rout: timevar_spec.R flows.rda params.rda
+timevar_spec.Rout: timevar_spec.R flows.rda params.rda keydates.rda
 	$(pipeR)
 
 
-simulate.Rout: simulate.R timevar_spec.rds params.rda
+simulate.Rout: simulate.R timevar_spec.rds params.rda 
 	$(pipeR)
 
-seroprevdata.Rout: seroprevdata.R ../../data/seroprevalence_adjusted_cases.csv
-<<<<<<< HEAD
+seroprevdata.Rout: seroprevdata.R keydates.rda ../../data/seroprevalence_adjusted_cases.csv
 	$(pipeR)
 
 ## constant.calibrate.Rout: calibrate.R
 ## lindec.calibrate.Rout: calibrate.R
 ## rbf.calibrate.Rout: calibrate.R
-calibrate.Rout: calibrate.R timevar_spec.rds seroprevdata.rds params.rda timevar_spec.R
-=======
->>>>>>> cef8044471ab48e2e8815de65b3724717c7834a0
-	$(pipeR)
+#calibrate.Rout: calibrate.R timevar_spec.rds seroprevdata.rds params.rda timevar_spec.R
+#	$(pipeR)
 
 ## constant.calibrate.Rout: calibrate.R
 ## test_eli.calibrate.Rout: calibrate.R
 ## lindec.calibrate.Rout: calibrate.R
 ## rbf.calibrate.Rout: calibrate.R
-calibrate.Rout: calibrate.R timevar_spec.rds seroprevdata.rds params.rda timevar_spec.R
+calibrate.Rout: calibrate.R timevar_spec.rds seroprevdata.rds params.rda keydates.rda timevar_spec.R
 	$(pipeR)
 
-calibrate_summary.Rout: calibrate_summary.R calibrate.rds
-	$(pipeR)
-
-<<<<<<< HEAD
-## constant.calibrate_plot.Rout: calibrate_plot.R seroprevdata.R
-## lindec.calibrate_plot.Rout: calibrate_plot.R
-## rbf.calibrate_plot.Rout: calibrate_plot.R
-calibrate_plot.Rout: calibrate_plot.R calibrate.rds seroprevdata.rds params.R
-	$(pipeR)
-
-calibrate_summary.Rout: calibrate_summary.R %.calibrate.rds
-	$(pipeR)
+#calibrate_summary.Rout: calibrate_summary.R calibrate.rds
+#	$(pipeR)
 
 ## constant.calibrate_plot.Rout: calibrate_plot.R seroprevdata.R
 ## lindec.calibrate_plot.Rout: calibrate_plot.R
 ## rbf.calibrate_plot.Rout: calibrate_plot.R
-calibrate_plot.Rout: calibrate_plot.R calibrate.rds seroprevdata.rds params.R
+calibrate_plot.Rout: calibrate_plot.R calibrate.rds keydates.rda seroprevdata.rds params.R
 	$(pipeR)
-=======
+
+%.calibrate_summary.Rout: calibrate_summary.R %.calibrate.rds
+	$(pipeR)
+
+## constant.calibrate_plot.Rout: calibrate_plot.R seroprevdata.R
+## lindec.calibrate_plot.Rout: calibrate_plot.R
+## rbf.calibrate_plot.Rout: calibrate_plot.R
+calibrate_plot.Rout: calibrate_plot.R calibrate.rds seroprevdata.rds keydates.rda params.R 
+	$(pipeR)
+
 %.calibrate_summary.Rout: calibrate_summary.R %.calibrate.rds
 	$(pipeR)
 
@@ -82,27 +83,24 @@ calibrate_plot.Rout: calibrate_plot.R calibrate.rds seroprevdata.rds params.R
 ## test_eli.calibrate_plot.Rout: calibrate_plot.R seroprevdata.R ../../data/rp_test_eli.csv
 ## lindec.calibrate_plot.Rout: calibrate_plot.R
 ## rbf.calibrate_plot.Rout: calibrate_plot.R
-%.calibrate_plot.Rout: calibrate_plot.R %.calibrate.rds seroprevdata.rds params.R
+%.calibrate_plot.Rout: calibrate_plot.R %.calibrate.rds seroprevdata.rds keydates.rda params.R
 	$(pipeRcall)
->>>>>>> cef8044471ab48e2e8815de65b3724717c7834a0
 
-
-feature_select_plot.Rout: feature_select_plot.R calibrate.rds seroprevdata.rds params.R
+feature_select_plot.Rout: feature_select_plot.R calibrate.rds seroprevdata.rds keydates.rda params.R 
 	$(pipeR)
 
 ## constant.extract_beta.Rout: extract_beta.R
 ## lindec.extract_beta.Rout: extract_beta.R
-<<<<<<< HEAD
+
 #rbf.extract_beta.Rout: extract_beta.R
 
 ## constant.extract_beta.Rout: extract_beta.R
 ## lindec.extract_beta.Rout: extract_beta.R
 ## rbf.extract_beta.Rout: extract_beta.R
 extract_beta.Rout: extract_beta.R calibrate.rds
-=======
+
 ## rbf.extract_beta.Rout: extract_beta.R
 %.extract_beta.Rout: extract_beta.R %.calibrate.rds
->>>>>>> cef8044471ab48e2e8815de65b3724717c7834a0
 	$(pipeR)
 
 Ignore += makestuff
