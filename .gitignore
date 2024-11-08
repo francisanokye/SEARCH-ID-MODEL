@@ -6,3 +6,4 @@
 *.R.oldfile 
 *.rda
 .DS_Store
+.swp
