@@ -19,17 +19,11 @@ Sources += $(wildcard *.R)
 params.Rout: params.R
 	$(pipeR)
 
-keydates.Rout: keydates.R
+keydates.Rout: keydates.R 
 	$(pipeR)
-#test_elig_changepoints.Rout: test_elig_changepoints.R
-#	$(pipeR)
 
 flows.Rout: flows.R params.rda
 	$(pipeR)
-
-#reporting_probs.Rout: reporting_probs.R ../../data/report_probabilities.csv
-#        $(pipeRcall)
-
 
 ## constant.timevar_spec.Rout: timevar_spec.R
 ## test_eli.timevar_spec.Rout: timevar_spec.R
@@ -56,24 +50,6 @@ seroprevdata.Rout: seroprevdata.R keydates.rda ../../data/seroprevalence_adjuste
 ## lindec.calibrate.Rout: calibrate.R
 ## rbf.calibrate.Rout: calibrate.R
 %.calibrate.Rout: calibrate.R timevar_spec.rds seroprevdata.rds params.rda keydates.rda timevar_spec.R
-	$(pipeR)
-
-#calibrate_summary.Rout: calibrate_summary.R calibrate.rds
-#	$(pipeR)
-
-## constant.calibrate_plot.Rout: calibrate_plot.R seroprevdata.R
-## lindec.calibrate_plot.Rout: calibrate_plot.R
-## rbf.calibrate_plot.Rout: calibrate_plot.R
-calibrate_plot.Rout: calibrate_plot.R calibrate.rds keydates.rda seroprevdata.rds params.R
-	$(pipeR)
-
-%.calibrate_summary.Rout: calibrate_summary.R %.calibrate.rds
-	$(pipeR)
-
-## constant.calibrate_plot.Rout: calibrate_plot.R seroprevdata.R
-## lindec.calibrate_plot.Rout: calibrate_plot.R
-## rbf.calibrate_plot.Rout: calibrate_plot.R
-calibrate_plot.Rout: calibrate_plot.R calibrate.rds seroprevdata.rds keydates.rda params.R 
 	$(pipeR)
 
 %.calibrate_summary.Rout: calibrate_summary.R %.calibrate.rds

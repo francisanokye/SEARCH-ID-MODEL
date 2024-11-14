@@ -7,8 +7,6 @@ library(ggthemes)
 library(broom.mixed)
 set.seed(2024)
 
-#conflicted_prefer("rdsSave", "shellpipes")
-
 loadEnvironments()
 
 timevar_spec <- rdsRead("timevar_spec.rds")
@@ -17,7 +15,7 @@ seroprevdata <- rdsRead("seroprevdata.rds")
 
 outputs = c("S", "E", "A", "R", "C", "H", "I", "D","cases", "beta", "serop", "report_prob")
 
-population = 510550
+print(offset)
 
 calibrator <- mp_tmb_calibrator(
     spec = timevar_spec |> mp_hazard()
@@ -34,7 +32,7 @@ calibrator <- mp_tmb_calibrator(
 #  , tv = mp_rbf("beta_deviation", 9, sparse_tol = 0)
   , par = "beta"
   , tv = mp_rbf("beta", 7, sparse_tol = 0)
-  , time = mp_sim_bounds(offset, 200, "daily")#-50,100
+  , time = mp_sim_bounds(off, 200, "daily")#-50,100
 )
 
 

@@ -1,6 +1,6 @@
 library(shellpipes)
 library(tidyverse)
-loadEnvironment()
+loadEnvironments()
 
 #start_date <- "2021-12-14"
 #last_date <- "2022-06-01"

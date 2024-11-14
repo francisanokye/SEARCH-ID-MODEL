@@ -1,7 +1,7 @@
 library(macpan2)
 library(shellpipes)
 #rpcall("test_eli.calibrate_plot.Rout calibrate_plot.R test_eli.calibrate.rds seroprevdata.rds params.R")
-#rpcall("constant.calibrate_plot.Rout calibrate_plot.R constant.calibrate.rds seroprevdata.rds params.R")
+rpcall("constant.calibrate_plot.Rout calibrate_plot.R constant.calibrate.rds seroprevdata.rds keydates.rda params.R")
 library(conflicted)
 library(tidyverse)
 library(dplyr)

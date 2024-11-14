@@ -1,6 +1,8 @@
 library(shellpipes)
 set.seed(2024)
 
+### Why do you need so many boxes?
+
 #beta_baseline = 0.28 # baseline transmission rate
 #beta_deviation = 1   # multiplicative deviation from baseline transmission rate 
 beta <- 0.35
@@ -70,6 +72,7 @@ S10 = 0.15 * N  - (E10 - A10 - R10 - C10 - H10 - I10 -D10)
 V20 = 0.30 * N  - (E20 - A20 - R20 - C20 - H20 - I20 -D20)
 V30 = 0.55 * N  - (E30 - A30 - R30 - C30 - H30 - I30 -D30) 
 
+off <- 30
 
 # params = list(beta_baseline = beta_baseline, beta_deviation = beta_deviation
 params = list(beta= beta
@@ -81,7 +84,7 @@ params = list(beta= beta
 	, theta3 = theta3
 	, omega1 = omega1, omega2 = omega2, omega3 = omega3
 	, lambda1 = lambda1, lambda2 = lambda2, lambda3 = lambda3
-	, offset = offset
+	, off = off
 )
 
 states = list(N = N

@@ -2,14 +2,25 @@ library(macpan2)
 library(shellpipes)
 loadEnvironments()
 
+sim_start_date = as.Date(start_date) - lubridate::days(off)
 
-
-sim_start_date = start_date - lubridate::days(offset)
+print(sim_start_date)
+print(change_dates)
 
 par_values = c(1, 0.52, 0.71, 0.46, 0.18)
-change_time_steps = difftime(change_dates, start_date, units = "days") |> as.integer()
+change_time_steps = difftime(as.Date(change_dates), as.Date(start_date), units = "days") |> as.integer()
 
 # reads in sample of generated reported probabilities
+
+print(par_values)
+print(change_time_steps)
+
+df <- data.frame(time = change_time_steps
+	, date = change_dates - off + 1 
+	, value = par_values
+)
+
+print(df)
 
 # reporting_probs = csvRead()
 # change prob1 through to prob6 to select different shapes of the reporting probabilities
@@ -25,7 +36,9 @@ reporting_probs = csvRead()
 report_prob_ts <- reporting_probs$prob
 
 print(head(reporting_probs))
+
 print(summary(reporting_probs))
+
 
 spec <- mp_tmb_model_spec(
   before = list(
@@ -66,7 +79,7 @@ newspec <- mp_tmb_update(spec
               phi1 = phi1, phi2 = phi2, phi3 = phi3, theta1 = theta1, theta2 = theta2, theta3 = theta3,
               omega1 = omega1, omega2 = omega2, omega3 = omega3, lambda1 = lambda1, lambda2 = lambda2, lambda3 = lambda3
 	      , offset = offset
-	      , data_start_date = data_start_date
+#	      , data_start_date = data_start_date
 	      , change_dates = change_dates
 	      , par_values = par_values
 	      , N = N
