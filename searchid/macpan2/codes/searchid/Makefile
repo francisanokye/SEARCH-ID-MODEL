@@ -25,7 +25,7 @@ keydates.Rout: keydates.R
 flows.Rout: flows.R params.rda
 	$(pipeR)
 
-## constant.timevar_spec.Rout: timevar_spec.R
+## constant2.timevar_spec.Rout: timevar_spec.R
 ## test_eli.timevar_spec.Rout: timevar_spec.R
 ## lindec.timevar_spec.Rout: timevar_spec.R
 ## rbf.timevar_spec.Rout: timevar_spec.R
@@ -39,14 +39,7 @@ simulate.Rout: simulate.R timevar_spec.rds params.rda
 seroprevdata.Rout: seroprevdata.R keydates.rda ../../data/seroprevalence_adjusted_cases.csv
 	$(pipeR)
 
-## constant.calibrate.Rout: calibrate.R
-## lindec.calibrate.Rout: calibrate.R
-## rbf.calibrate.Rout: calibrate.R
-#calibrate.Rout: calibrate.R timevar_spec.rds seroprevdata.rds params.rda timevar_spec.R
-#	$(pipeR)
-
-## constant.calibrate.Rout: calibrate.R
-## test_eli.calibrate.Rout: calibrate.R
+## constant2.calibrate.Rout: calibrate.R
 ## lindec.calibrate.Rout: calibrate.R
 ## rbf.calibrate.Rout: calibrate.R
 %.calibrate.Rout: calibrate.R %.timevar_spec.rds seroprevdata.rds params.rda keydates.rda timevar_spec.R
@@ -55,7 +48,7 @@ seroprevdata.Rout: seroprevdata.R keydates.rda ../../data/seroprevalence_adjuste
 %.calibrate_summary.Rout: calibrate_summary.R %.calibrate.rds
 	$(pipeR)
 
-## constant.calibrate_plot.Rout: calibrate_plot.R seroprevdata.R ../../data/rp_constant.csv
+## constant2.calibrate_plot.Rout: calibrate_plot.R seroprevdata.R ../../data/rp_constant.csv
 ## test_eli.calibrate_plot.Rout: calibrate_plot.R seroprevdata.R ../../data/rp_test_eli.csv
 ## lindec.calibrate_plot.Rout: calibrate_plot.R
 ## rbf.calibrate_plot.Rout: calibrate_plot.R
