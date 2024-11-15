@@ -4,6 +4,8 @@ loadEnvironments()
 
 reporting_probs = csvRead()
 report_prob_ts <- reporting_probs$prob
+report_prob_cp = reporting_probs$Time
+
 
 print(head(reporting_probs))
 
@@ -20,7 +22,7 @@ spec <- mp_tmb_model_spec(
     , H1 ~ exp(log_H10)
     , I1 ~ exp(log_I10)
     , D1 ~ exp(log_D10)
-    
+
     , E2 ~ exp(log_E20)
     , A2 ~ exp(log_A20)
     , R2 ~ exp(log_R20)
@@ -38,8 +40,8 @@ spec <- mp_tmb_model_spec(
     , D3 ~ exp(log_D30)
 
     , S1  ~ 0.15 * N  - (E1 - A1 - R1 - C1 - H1 - I1 - D1)
-    , V2  ~ 0.30 * N  - (E2 - A2 - R2 - C2 - H2 - I2 - D2) 
-    , V3  ~ 0.55 * N  - (E3 - A3 - R3 - C3 - H3 - I3 - D3))  
+    , V2  ~ 0.30 * N  - (E2 - A2 - R2 - C2 - H2 - I2 - D2)
+    , V3  ~ 0.55 * N  - (E3 - A3 - R3 - C3 - H3 - I3 - D3))
   , during = flows
   , default = c(params)
 )
@@ -60,8 +62,8 @@ newspec <- mp_tmb_update(spec
 	      , log_C10 = log(C10)
 	      , log_H10 = log(H10)
 	      , log_I10 = log(I10)
-	      , log_D10 = log(D10) 
-					  
+	      , log_D10 = log(D10)
+
 	      , log_E20 = log(E20)
               , log_A20 = log(A20)
               , log_R20 = log(R20)
@@ -69,7 +71,7 @@ newspec <- mp_tmb_update(spec
               , log_H20 = log(H20)
               , log_I20 = log(I20)
               , log_D20 = log(D20)
-					  
+
 	      , log_E30 = log(E30)
               , log_A30 = log(A30)
               , log_R30 = log(R30)
@@ -87,9 +89,10 @@ nspec <- mp_tmb_insert(newspec
 )
 
 timevar_spec <- mp_tmb_insert(nspec
-	, expression = list(report_prob ~ report_prob_ts[time_step(1)])
+	, expression = list(report_prob ~ time_var(report_prob_ts, report_prob_cp))
 	, phase = "during", at = 1L
 	, default = list(report_prob_ts = report_prob_ts)
+	, integers = list(report_prob_cp = report_prob_cp)
 )
 
 timevar_spec = mp_tmb_insert_reports(timevar_spec
