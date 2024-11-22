@@ -21,7 +21,7 @@ calibrator <- mp_tmb_calibrator(
     spec = timevar_spec |> mp_hazard()
   , data = seroprevdata
   , traj = list(
-      cases = mp_neg_bin(disp = mp_fit(1))
+      cases = mp_neg_bin(disp = mp_nofit(1))
     , serop = mp_log_normal(sd = mp_nofit(0.5))
   )
   , outputs = c(outputs)
@@ -31,7 +31,7 @@ calibrator <- mp_tmb_calibrator(
 #  , par = c("beta_deviation", "beta_baseline")
 #  , tv = mp_rbf("beta_deviation", 9, sparse_tol = 0)
   , par = "beta"
-  , tv = mp_rbf("beta", 7, sparse_tol = 0)
+  , tv = mp_rbf("beta", 5, sparse_tol = 0.9)
   , time = mp_sim_bounds(off, 200, "daily")#-50,100
 )
 
