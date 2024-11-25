@@ -5,15 +5,13 @@ loadEnvironments()
 
 effprop <- 0.9
 
-reporting_probs = (csvRead()
-	%>% mutate(prob = if_else(Time >170, 0.18,prob)
-		, prob = prob*effprop
-		)
-)
+
+
+reporting_probs = csvRead()
 
 report_prob_ts <- reporting_probs$prob
-report_prob_cp = reporting_probs$Time
-
+report_prob_cp = as.integer(reporting_probs$Date - as.Date(start_date))
+print(report_prob_cp)
 
 print(head(reporting_probs))
 

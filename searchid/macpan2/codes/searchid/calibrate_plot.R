@@ -10,7 +10,6 @@ set.seed(2024)
 loadEnvironments()
 
 start_date <- "2021-12-15"
-start_date <- as.Date(start_date) - off
 last_date <- "2022-06-01"
 
 seroprevdata <- rdsRead("seroprevdata.rds")

@@ -31,6 +31,7 @@ spec.Rout: spec.R params.rda flows.rda
 
 ## francis.timevar_spec.Rout: timevar_spec.R ../../data/rp_francis.csv
 ## eligfrac.timevar_spec.Rout: timevar_spec.R ../../data/rp_eligfrac.csv
+## eligfrac2.timevar_spec.Rout: timevar_spec.R ../../data/rp_eligfrac2.csv
 ## lindec.timevar_spec.Rout: timevar_spec.R
 ## rbf.timevar_spec.Rout: timevar_spec.R
 %.timevar_spec.Rout: timevar_spec.R spec.rds keydates.rda ../../data/rp_%.csv
@@ -44,7 +45,7 @@ seroprevdata.Rout: seroprevdata.R keydates.rda ../../data/seroprevalence_adjuste
 	$(pipeR)
 
 ## constant.calibrate.Rout: calibrate.R
-## eligfrac.calibrate.Rout: calibrate.R
+## eligfrac2.calibrate.Rout: calibrate.R
 ## lindec.calibrate.Rout: calibrate.R
 ## rbf.calibrate.Rout: calibrate.R
 %.calibrate.Rout: calibrate.R %.timevar_spec.rds seroprevdata.rds params.rda keydates.rda timevar_spec.R
@@ -53,8 +54,9 @@ seroprevdata.Rout: seroprevdata.R keydates.rda ../../data/seroprevalence_adjuste
 %.calibrate_summary.Rout: calibrate_summary.R %.calibrate.rds
 	$(pipeR)
 
-## constant.calibrate_plot.Rout: params.R calibrate_plot.R seroprevdata.R calibrate.R
+## constant2.calibrate_plot.Rout: params.R calibrate_plot.R seroprevdata.R calibrate.R
 ## eligfrac.calibrate_plot.Rout: calibrate_plot.R seroprevdata.R ../../data/rp_test_eli.csv calibrate.R
+## eligfrac2.calibrate_plot.Rout: calibrate_plot.R seroprevdata.R ../../data/rp_test_eli.csv calibrate.R
 ## eligfrac.calibrate_plot.Rout: params.R seroprevdata.R ../../data/rp_test_eli.csv calibrate.R
 ## lindec.calibrate_plot.Rout: calibrate_plot.R
 ## rbf.calibrate_plot.Rout: calibrate_plot.R
