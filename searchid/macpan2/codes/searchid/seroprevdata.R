@@ -1,4 +1,5 @@
 library(shellpipes)
+library(zoo)
 library(tidyverse)
 loadEnvironments()
 
@@ -27,6 +28,10 @@ serodat <- (sero
 serodat <- (serodat
 	|> mutate(value = ifelse((matrix == "cases")& (dates > as.Date(trim_report)),NA,value)
 	)
+	|> group_by(matrix)
+	|> mutate(rollavg = round(rollmean(value,7,align="left",fill=NA))
+		, value = ifelse(matrix == "cases", rollavg, value)
+		)
 	|> filter(!is.na(value))
 )
 

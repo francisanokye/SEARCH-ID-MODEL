@@ -54,7 +54,7 @@ seroprevdata.Rout: seroprevdata.R keydates.rda ../../data/seroprevalence_adjuste
 %.calibrate_summary.Rout: calibrate_summary.R %.calibrate.rds
 	$(pipeR)
 
-## constant2.calibrate_plot.Rout: params.R calibrate_plot.R seroprevdata.R calibrate.R
+## constant.calibrate_plot.Rout: params.R calibrate_plot.R seroprevdata.R calibrate.R
 ## eligfrac.calibrate_plot.Rout: calibrate_plot.R seroprevdata.R ../../data/rp_test_eli.csv calibrate.R
 ## eligfrac2.calibrate_plot.Rout: calibrate_plot.R seroprevdata.R ../../data/rp_test_eli.csv calibrate.R
 ## eligfrac.calibrate_plot.Rout: params.R seroprevdata.R ../../data/rp_test_eli.csv calibrate.R
