@@ -17,14 +17,12 @@ seroprevdata <- rdsRead("seroprevdata.rds")
 
 outputs = c("S", "E", "A", "R", "C", "H", "I", "D","cases", "beta", "serop", "report_prob")
 
-print(offset)
-
 calibrator <- mp_tmb_calibrator(
     spec = timevar_spec |> mp_hazard()
   , data = seroprevdata
   , traj = list(
       cases = mp_neg_bin(disp = mp_nofit(5))
- #   , serop = mp_log_normal(sd = mp_nofit(1))
+    , serop = mp_log_normal(sd = mp_nofit(1))
   )
   , outputs = c(outputs)
   #, par = c("beta_deviation", "beta_baseline")
@@ -33,7 +31,7 @@ calibrator <- mp_tmb_calibrator(
 #  , par = c("beta_deviation", "beta_baseline")
 #  , tv = mp_rbf("beta_deviation", 9, sparse_tol = 0)
   , par = "beta"
-  , tv = mp_rbf("beta", 7, sparse_tol = 0)
+  , tv = mp_rbf("beta", 6, sparse_tol = 0)
   , time = mp_sim_bounds(-off, 200-off, "daily")#-50,100
 )
 

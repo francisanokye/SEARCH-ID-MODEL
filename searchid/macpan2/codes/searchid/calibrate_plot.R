@@ -9,9 +9,6 @@ set.seed(2024)
 
 loadEnvironments()
 
-start_date <- "2021-12-15"
-last_date <- "2022-06-01"
-
 seroprevdata <- rdsRead("seroprevdata.rds")
 
 population = 510550

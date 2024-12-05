@@ -76,7 +76,7 @@ S10 = S0prop * N  - (E10 - A10 - R10 - C10 - H10 - I10 -D10)
 V20 = V2prop * N  - (E20 - A20 - R20 - C20 - H20 - I20 -D20)
 V30 = V3prop * N  - (E30 - A30 - R30 - C30 - H30 - I30 -D30) 
 
-off <- 30
+off <- 20
 
 # params = list(beta_baseline = beta_baseline, beta_deviation = beta_deviation
 params = list(beta= beta

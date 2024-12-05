@@ -1,21 +1,26 @@
 library(macpan2)
 library(dplyr)
+library(zoo)
 library(shellpipes)
 loadEnvironments()
 
 effprop <- 0.9
 
 
+## offset hack step
+reporting_probs = (csvRead()
+	%>% mutate(Date = ifelse(Date > as.Date(start_date),Date + off,Date)
+		, Date = as.Date(Date)
+	)
+)
 
-reporting_probs = csvRead()
+print(reporting_probs)
 
 report_prob_ts <- reporting_probs$prob
 report_prob_cp = as.integer(reporting_probs$Date - as.Date(start_date))
 print(report_prob_cp)
 
 print(head(reporting_probs))
-
-print(summary(reporting_probs))
 
 nspec <- rdsRead()
 
