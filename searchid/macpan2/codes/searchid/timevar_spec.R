@@ -6,6 +6,7 @@ loadEnvironments()
 
 effprop <- 0.9
 
+reporting_delay <- TRUE
 
 ## offset hack step
 reporting_probs = (csvRead()
@@ -31,12 +32,16 @@ timevar_spec <- mp_tmb_insert(nspec
 	, integers = list(report_prob_cp = report_prob_cp)
 )
 
+if(reporting_delay){
+
 timevar_spec = mp_tmb_insert_reports(timevar_spec
   , incidence_name = "exposure"
   , report_prob = 0.5
-  , mean_delay = 11
+  , mean_delay = 1
   , cv_delay = 0.95
   , reports_name = "cases"
   , report_prob_name = "report_prob"
 )
+
+}
 rdsSave(timevar_spec)

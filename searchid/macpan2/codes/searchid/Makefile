@@ -57,8 +57,8 @@ seroprevdata.Rout: seroprevdata.R keydates.rda ../../data/seroprevalence_adjuste
 
 ## constant.calibrate_plot.Rout: params.R calibrate_plot.R seroprevdata.R calibrate.R
 ## eligfrac.calibrate_plot.Rout: calibrate_plot.R seroprevdata.R ../../data/rp_test_eli.csv calibrate.R
-## eligfrac2.calibrate_plot.Rout: calibrate_plot.R seroprevdata.R ../../data/rp_test_eli.csv calibrate.R
-## eligfrac3.calibrate_plot.Rout: calibrate_plot.R seroprevdata.R ../../data/rp_test_eli.csv calibrate.R
+## eligfrac2.calibrate_plot.Rout: calibrate_plot.R seroprevdata.R ../../data/rp_eligfrac2.csv calibrate.R
+## eligfrac3.calibrate_plot.Rout: calibrate_plot.R seroprevdata.R ../../data/rp_eligfrac3.csv calibrate.R
 ## eligfrac.calibrate_plot.Rout: params.R seroprevdata.R ../../data/rp_test_eli.csv calibrate.R
 ## lindec.calibrate_plot.Rout: calibrate_plot.R
 ## rbf.calibrate_plot.Rout: calibrate_plot.R

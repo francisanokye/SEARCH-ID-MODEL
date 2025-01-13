@@ -9,6 +9,7 @@ set.seed(2024)
 
 loadEnvironments()
 
+
 timevar_spec <- rdsRead("timevar_spec.rds")
 
 print(timevar_spec$integers$report_prob_cp[1])
@@ -31,7 +32,7 @@ calibrator <- mp_tmb_calibrator(
 #  , par = c("beta_deviation", "beta_baseline")
 #  , tv = mp_rbf("beta_deviation", 9, sparse_tol = 0)
   , par = "beta"
-  , tv = mp_rbf("beta", 6, sparse_tol = 0)
+  , tv = mp_rbf("beta", 5 , sparse_tol = 0)
   , time = mp_sim_bounds(-off, 200-off, "daily")#-50,100
 )
 
