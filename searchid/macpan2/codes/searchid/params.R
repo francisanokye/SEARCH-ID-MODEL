@@ -5,8 +5,8 @@ set.seed(2024)
 
 #beta_baseline = 0.28 # baseline transmission rate
 #beta_deviation = 1   # multiplicative deviation from baseline transmission rate 
-beta <- 0.35
-report_prob = 1.0
+beta <- 0.035
+report_prob = 0.99
 kappa1 = 1 
 kappa2 = 0.91 
 kappa3 = 0.3
