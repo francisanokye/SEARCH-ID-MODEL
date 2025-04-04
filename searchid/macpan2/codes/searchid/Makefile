@@ -39,10 +39,17 @@ spec.Rout: spec.R params.rda flows.rda
 	$(pipeR)
 
 
-simulate.Rout: simulate.R timevar_spec.rds params.rda 
+%.simulate.Rout: simulate.R %.timevar_spec.rds params.rda keydates.rda seroprevdata.rds
 	$(pipeR)
 
-seroprevdata.Rout: seroprevdata.R keydates.rda ../../data/seroprevalence_adjusted_cases.csv
+simulate.Rout: simulate.R timevar_spec.rds params.rda keydates.rda
+	$(pipeR)
+
+
+#simulate.Rout: simulate.R timevar_spec.rds params.rda 
+#	$(pipeR)
+
+seroprevdata.Rout: seroprevdata.R keydates.rda ../../data/serop_avgcase_data.csv    #seroprevalence_adjusted_cases.csv
 	$(pipeR)
 
 ## constant.calibrate.Rout: calibrate.R
@@ -79,7 +86,7 @@ feature_select_plot.Rout: feature_select_plot.R calibrate.rds seroprevdata.rds k
 extract_beta.Rout: extract_beta.R calibrate.rds
 
 ## rbf.extract_beta.Rout: extract_beta.R
-%.extract_beta.Rout: extract_beta.R %.calibrate.rds
+%.extract_beta.Rout: extract_beta.R  %.calibrate.rds seroprevdata.rds keydates.rda params.R 
 	$(pipeR)
 
 Ignore += makestuff
