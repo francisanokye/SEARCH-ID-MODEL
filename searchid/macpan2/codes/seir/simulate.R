@@ -6,7 +6,7 @@ library(ggthemes)
 
 loadEnvironments()
 
-n = 100
+n = 10
 
 timevar_spec = rdsRead()
 

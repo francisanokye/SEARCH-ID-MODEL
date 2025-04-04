@@ -1,0 +1,400 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r warning=FALSE, message=FALSE}
+set.seed(132628335)
+suppressPackageStartupMessages({
+pacman::p_load(tidyverse, reshape2, ggplot2, coda, gtools, gridExtra, 
+               foreach, doParallel, doRNG, tidyr,plyr, pomp, doMC, zoo, 
+               devtools, readxl, viridis, tibbletime, tidyquant, hrbrthemes,
+               grid, ggthemes, ggh4x, ggsci, ggnewscale, repr, magrittr, 
+               coda, xtable, gghighcontrast, superdiag,ggpubr,cowplot)})
+library(tidyverse)
+library(here)
+library(pomp)
+library(foreach)
+library(doFuture)
+library(parallel)
+library(doParallel)
+library(doRNG)
+library(coda)
+library(mgcv)
+library(dplyr)
+library(ggthemes)
+options(scipen = 999)
+base_colors <- scales::hue_pal()(18)
+dark_colors <- colorspace::darken(base_colors, 0.3)
+lite_colors <- colorspace::lighten(base_colors, 0.3)
+colors = c("#000000","#31E1F7","#F99417","#E11299","#002B5B",
+           "#379237","#D2001A","#6F38C5","#8D7B68","#BFDB38",
+           "#820000","#367E18","#2192FF","#C58940")
+```
+
+```{r warning=FALSE, message=FALSE, fig.height=7 ,fig.width=12}
+data = read.csv("~/Documents/MUN/Thesis Samples/SEARCH-ID-MODEL/searchid/macpan2/data/covid19-download(4).csv")
+
+data2 = read.csv("~/Documents/MUN/Thesis Samples/SEARCH-ID-MODEL/searchid/macpan2/data/covid19-download(5).csv")
+dataNL = filter(data,prname=="Newfoundland and Labrador")
+
+nl_omicron_data <- read.csv("~/Documents/MUN/Thesis Samples/SEARCH-ID-MODEL/searchid/macpan2/data/NLDataB4March18.csv")
+fd <- read.csv("~/Documents/MUN/Thesis Samples/SEARCH-ID-MODEL/searchid/macpan2/data/nl_covid_two_peak_data.csv")
+
+######
+
+data2 = data2%>%filter(date>"2021-12-14")%>%filter(date<"2022-03-18")%>%select(prname,date,ratetotal,numtotal,numtoday,avgtotal_last7)%>%mutate(percent = ratetotal/1000)
+
+data.ATL = data2%>%filter(prname=="Newfoundland and Labrador"|prname=="New Brunswick"|prname=="Prince Edward Island"|prname=="Nova Scotia")
+data.ATL$date <- as.Date(data.ATL$date, format = "%Y-%m-%d")
+
+data.west = data2%>%filter(prname=="Saskatchewan"|prname=="Alberta"|prname=="British Columbia"|prname=="Manitoba")
+data.west$date <- as.Date(data.west$date, format = "%Y-%m-%d")
+
+data.central = data2%>%filter(prname=="Ontario"|prname=="Quebec")
+data.central$date <- as.Date(data.central$date, format = "%Y-%m-%d")
+
+
+data.ATL |>
+  dplyr::select(c("date","prname","percent")) |>
+  reshape2:: melt(id = c("prname", "date")) |>
+  ggplot(aes(x=date, y = value, color = prname, group = prname)) +
+  labs(x = "Dates", y = "Percent (%)")+
+  scale_x_date(date_breaks = "1 week", date_labels =  "%d-%b-%Y") +
+  geom_point(fill = "gray",shape = 8, show.legend = TRUE)+
+  geom_smooth(se = FALSE, size = 0.5, span = 0.15, linetype = 6) +
+  scale_color_manual(name = NULL,values = c("green","gold4","purple","red")) +
+  theme_clean()+
+  theme(axis.text.x = element_text(size = 15, angle = 45,hjust = 1), axis.title.x = element_text(size = 15,color = "black", face = "bold"),
+        axis.text.y = element_text(size = 15), axis.title.y = element_text(size = 15,color = "black",face = "bold" ),
+        plot.title = element_text(size = 15, face = "bold", color = "black",hjust = 0.5),
+        legend.position = c(0.65, 0.85),
+        legend.title = element_text(size = 0),
+        legend.background = element_rect(color = NA),
+        legend.margin = margin(0,0,0,0),
+        plot.background = element_blank())+
+  ggtitle("Cumulative Percentage of COVID-19 Cases in Atlantic Canada and Territories (AC-T)") +
+  theme(plot.title = element_text(hjust = 0.5)) -> p
+p
+# p2<-ggplot(data.west, aes(x=date, y=percent, color = prname, group = prname)) +
+#   geom_line(aes(color=prname))+ylim(c(0,15))
+
+data.west |>
+  dplyr::select(c("date","prname","percent")) |>
+  reshape2:: melt(id = c("prname", "date")) |>
+  ggplot(aes(x=date, y = value, color = prname, group = prname)) +
+  labs(x = "Dates", y = "Percent (%)")+
+  scale_x_date(date_breaks = "1 week", date_labels =  "%d-%b-%Y") +
+  geom_point(fill = "gray",shape = 8, show.legend = TRUE)+
+  geom_smooth(se = FALSE, size = 0.5, span = 0.15, linetype = 6) +
+  scale_color_manual(name = NULL,values = c("green","gold4","purple","red")) +
+  theme_clean()+
+  theme(axis.text.x = element_text(size = 15, angle = 45,hjust = 1), axis.title.x = element_text(size = 15,color = "black", face = "bold"),
+        axis.text.y = element_text(size = 15), axis.title.y = element_text(size = 15,color = "black",face = "bold" ),
+        plot.title = element_text(size = 15, face = "bold", color = "black",hjust = 0.5),
+        legend.position = c(0.25, 0.75),
+        legend.title = element_text(size = 0),
+        legend.background = element_rect(color = NA),
+        legend.margin = margin(0,0,0,0),
+        plot.background = element_blank())+
+  ggtitle("Cumulative Percentage of COVID-19 Cases in Western Canada") +
+  theme(plot.title = element_text(hjust = 0.5)) -> p2
+p2
+
+# p3<-ggplot(data.central, aes(x=date, y=percent, color = prname, group = prname)) +
+#   geom_line(aes(color=prname))+ylim(c(0,15))
+
+data.central |>
+  dplyr::select(c("date","prname","percent")) |>
+  reshape2:: melt(id = c("prname", "date")) |>
+  ggplot(aes(x=date, y = value, color = prname, group = prname)) +
+  labs(x = "Dates", y = "Percent (%)")+
+  scale_x_date(date_breaks = "1 week", date_labels =  "%d-%b-%Y") +
+  geom_point(fill = "gray",shape = 8, show.legend = TRUE)+
+  geom_smooth(se = FALSE, size = 0.5, span = 0.15, linetype = 6) +
+  scale_color_manual(name = NULL,values = c("green","gold4","purple","red")) +
+  theme_clean()+
+  theme(axis.text.x = element_text(size = 15, angle = 45,hjust = 1), axis.title.x = element_text(size = 15,color = "black", face = "bold"),
+        axis.text.y = element_text(size = 15), axis.title.y = element_text(size = 15,color = "black",face = "bold" ),
+        plot.title = element_text(size = 15, face = "bold", color = "black",hjust = 0.5),
+        legend.position = c(0.65, 0.85),
+        legend.title = element_text(size = 0),
+        legend.background = element_rect(color = NA),
+        legend.margin = margin(0,0,0,0),
+        plot.background = element_blank())+
+  ggtitle("Cumulative Percentage of COVID-19 Cases in Central Canada") +
+  theme(plot.title = element_text(hjust = 0.5)) -> p3
+p3
+
+# convert data2 date format
+data2$date <- as.Date(data2$date, format = "%Y-%m-%d")
+# create a new column: per100K_last7
+data2 = mutate(data2, per100K_last7 = avgtotal_last7/(numtotal/ratetotal))
+# filter provinces: BC, Ont, Que, Sask and Mb
+data1 = data2 |>
+  filter(prname=="Alberta"|prname=="British Columbia"|prname=="Ontario"|prname=="Quebec"|prname == "Manitoba" | prname == "New Brunswick" | prname == "Nova Scotia")
+
+data1 |>
+  dplyr::select(c("date","prname","per100K_last7")) |>
+  reshape2:: melt(id = c("prname", "date")) |>
+  ggplot(aes(x=date, y = value, color = prname, group = prname)) +
+  labs(x = "Dates", y = "Cases Per 100k")+
+  geom_vline(xintercept = as.Date("2022-01-10"), colour = "darkred", linetype = 2, size = 1)  +
+  geom_vline(xintercept = as.Date("2021-12-21"), colour = "darkblue", linetype = 2, size = 1)  +
+  geom_vline(xintercept = as.Date("2022-01-05"), colour = "#000000", linetype = 2, size = 1)  +
+  geom_vline(xintercept = as.Date("2022-01-04"), colour = "#31E1F7", linetype = 2, size = 1)  +
+  geom_vline(xintercept = as.Date("2021-12-24"), colour = "#E11299", linetype = 2, size = 1)  +
+  geom_vline(xintercept = as.Date("2021-12-30"), colour = "#379237", linetype = 2, size = 1)  +
+  geom_vline(xintercept = as.Date("2022-01-05"), colour = "steelblue", linetype = 2, size = 1)  +
+  scale_x_date(date_breaks = "1 week", date_labels =  "%d-%b-%Y") +
+  geom_point(fill = "gray",shape = 21, show.legend = TRUE)+
+  geom_smooth(se = FALSE, size = 0.5, span = 0.15, linetype = 6) +
+  scale_color_manual(name = NULL,values = c("darkred",  "darkblue", "#000000","#31E1F7","#E11299","#379237","steelblue")) +
+  theme_clean()+
+  theme(axis.text.x = element_text(size = 15, angle = 45,hjust = 1), axis.title.x = element_text(size = 15,color = "black", face = "bold"),
+        axis.text.y = element_text(size = 15), axis.title.y = element_text(size = 15,color = "black",face = "bold" ),
+        plot.title = element_text(size = 15, face = "bold", color = "black",hjust = 0.5),
+        legend.position = c(0.85, 0.85),
+        legend.title = element_text(size = 0),
+        legend.background = element_rect(color = NA),
+        legend.margin = margin(0,0,0,0),
+        plot.background = element_blank())+
+  ggtitle("PCR Testing of High-Risk Individuals Only Beginning Jan 10, 2022 or Earlier.") +
+  theme(plot.title = element_text(hjust = 0.5)) -> p4
+p4
+
+data3 = data2 |>
+  filter(prname=="Newfoundland and Labrador"|prname=="Saskatchewan"|prname=="Prince Edward Island")
+
+data3 |>
+  dplyr::select(c("date","prname","per100K_last7")) |>
+  reshape2:: melt(id = c("prname", "date")) |>
+  ggplot(aes(x=date, y = value, color = prname, group = prname)) +
+  labs(x = "Dates", y = "Cases Per 100k")+
+  geom_vline(xintercept = as.Date("2022-02-03"), colour = "gold4", linetype = 2, size = 1)  +
+  scale_x_date(date_breaks = "1 week", date_labels =  "%d-%b-%Y") +
+  geom_point(fill = "gray",shape = 21, show.legend = TRUE)+
+  geom_smooth(se = FALSE, size = 0.5, span = 0.15, linetype = 6) +
+  scale_color_manual(name = NULL,values = c("red","#D6E4E5","gold4","#F7E2E2","gray","green","purple","red", "blue")) +
+  theme_clean()+
+  theme(axis.text.x = element_text(size = 15, angle = 45,hjust = 1), axis.title.x = element_text(size = 15,color = "black", face = "bold"),
+        axis.text.y = element_text(size = 15), axis.title.y = element_text(size = 15,color = "black",face = "bold" ),
+        plot.title = element_text(size = 15, face = "bold", color = "black",hjust = 0.5),
+        legend.position = c(0.25, 0.75),
+        legend.title = element_text(size = 0),
+        legend.background = element_rect(color = NA),
+        legend.margin = margin(0,0,0,0),
+        plot.background = element_blank())+
+  ggtitle("PCR Testing of High-Risk Individuals Only Beginning Feb 3, 2022 or Earlier.") +
+  theme(plot.title = element_text(hjust = 0.5)) -> p5
+p5
+
+```
+
+```{r warning=FALSE, message=FALSE, fig.height= 8 ,fig.width=20}
+atl_rest_can <- plot_grid(p4, p5, ncol = 2, labels=c("A", "B"),align = "h")
+atl_rest_can
+```
+
+```{r warning=FALSE, message=FALSE, fig.height=5 ,fig.width=12}
+tests_perf <- fd
+dates <- seq.Date(from = as.Date("2021-12-15"), by = "day", length.out = 170)
+tests_perf['Date'] <- dates
+tests_perf <- subset(tests_perf, select =c("Date", "test_roll3"))
+tests_perf$test_roll3[tests_perf$test_roll3 == 0]  = as.integer(mean(tests_perf$test_roll3))
+tests_perf |>
+  ggplot(aes(x = Date, y = test_roll3)) +
+  geom_rect(aes(xmin=ymd('2022-03-14'), xmax = ymd('2022-06-02'), ymin = -Inf, ymax = Inf), fill = adjustcolor("#F7E2E2", alpha = 0.01), alpha = 0.05) +
+  geom_rect(aes(xmin=ymd('2021-12-15'), xmax = ymd('2022-03-18'), ymin = -Inf, ymax = Inf), fill = adjustcolor("#D6E4E5", alpha = 0.03), alpha = 0.05) +
+
+  geom_line(linetype = 6, color = "black", size = 1) +
+  geom_point(color = "gold4",shape = 23, show.legend = TRUE)+
+  scale_x_date(date_breaks = "1 weeks", date_labels =  "%d %b %Y") +
+  scale_color_manual(name = NULL,values = c("purple")) +
+  geom_vline(xintercept = as.Date("2022-01-04"), colour = "red", linetype = 2, size = 1.5)  +
+  geom_vline(xintercept = as.Date("2022-01-27"), colour = "red", linetype = 2, size = 1.5)  +
+  geom_vline(xintercept = as.Date("2022-03-18"), colour = "red", linetype = 2, size = 1.5)  +
+  ylab('Number of Tests') +
+  geom_smooth(se = TRUE,span = 0.1, fill = "#81B214", linetype=0)+
+  annotate("text", x = as.Date("2022-01-01"), y = 7800, label = "1st Test Criteria Change",size = 5,angle = 90, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-01-08"), y = 3000, label = "2nd Test Criteria Change",size = 5,angle = 90, hjust = 1,color = "black")+
+  annotate("text", x = as.Date("2022-03-10"), y = 5000, label = "3rd Test Criteria Change",size = 5,hjust = 1, color = "black")+
+   annotate("text", x = as.Date("2022-04-28"), y = 6000, label = "Out-of-Sample-Data\n(Restrictive Testing)",size = 5, hjust = 1, color = "black")+
+  theme_clean() +
+  coord_cartesian(ylim = c(0, 7500)) +
+  theme(axis.text.x = element_text(size = 15, angle = 70,hjust = 1), axis.title.x = element_text(size = 15,color = "black", face = "bold"),
+          axis.text.y = element_text(size = 15), axis.title.y = element_text(size = 15,color = "black",face = "bold" ),
+          plot.title = element_text(size = 15, face = "bold", color = "black",hjust = 0.5),
+          legend.position = c(0.85, 0.85),
+          legend.title = element_text(size = 0),
+          legend.background = element_rect(color = NA),
+          legend.margin = margin(0,0,0,0),
+          plot.background = element_blank())+
+    ggtitle("NL Daily Tests Performed") +
+    theme(plot.title = element_text(hjust = 0.5)) -> testsperf_plot
+testsperf_plot
+```
+
+```{r warning=FALSE, message=FALSE, fig.height=10 ,fig.width=20}
+cases_perf <- fd
+dates <- seq.Date(from = as.Date("2021-12-15"), by = "day", length.out = 170)
+cases_perf['Date'] <- dates
+cases_perf <- subset(cases_perf, select =c("Date", "cases"))
+cases_perf |>
+  ggplot(aes(x = Date, y = cases)) +
+  geom_rect(aes(xmin=ymd('2022-03-14'), xmax = ymd('2022-06-02'), ymin = -Inf, ymax = Inf), fill = adjustcolor("#F7E2E2", alpha = 0.01), alpha = 0.05) +
+  geom_rect(aes(xmin=ymd('2021-12-15'), xmax = ymd('2022-03-18'), ymin = -Inf, ymax = Inf), fill = adjustcolor("#D6E4E5", alpha = 0.03), alpha = 0.05) +
+
+  geom_line(linetype = 6, color = "#4C4B16", size = 1) +
+  geom_point(color = "#470D21",shape = 8, show.legend = TRUE)+
+  scale_x_date(date_breaks = "1 weeks", date_labels =  "%d %b %Y") +
+  scale_color_manual(name = NULL,values = c("purple")) +
+  geom_vline(xintercept = as.Date("2021-12-23"), colour = "red", linetype = 2, size = 1.5)  +
+  geom_vline(xintercept = as.Date("2022-01-03"), colour = "red", linetype = 2, size = 1.5)  +
+  geom_vline(xintercept = as.Date("2022-02-06"), colour = "red", linetype = 2, size = 1.5)  +
+  geom_vline(xintercept = as.Date("2022-03-13"), colour = "red", linetype = 2, size = 1.5)  +
+  ylab('Reported BA.1 Cases') +
+  geom_smooth(se = TRUE,span = 0.1, fill = "#FF5722", linetype=0)+
+  annotate("text", x = as.Date("2021-12-18"), y = 400, label = "Alert Level 2",size = 5,angle = 90, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2021-12-28"), y = 700, label = "Alert Level 3",size = 5,angle = 90, hjust = 1,color = "black")+
+  annotate("text", x = as.Date("2022-02-01"), y = 600, label = "Alert Level 4",size = 5,angle = 0, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-03-04"), y = 750, label = "Alert Level 3",size = 5,angle = 0, hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-04-28"), y = 600, label = "Alert Level 1\n\nOut-of-Sample-Data",size = 5, hjust = 1, color = "black")+
+  theme_clean() +
+  coord_cartesian(ylim = c(0, 1000)) +
+  theme(axis.text.x = element_text(size = 15, angle = 70,hjust = 1), axis.title.x = element_text(size = 15,color = "black", face = "bold"),
+          axis.text.y = element_text(size = 15), axis.title.y = element_text(size = 15,color = "black",face = "bold" ),
+          plot.title = element_text(size = 15, face = "bold", color = "black",hjust = 0.5),
+          legend.position = c(0.85, 0.85),
+          legend.title = element_text(size = 0),
+          legend.background = element_rect(color = NA),
+          legend.margin = margin(0,0,0,0),
+          plot.background = element_blank())+
+    ggtitle("NL Daily BA.1 Omicron Cases") +
+    theme(plot.title = element_text(hjust = 0.5)) -> casesplot
+casesplot
+```
+
+```{r warning=FALSE, message=FALSE, fig.height=5 ,fig.width=12}
+newdata <- fd
+newdata$test_roll3[newdata$test_roll3 == 0]  = as.integer(mean(newdata$test_roll3))
+
+newdata['test_positivity'] = newdata['cases'] / newdata['test_roll3']
+dates <- seq.Date(from = as.Date("2021-12-15"), by = "day", length.out = 170)
+newdata['Date'] <- dates
+newdata <- subset(newdata, select =c("Date", "test_positivity"))
+
+newdata |>
+  ggplot(aes(x = Date, y = test_positivity)) +
+  geom_rect(aes(xmin=ymd('2022-03-14'), xmax = ymd('2022-06-02'), ymin = -Inf, ymax = Inf), fill = adjustcolor("#F7E2E2", alpha = 0.01), alpha = 0.05) +
+    geom_rect(aes(xmin=ymd('2021-12-15'), xmax = ymd('2022-03-18'), ymin = -Inf, ymax = Inf), fill = adjustcolor("#D6E4E5", alpha = 0.03), alpha = 0.05) +
+
+  geom_line(linetype = 6, color = "black", size = 1) +
+  geom_point(fill = "purple",shape = 1, show.legend = TRUE)+
+  scale_x_date(date_breaks = "1 weeks", date_labels =  "%d %b %Y") +
+  scale_color_manual(name = NULL,values = c("purple")) +
+  geom_vline(xintercept = as.Date("2022-01-04"), colour = "#DF2E38", linetype = 2, size = 1.5)  +
+  geom_vline(xintercept = as.Date("2022-01-27"), colour = "#DF2E38", linetype = 2, size = 1.5)  +
+  geom_vline(xintercept = as.Date("2022-03-14"), colour = "#DF2E38", linetype = 2, size = 1.5)  +
+  ylab('Test Positivity Rate') +
+  geom_smooth(se = TRUE,span = 0.05, linetype=0, fill = "#005082")+
+  annotate("text", x = as.Date("2022-01-03"), y = 0.35, label = "1st Change in Test Eligibility",angle = 45,size = 5,hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-01-25"), y = 0.45, label = "2nd Change in Test Eligibility",angle = 45,size = 5,hjust = 1,color = "black")+
+  annotate("text", x = as.Date("2022-03-03"), y = 0.5, label = "3rd Change in Test Eligibility",size = 5,hjust = 1, color = "black")+
+  annotate("text", x = as.Date("2022-04-28"), y = 0.42, label = "Out-of-Sample-Data\n(Restrictive Testing)",size = 5, hjust = 1, color = "black")+
+  theme_clean() +
+  coord_cartesian(ylim = c(0, 0.5)) +
+  theme(axis.text.x = element_text(size = 15, angle = 70,hjust = 1), axis.title.x = element_text(size = 15,color = "black", face = "bold"),
+          axis.text.y = element_text(size = 15), axis.title.y = element_text(size = 15,color = "black",face = "bold" ),
+          plot.title = element_text(size = 15, face = "bold", color = "black",hjust = 0.5),
+          legend.position = c(0.85, 0.85),
+          legend.title = element_text(size = 0),
+          legend.background = element_rect(color = NA),
+          legend.margin = margin(0,0,0,0),
+          plot.background = element_blank())+
+    ggtitle("NL BA.1 Omicron Test Positivity Rate") +
+    theme(plot.title = element_text(hjust = 0.5)) -> testposotivity
+testposotivity
+```
+
+```{r warning=FALSE, message=FALSE, fig.height= 15 ,fig.width=25}
+cases_test <- plot_grid(testsperf_plot, casesplot, ncol = 2, labels=c("A", "B"),align = "hv")
+cases_test_plot <- plot_grid(cases_test, testposotivity, nrow = 2, rel_heights = c(1, 1, 1),labels=c("", "C"))
+cases_test_plot
+```
+
+```{r warning=FALSE, message=FALSE, fig.height= 15 ,fig.width=18}
+cases_test <- plot_grid(testsperf_plot, casesplot, ncol = 1, labels=c("A", "B"),align = "h")
+# cases_test_plot <- plot_grid(cases_test, testposotivity, nrow = 2, rel_heights = c(1, 1, 1),labels=c("", "C"))
+cases_test
+```
+
+
+```{r warning=FALSE, message=FALSE, fig.height= 5 ,fig.width=8}
+# Load required libraries
+library(ggplot2)
+library(dplyr)
+library(readr)
+library(tidyr)
+library(scales)
+
+# Load the dataset
+url <- "https://raw.githubusercontent.com/CoVaRR-NET/duotang/refs/heads/main/downloads/BA.1.tsv"
+df <- read_tsv(url)
+
+# Convert date column to Date type
+df$Date <- as.Date(df$Date)
+
+# Convert '% Frequency' column to numeric by removing "%" and dividing by 100
+df$Frequency_Decimal <- as.numeric(gsub("%", "", df$`% Frequency`)) / 100
+
+# Remove unnecessary columns
+df <- df %>% select(Date, Lineage, Frequency_Decimal)
+
+# Remove rows with zero frequencies
+df <- df %>% filter(Frequency_Decimal > 0)
+
+# Subset data from Dec 15, 2021 to May 26, 2022
+df <- df[(df$Date >= "2021-12-13") & (df$Date <= "2022-06-10"),]
+
+
+# Define manually selected colors for each lineage
+lineage_colors <- c(
+  "BA.1.1" = "#E41A1C",  # Red
+  "BA.1" = "#4DAF4A",  # Green
+  "BA.1.17.2" = "#377EB8",  # Blue
+  "BA.1.15" = "#984EA3",  # Purple
+  "BA.1.1.16" = "#FF7F00",  # Orange
+  "BA.1.20" = "#A65628",  # Brown
+  "BA.1.1.10" = "#F781BF",  # Pink
+  "BA.1.17" = "#00BFFF",  # Light Blue
+  "BA.1.1.6" = "#A6CEE3",  # Light Cyan
+  "BA.1.1.18" = "#FDBF6F",  # Light Orange
+  "BA.1.14" = "#B2DF8A",  # Light Green
+  "BA.1.3" = "#999999",  # Gray
+  "other lineages" = "#333333"  # Dark Gray
+)
+
+# Create stacked bar plot with manually set colors
+ggplot(df, aes(x = Date, y = Frequency_Decimal, fill = Lineage)) +
+  geom_bar(stat = "identity", position = "stack") +
+  scale_x_date(date_labels = "%b %Y", date_breaks = "week") +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  scale_fill_manual(values = lineage_colors) +  # Apply manual colors
+  labs(title = "Omicron BA.1 Lineage Distribution Over Time",x = "Date",y = "Sequence Cases Per Week (Fraction)",fill = "Lineages") +
+  theme_clean() +
+  theme(axis.text.x = element_text(size = 8, angle = 90, hjust = 0.5),
+        axis.title.x = element_text(size = 10, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 8),
+        axis.title.y = element_text(size = 10, color = "black", face = "bold"),
+        plot.title = element_text(size = 12, face = "bold", color = "black", hjust = 0.5),
+        legend.position = "right",
+        legend.title = element_text(size = 0),
+        legend.text = element_text(size = 8),
+        legend.background = element_rect(color = NA),
+        legend.margin = margin(0, 0, 0, 0),
+        plot.background = element_blank()) 
+
+
+```
+
