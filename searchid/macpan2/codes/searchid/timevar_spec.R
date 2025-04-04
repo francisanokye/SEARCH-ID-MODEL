@@ -15,13 +15,8 @@ reporting_probs = (csvRead()
 	)
 )
 
-print(reporting_probs)
-
 report_prob_ts <- reporting_probs$prob
 report_prob_cp = as.integer(reporting_probs$Date - as.Date(start_date))
-print(report_prob_cp)
-
-print(head(reporting_probs))
 
 nspec <- rdsRead()
 
@@ -37,7 +32,7 @@ if(reporting_delay){
 timevar_spec = mp_tmb_insert_reports(timevar_spec
   , incidence_name = "exposure"
   , report_prob = 0.5
-  , mean_delay = 1
+  , mean_delay = 11
   , cv_delay = 0.95
   , reports_name = "cases"
   , report_prob_name = "report_prob"

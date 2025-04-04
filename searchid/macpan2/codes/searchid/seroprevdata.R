@@ -25,15 +25,13 @@ serodat <- (sero
 	%>% arrange(matrix)
 )
 
-serodat <- (serodat
-	|> mutate(value = ifelse((matrix == "cases")& (dates > as.Date(trim_report)),NA,value)
-	)
-	|> group_by(matrix)
-	|> mutate(rollavg = round(rollmean(value,7,align="left",fill=NA))
-		, value = ifelse(matrix == "cases", rollavg, value)
-		)
-	|> filter(!is.na(value))
-)
+#serodat <- (serodat
+#	|> mutate(value = ifelse((matrix == "cases")& (dates > as.Date(trim_report)),NA,value)
+#	)
+#	|> group_by(matrix)
+#	|> mutate(rollavg = round(rollmean(value,7,align="left",fill=NA)), value = ifelse(matrix == "cases", rollavg, value))
+#	|> filter(!is.na(value))
+#)
 
 print(serodat,n=Inf)
 

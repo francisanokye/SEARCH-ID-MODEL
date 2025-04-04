@@ -29,8 +29,12 @@ beta_values$alert_level <- factor(beta_values$alert_level, levels = names(alert_
 
 beta_values <- beta_values[c("dates","alert_level","value")]
 
+print(beta_values)
+
 betaplot <- (ggplot() +
+  geom_rect(data = beta_values,aes(xmin=ymd('2022-03-18'), xmax = ymd('2022-05-26'), ymin = -Inf, ymax = Inf), fill = adjustcolor("#F7E2E2", alpha = 0.03), alpha = 0.05) + 
   geom_smooth(data = beta_values, aes(x = dates, y = value, color = "darkgray"), span = 0.15, alpha = 0.7, linewidth = 1.5) +
+  #geom_ribbon(data = beta_values, aes(ymin = mean_beta - sd_beta, ymax = mean_beta + sd_beta), fill = "green", alpha = 0.35)+
   geom_line(data = beta_values, aes(x = dates, y = value, color = alert_level), linewidth = 1.5) +
   labs(title = "Transmission Rates Across Time",x = "Date (Dec 15, 2021 - May 26, 2022)",y = expression(""*beta*"")) +
   scale_color_manual(values = alert_colors, guide = "none") + 
@@ -39,7 +43,6 @@ betaplot <- (ggplot() +
   geom_vline(data = beta_values, aes(xintercept = as.Date("2022-01-06")), colour = "gold4", linetype = 4, linewidth = 1) +
   geom_vline(data = beta_values, aes(xintercept = as.Date("2022-02-06")), colour = "gold4", linetype = 4, linewidth = 1) +
   geom_vline(data = beta_values, aes(xintercept = as.Date("2022-03-14")), colour = "gold4", linetype = 1, linewidth = 1) +
-  geom_vline(data = beta_values, aes(xintercept = as.Date("2022-03-18")), colour = "purple", linetype = 6, linewidth = 1) +
   theme(
     axis.text.x = element_text(size = 12, hjust = 1, angle = 45),
     axis.title.x = element_text(size = 12, color = "black", face = "bold"),
@@ -86,4 +89,6 @@ combined_plot <- (betaplot | alert_errorplot) +
 
 # Print the final combined plot
 print(combined_plot)
+
+ggsave("extract_beta.png", plot = combined_plot, width = 12, height = 6, dpi = 300)
 

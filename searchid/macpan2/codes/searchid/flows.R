@@ -3,7 +3,7 @@ library(shellpipes)
 
 flows = list(
 #    beta ~ beta_baseline * beta_deviation
-  foi ~  beta * (zeta * (A1 + A2 + A3) + (I1 + I2 + I3) * tau) / N
+  foi ~  beta * (zeta * (A1 + A2 + A3) + (I1 + I2 + I3) * (1-zeta)) / N
   , mp_per_capita_flow("S1", "E1", exposure1 ~ kappa1 * foi)
   , mp_per_capita_flow("E1", "I1", infect_symp1 ~ sigma * mu)
   , mp_per_capita_flow("E1", "A1", infect_asymp1 ~ sigma * (1-mu))

@@ -12,16 +12,14 @@ kappa2 = 0.91
 kappa3 = 0.3
 gamma = 1/14 
 sigma = 1/3
-mu = 0.6 
-
-tau = 0.799 
+mu = 0.324  
 zeta = 0.75 
-v2 = 0.2828 
-v3 = 0.1359
+v2 = 1/21# (0.047) #0.2828 
+v3 = 1/154 #(0.006) #0.1359
 
-xi1 = 0.015 
-xi2 = 0.015 
-xi3 = 0.015
+xi1 = 0.009#0.015 
+xi2 = 0.009#0.015 
+xi3 = 0.009#0.015
             
 eta1 = 1/5.5 
 eta2 = 1/5.5 
@@ -31,9 +29,9 @@ phi1 = 1/5
 phi2 = 1/5
 phi3 = 1/5 
 
-theta1 = 0.07 
-theta2 = 0.05 
-theta3 = 0.025
+theta1 = 0.005#0.07 
+theta2 = 0.005#0.05 
+theta3 = 0.005#0.025
                
 omega1 = 1/7 
 omega2 =  1/7 
@@ -82,7 +80,7 @@ off <- 20
 params = list(beta= beta
 	, report_prob = report_prob, kappa1 = kappa1, kappa2 = kappa2, kappa3 = kappa3
 	, gamma = gamma, sigma = sigma, mu = mu
-	, tau = tau, zeta = zeta, v2 = v2, v3 = v3
+	, zeta = zeta, v2 = v2, v3 = v3
 	, xi1 = xi1, xi2 = xi2, xi3 = xi3, eta1 = eta1, eta2 = eta2, eta3 = eta3
 	, phi1 = phi1, phi2 = phi2, phi3 = phi3, theta1 = theta1, theta2 = theta2
 	, theta3 = theta3

@@ -38,7 +38,7 @@ spec <- mp_tmb_model_spec(
 
 newspec <- mp_tmb_update(spec
 			 , default = list(kappa1 = kappa1, kappa2 = kappa2, kappa3 = kappa3, gamma = gamma, sigma = sigma, mu = mu,
-              tau = tau, zeta = zeta, v2 = v2, v3 = v3, xi1 = xi1, xi2 = xi2, xi3 = xi3, eta1 = eta1, eta2 = eta2, eta3 = eta3,
+              zeta = zeta, v2 = v2, v3 = v3, xi1 = xi1, xi2 = xi2, xi3 = xi3, eta1 = eta1, eta2 = eta2, eta3 = eta3,
               phi1 = phi1, phi2 = phi2, phi3 = phi3, theta1 = theta1, theta2 = theta2, theta3 = theta3,
               omega1 = omega1, omega2 = omega2, omega3 = omega3, lambda1 = lambda1, lambda2 = lambda2, lambda3 = lambda3
 				  , S0prop = S0prop
