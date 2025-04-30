@@ -28,8 +28,8 @@ fitted_data <- (fitted_data
 	|> dplyr::filter(between(dates, as.Date(start_date), as.Date(last_date)))
 	|> dplyr::filter(matrix %in% c("beta","cases", "report_prob","serop"))
 )
-
-#write.csv(fitted_data, "~/Documents/MUN/Thesis Samples/SEARCH-ID-MODEL/searchid/macpan2/data/elig2_fitted_data.csv", row.names = FALSE)
+# remember to manually change the name of the file depending on the reporting probability been used 
+write.csv(fitted_data, "~/Documents/MUN/Thesis Samples/SEARCH-ID-MODEL/searchid/macpan2/data/elig2_fitted_data.csv", row.names = FALSE)
 
 # subset data for "report_prob"
 fitted_data_report_prob <- dplyr::filter(fitted_data, matrix == "report_prob")
@@ -88,9 +88,9 @@ pp <- pp + geom_vline(data = fitted_data_report_prob, aes(xintercept = as.Date("
            geom_vline(data = fitted_data_report_prob, aes(xintercept = as.Date("2022-03-16")), colour = "gray", linetype = 1, linewidth = 1) 
  
 # Add geom_vline for the rest of the facets (excluding "report_prob") 
-pp <- pp + geom_vline(data = fitted_data_others, aes(xintercept = as.Date("2021-12-23")), colour = "gold4", linetype = 4, linewidth = 1) + 
-           geom_vline(data = fitted_data_others, aes(xintercept = as.Date("2022-01-03")), colour = "gold4", linetype = 4, linewidth = 1) + 
-           geom_vline(data = fitted_data_others, aes(xintercept = as.Date("2022-02-06")), colour = "gold4", linetype = 4, linewidth = 1) + 
+pp <- pp + geom_vline(data = fitted_data_others, aes(xintercept = as.Date("2021-12-24")), colour = "gold4", linetype = 4, linewidth = 1) + 
+           geom_vline(data = fitted_data_others, aes(xintercept = as.Date("2022-01-08")), colour = "gold4", linetype = 4, linewidth = 1) + 
+           geom_vline(data = fitted_data_others, aes(xintercept = as.Date("2022-02-07")), colour = "gold4", linetype = 4, linewidth = 1) + 
            geom_vline(data = fitted_data_others, aes(xintercept = as.Date("2022-03-14")), colour = "gold4", linetype = 1, linewidth = 1) 
 print(pp)
 

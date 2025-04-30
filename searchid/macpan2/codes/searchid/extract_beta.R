@@ -21,7 +21,7 @@ fitted_data <- (fitted_data
 
 beta_values <- dplyr::filter(fitted_data, matrix %in% c("beta"))
 
-beta_values$alert_level <- rep(c('ALS-2', 'ALS-3', 'ALS-4', 'Mod-ALS-3', 'No-ALS'), times = c(10, 15, 30, 38, 70))
+beta_values$alert_level <- rep(c('ALS-2', 'ALS-3', 'ALS-4', 'Mod-ALS-3', 'No-ALS'), times = c(10, 15, 30, 35, 73))
 
 alert_colors <- c("No-ALS" = "darkgray", "ALS-2" = "brown", "ALS-3" = "#009E73", "Mod-ALS-3" = "orange", "ALS-4" = "blue")
 
@@ -39,9 +39,9 @@ betaplot <- (ggplot() +
   labs(title = "Transmission Rates Across Time",x = "Date (Dec 15, 2021 - May 26, 2022)",y = expression(""*beta*"")) +
   scale_color_manual(values = alert_colors, guide = "none") + 
   theme_clean() +
-  geom_vline(data = beta_values, aes(xintercept = as.Date("2021-12-23")), colour = "gold4", linetype = 4, linewidth = 1) +
-  geom_vline(data = beta_values, aes(xintercept = as.Date("2022-01-06")), colour = "gold4", linetype = 4, linewidth = 1) +
-  geom_vline(data = beta_values, aes(xintercept = as.Date("2022-02-06")), colour = "gold4", linetype = 4, linewidth = 1) +
+  geom_vline(data = beta_values, aes(xintercept = as.Date("2021-12-24")), colour = "gold4", linetype = 4, linewidth = 1) +
+  geom_vline(data = beta_values, aes(xintercept = as.Date("2022-01-08")), colour = "gold4", linetype = 4, linewidth = 1) +
+  geom_vline(data = beta_values, aes(xintercept = as.Date("2022-02-07")), colour = "gold4", linetype = 4, linewidth = 1) +
   geom_vline(data = beta_values, aes(xintercept = as.Date("2022-03-14")), colour = "gold4", linetype = 1, linewidth = 1) +
   theme(
     axis.text.x = element_text(size = 12, hjust = 1, angle = 45),

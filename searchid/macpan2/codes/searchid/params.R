@@ -68,7 +68,7 @@ D30 = 0
 
 S0prop = 0.15
 V2prop = 0.3
-V3prop = 0.55
+V3prop = 0.56
 
 S10 = S0prop * N  - (E10 - A10 - R10 - C10 - H10 - I10 -D10)
 V20 = V2prop * N  - (E20 - A20 - R20 - C20 - H20 - I20 -D20)
